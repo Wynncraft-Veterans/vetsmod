@@ -9,7 +9,7 @@ What each test under [`src/test/java/org/wynnvets/`](../src/test/java/org/wynnve
 
 Each class section names the test file and its subject and says what the suite as a whole pins down. Where the class has assertion helpers, it says what each one checks. Then it lists every `@Test` method in file order: a one-line summary, and beneath it one bullet per assertion statement in source order, giving the expression, the relation and the expected value. Bullets that cover several parallel statements list every input and its expected result. A test with no assertion statement says what makes it pass.
 
-When you add, rename or delete a test, or change what it asserts, update its entry here in the same commit.
+When you add, rename or delete a test, or change what it asserts, update its entry here in the same commit. `tools/check-doc-counts.sh --tests` compares the test names with the entries here in both directions (it also runs as part of the script's default run): every `@Test`, `@ParameterizedTest` and `@RepeatedTest` method has an entry under its class, every entry is a test or a helper the class declares, and every class heading has a test file, an index line and a resolving `Test:` link.
 
 ## Packages
 
@@ -22,6 +22,8 @@ When you add, rename or delete a test, or change what it asserts, update its ent
 - [`org.wynnvets.config`](#orgwynnvetsconfig) — [`NamedColorTest`](#namedcolortest), [`ShippedConfigTest`](#shippedconfigtest), [`VetsConfigDefaultsTest`](#vetsconfigdefaultstest), [`VetsConfigKeysTest`](#vetsconfigkeystest), [`VetsConfigSchemaTest`](#vetsconfigschematest)
 - [`org.wynnvets.datamodels`](#orgwynnvetsdatamodels) — [`UserTest`](#usertest)
 - [`org.wynnvets.debug.anni`](#orgwynnvetsdebuganni) — [`AnniDebugCommandsTest`](#annidebugcommandstest)
+- [`org.wynnvets.debug.dump`](#orgwynnvetsdebugdump) — [`LiveItemModelsTest`](#liveitemmodelstest)
+- [`org.wynnvets.debug.retro`](#orgwynnvetsdebugretro) — [`AuditModelsTest`](#auditmodelstest), [`RetroDebugCommandsTest`](#retrodebugcommandstest), [`TextureDivergenceTest`](#texturedivergencetest)
 - [`org.wynnvets.distribute`](#orgwynnvetsdistribute) — [`DistributeRunsTest`](#distributerunstest), [`MembersGuiTest`](#membersguitest)
 - [`org.wynnvets.distribute.command`](#orgwynnvetsdistributecommand) — [`NameOrSelectorArgumentTest`](#nameorselectorargumenttest)
 - [`org.wynnvets.distribute.distributor`](#orgwynnvetsdistributedistributor) — [`GraidsDistributorTest`](#graidsdistributortest), [`MemberSlotPresserTest`](#memberslotpressertest), [`ObjectivesDistributorTest`](#objectivesdistributortest), [`RandomDistributorTest`](#randomdistributortest), [`SplitDistributorTest`](#splitdistributortest)
@@ -44,7 +46,14 @@ When you add, rename or delete a test, or change what it asserts, update its ent
 - [`org.wynnvets.mwe.anni.outline`](#orgwynnvetsmweannioutline) — [`AnniOutlinePaletteTest`](#annioutlinepalettetest)
 - [`org.wynnvets.mwe.anni.render`](#orgwynnvetsmweannirender) — [`AnniCommandRendererTest`](#annicommandrenderertest), [`AnniHoverBuilderTest`](#annihoverbuildertest), [`AnniOnboardingBlocksTest`](#annionboardingblockstest), [`AnniStatusSectionsTest`](#annistatussectionstest)
 - [`org.wynnvets.mwe.anni.state`](#orgwynnvetsmweannistate) — [`AnniSnapshotsTest`](#annisnapshotstest), [`AnniWindowsTest`](#anniwindowstest)
-- [`org.wynnvets.rendering.colors`](#orgwynnvetsrenderingcolors) — [`ColorMathTest`](#colormathtest)
+- [`org.wynnvets.rendering.colors`](#orgwynnvetsrenderingcolors) — [`ColorMathTest`](#colormathtest), [`RecoloursTest`](#recolourstest), [`VanillaGuiColorsTest`](#vanillaguicolorstest)
+- [`org.wynnvets.rendering.image`](#orgwynnvetsrenderingimage) — [`PixelDrawingTest`](#pixeldrawingtest), [`PixelsTest`](#pixelstest), [`PngCodecTest`](#pngcodectest)
+- [`org.wynnvets.retro`](#orgwynnvetsretro) — [`LivePackTest`](#livepacktest), [`RetroCommandsTest`](#retrocommandstest), [`RetroModeManagerTest`](#retromodemanagertest), [`WynntilsConfigOverridesTest`](#wynntilsconfigoverridestest)
+- [`org.wynnvets.retro.manifest`](#orgwynnvetsretromanifest) — [`AssetSectionsTest`](#assetsectionstest), [`ManifestParserTest`](#manifestparsertest), [`ModelSectionsTest`](#modelsectionstest), [`PartSectionsTest`](#partsectionstest), [`RetroPartTest`](#retroparttest), [`ScreenSectionsTest`](#screensectionstest), [`ShippedAssetsTest`](#shippedassetstest), [`ShippedEquipmentTest`](#shippedequipmenttest), [`ShippedItemModelsTest`](#shippeditemmodelstest), [`ShippedManifestTest`](#shippedmanifesttest), [`ShippedPartsTest`](#shippedpartstest), [`ShippedPotionsTest`](#shippedpotionstest), [`ShippedScreensTest`](#shippedscreenstest), [`ShippedStacksTest`](#shippedstackstest), [`ShippedTexturesTest`](#shippedtexturestest), [`StackSectionsTest`](#stacksectionstest), [`TextureSectionsTest`](#texturesectionstest)
+- [`org.wynnvets.retro.pack`](#orgwynnvetsretropack) — [`PackFilesTest`](#packfilestest), [`RetroPackInjectorTest`](#retropackinjectortest), [`RetroPackResourcesTest`](#retropackresourcestest)
+- [`org.wynnvets.retro.pack.generate`](#orgwynnvetsretropackgenerate) — [`DrawnArtTest`](#drawnarttest), [`GenerationStepsTest`](#generationstepstest), [`ModelJsonTest`](#modeljsontest), [`PackOutputTest`](#packoutputtest), [`ProgrammerArtSourcesTest`](#programmerartsourcestest), [`RetroPackGeneratorTest`](#retropackgeneratortest), [`TintFactorsTest`](#tintfactorstest)
+- [`org.wynnvets.retro.render`](#orgwynnvetsretrorender) — [`IdentityMemoTest`](#identitymemotest), [`RetroAccessoriesTest`](#retroaccessoriestest), [`RetroContainerTitlesTest`](#retrocontainertitlestest), [`RetroGuardTest`](#retroguardtest), [`RetroHudTest`](#retrohudtest), [`RetroInventoryEffectsTest`](#retroinventoryeffectstest), [`RetroSlotIconsTest`](#retrosloticonstest), [`RetroSlotValuesTest`](#retroslotvaluestest), [`RetroSlotsTest`](#retroslotstest), [`RetroStackModelsTest`](#retrostackmodelstest), [`RetroStacksTest`](#retrostackstest)
+- [`org.wynnvets.retro.rules`](#orgwynnvetsretrorules) — [`ModelRulesTest`](#modelrulestest), [`PartFilterTest`](#partfiltertest), [`RetroAssetIdsTest`](#retroassetidstest), [`RuleUsageTest`](#ruleusagetest), [`TextureRulesTest`](#texturerulestest)
 - [`org.wynnvets.util`](#orgwynnvetsutil) — [`ConfigValueTextTest`](#configvaluetexttest), [`JsonTest`](#jsontest), [`TickDelaysTest`](#tickdelaystest), [`UuidsTest`](#uuidstest)
 
 ## `org.wynnvets`
@@ -1062,12 +1071,12 @@ Asserting helpers:
 
 Tests:
 
-- **`helpPage_withEveryGateTrue_pinsItsThirtySixSiblings`**: With all six gates true, the index page matches the expected sibling tree, including bold gold heading, gray hint, yellow command and gold argument runs, and gray descriptions.
-  - `HelpCommands.buildHelp(true, true, true, true, true, true)` has exactly 36 siblings, all non-bold except the first, in this order (colour: text; trailing `\n` is part of the text): GOLD bold `Commands\n`; GRAY `Use /wv help <command> for details on a specific command.\n\n`; then command rows, each a YELLOW command then GRAY description: `/wv help` / ` - Show this help message\n`; `/wv anni` / ` - Show anni timer; /wv help anni for modes & RSVP\n`; `/wv config ` + GOLD `[<key> [<value>]]` + GRAY ` - View or change mod settings\n`; `/wv motd` / ` - Show the message of the day\n`; `/wv list` / ` - Show online guild members\n`; `/wv list ` + GOLD `<xp|graids>` + GRAY ` - Rank members by all-time guild XP or raids\n`; `/wv list world` / ` - Show online members by world\n`; `/wv staff` / ` - Show online stewards\n`; `/wv distribute ` + GOLD `<name|@selector> <type> <count>` + GRAY ` - Send guild rewards (Chief/Owner)\n`; `/wv return` / ` - Show info about this week's event\n`; `/wv line ` + GOLD `<church|scrap|bat|hegea|lighthouse>` + GRAY ` - Toggle gxp boundary lines\n`; `/wv check ` + GOLD `<player>` + GRAY ` - Look up a potential recruit's info\n`; `/wv laurels ` + GOLD `<update|return>` + GRAY ` - Manage the vets laurels\n`; `/wv debug` / ` - Diagnostics & debug tools` (last row has no trailing newline).
-- **`helpPage_withNoGate_pinsItsThirteenSiblings`**: With all gates false, only the heading, hint, `help`, `anni`, `config`, `motd` and `debug` rows remain, each with exact text and colour.
-  - `HelpCommands.buildHelp(false, false, false, false, false, false)` has exactly 13 siblings: GOLD bold `Commands\n`; GRAY `Use /wv help <command> for details on a specific command.\n\n`; YELLOW `/wv help` + GRAY ` - Show this help message\n`; YELLOW `/wv anni` + GRAY ` - Show anni timer\n`; YELLOW `/wv config ` + GOLD `[<key> [<value>]]` + GRAY ` - View or change mod settings\n`; YELLOW `/wv motd` + GRAY ` - Show the message of the day\n`; YELLOW `/wv debug` + GRAY ` - Diagnostics & debug tools`. No list, list rankings, list world, staff, distribute, return, line, check or laurels rows.
+- **`helpPage_withEveryGateTrue_pinsItsThirtyNineSiblings`**: With all six gates true, the index page matches the expected sibling tree, including bold gold heading, gray hint, yellow command and gold argument runs, and gray descriptions.
+  - `HelpCommands.buildHelp(true, true, true, true, true, true)` has exactly 39 siblings, all non-bold except the first, in this order (colour: text; trailing `\n` is part of the text): GOLD bold `Commands\n`; GRAY `Use /wv help <command> for details on a specific command.\n\n`; then command rows, each a YELLOW command then GRAY description: `/wv help` / ` - Show this help message\n`; `/wv anni` / ` - Show anni timer; /wv help anni for modes & RSVP\n`; `/wv config ` + GOLD `[<key> [<value>]]` + GRAY ` - View or change mod settings\n`; `/wv motd` / ` - Show the message of the day\n`; `/wv retro ` + GOLD `[on|off|parts|only]` + GRAY ` - Show Wynncraft in 2013 Minecraft art\n`; `/wv list` / ` - Show online guild members\n`; `/wv list ` + GOLD `<xp|graids>` + GRAY ` - Rank members by all-time guild XP or raids\n`; `/wv list world` / ` - Show online members by world\n`; `/wv staff` / ` - Show online stewards\n`; `/wv distribute ` + GOLD `<name|@selector> <type> <count>` + GRAY ` - Send guild rewards (Chief/Owner)\n`; `/wv return` / ` - Show info about this week's event\n`; `/wv line ` + GOLD `<church|scrap|bat|hegea|lighthouse>` + GRAY ` - Toggle gxp boundary lines\n`; `/wv check ` + GOLD `<player>` + GRAY ` - Look up a potential recruit's info\n`; `/wv laurels ` + GOLD `<update|return>` + GRAY ` - Manage the vets laurels\n`; `/wv debug` / ` - Diagnostics & debug tools` (last row has no trailing newline).
+- **`helpPage_withNoGate_pinsItsSixteenSiblings`**: With all gates false, only the heading, hint, `help`, `anni`, `config`, `motd`, `retro` and `debug` rows remain, each with exact text and colour.
+  - `HelpCommands.buildHelp(false, false, false, false, false, false)` has exactly 16 siblings: GOLD bold `Commands\n`; GRAY `Use /wv help <command> for details on a specific command.\n\n`; YELLOW `/wv help` + GRAY ` - Show this help message\n`; YELLOW `/wv anni` + GRAY ` - Show anni timer\n`; YELLOW `/wv config ` + GOLD `[<key> [<value>]]` + GRAY ` - View or change mod settings\n`; YELLOW `/wv motd` + GRAY ` - Show the message of the day\n`; YELLOW `/wv retro ` + GOLD `[on|off|parts|only]` + GRAY ` - Show Wynncraft in 2013 Minecraft art\n`; YELLOW `/wv debug` + GRAY ` - Diagnostics & debug tools`. No list, list rankings, list world, staff, distribute, return, line, check or laurels rows.
 - **`gateMatrix_allSixtyFourCombinationsProduceTheirExactRowSet`**: For every combination of the six gates, the ordered command rows equal an independently restated list, so regrouping rows by gate fails.
-  - For each `mask` from 0 to 63 (bits 1, 2, 4, 8, 16, 32 give `anniTools`, `unlocked`, `staff`, `staffOfAnyGuild`, `featuresEnabled`, `confirmedStaff`, in `buildHelp`'s parameter order, so all 64 combinations): `rowsOf(buildHelp(...))` equals `expectedRows(...)` of the last five; `anniTools` changes only a row's text. `rowsOf` collects each YELLOW sibling's text and appends a directly-following non-bold GOLD argument run to the same row. `expectedRows` is, in order: `/wv help`, `/wv anni`, `/wv config [<key> [<value>]]`, `/wv motd`, then `/wv list` and `/wv list <xp|graids>` if `unlocked`, `/wv list world` if `staff`, `/wv staff` if `unlocked`, `/wv distribute <name|@selector> <type> <count>` if `staffOfAnyGuild`, `/wv return` and `/wv line <church|scrap|bat|hegea|lighthouse>` if `featuresEnabled`, `/wv check <player>` and `/wv laurels <update|return>` if `confirmedStaff`, then `/wv debug`.
+  - For each `mask` from 0 to 63 (bits 1, 2, 4, 8, 16, 32 give `anniTools`, `unlocked`, `staff`, `staffOfAnyGuild`, `featuresEnabled`, `confirmedStaff`, in `buildHelp`'s parameter order, so all 64 combinations): `rowsOf(buildHelp(...))` equals `expectedRows(...)` of the last five; `anniTools` changes only a row's text. `rowsOf` collects each YELLOW sibling's text and appends a directly-following non-bold GOLD argument run to the same row. `expectedRows` is, in order: `/wv help`, `/wv anni`, `/wv config [<key> [<value>]]`, `/wv motd`, `/wv retro [on|off|parts|only]`, then `/wv list` and `/wv list <xp|graids>` if `unlocked`, `/wv list world` if `staff`, `/wv staff` if `unlocked`, `/wv distribute <name|@selector> <type> <count>` if `staffOfAnyGuild`, `/wv return` and `/wv line <church|scrap|bat|hegea|lighthouse>` if `featuresEnabled`, `/wv check <player>` and `/wv laurels <update|return>` if `confirmedStaff`, then `/wv debug`.
 - **`anniRowPointsAtTheAnniPageOnlyWithAnniTools`**: The `/wv anni` row points at `/wv help anni` for the modes and RSVP exactly when `anniTools` is true, whatever the other gates say.
   - For each `mask` from 0 to 63 (as the gate matrix): the sibling after the YELLOW `/wv anni` head is ` - Show anni timer; /wv help anni for modes & RSVP\n` when bit 1 (`anniTools`) is set, else ` - Show anni timer\n`.
 - **`wvListIsAdvertisedExactlyOnceWhenUnlockedAndNeverOtherwise`**: Across all gate combinations the `/wv list` row appears once when unlocked and not at all otherwise. Regression guard for a fix where it printed twice and keyed off the vet predicate.
@@ -1092,12 +1101,14 @@ Tests:
   - `buildHelpAnni(true)` has exactly 10 siblings: the first five of the unauthenticated page; YELLOW `/wv anni rsvp ` + GOLD `<hard|soft|revoke>\n` + GRAY `Send a hard or soft RSVP for the next anni, or revoke yours.\n`; GRAY `Requires: `; WHITE `None (public)`.
 - **`helpLinePage_pinsItsFiveSiblings`**: The `/wv line` page matches its tree, including the long gray description naming each territory option, and an aqua `Returners guild member` requirement.
   - `buildHelpLine(Access.CONFIRMED)` has exactly 5 siblings: YELLOW `/wv line `; GOLD `<church|scrap|bat|hegea|lighthouse>\n`; one GRAY description ending `\n` (toggle rendering of territory boundary lines for the specified territory, naming "church" (Witness Church - Forest of Eyes), "scrap" (Scrapyard - Corkus Sea Cove), "bat" (Batcave - Royal Barracks), "hegea" (Training Grounds - Fort Hegea) and "lighthouse" (Lighthouse - Contested District), to pick which boundaries to show); GRAY `Requires: `; AQUA `Returners guild member`.
+- **`helpRetroPage_pinsItsSeventeenSiblings`**: The `/wv retro` page lists its six commands, the `on` row ending on a dark-gray clarification, and ends with a white public requirement.
+  - `buildHelpRetro()` has exactly 17 siblings: YELLOW `/wv retro on\n`; GRAY `Draw Wynncraft in 2013 Minecraft art: blocks, items and mobs get their old look, and each weapon class, armour piece and tool shows as a vanilla item.\n`; DARK_GRAY `Built from your own game files whenever resources reload. Also switches some Wynntils settings.\n`; YELLOW `/wv retro off\n`; GRAY `Go back to Wynncraft's own textures and your Wynntils settings.\n`; YELLOW `/wv retro\n`; GRAY `Show whether retro textures are on, and the parts that are off.\n`; YELLOW `/wv retro parts\n`; GRAY `List the parts of retro, each on or off.\n`; YELLOW `/wv retro parts ` + GOLD `<part|all> <on|off>\n`; GRAY `Turn one part, or all of them, on or off. A part off stays Wynncraft's.\n`; YELLOW `/wv retro only ` + GOLD `<part>\n`; GRAY `Turn one part on and every other off.\n`; GRAY `Requires: `; WHITE `None (public)`.
 - **`helpDebugPage_pinsItsEighteenSiblings`**: The `/wv debug` page matches its tree, including the dark-gray pointer line that belongs to no row and a white public requirement.
-  - `buildHelpDebug()` has exactly 18 siblings: YELLOW `/wv debug\n`; GRAY `Run diagnostics and dump mod state to chat and log.\n\n`; GOLD `Subcommands:\n`; four subcommand rows of YELLOW head + GOLD args + GRAY description: `/wv debug ` `<boolean>` ` - Toggle debug logging\n`; `/wv debug set ` `<key> <value>` ` - Manage debug config keys\n`; `/wv debug trigger ` `<action>` ` - Run a one-shot debug action\n`; `/wv debug tree ` `<subsystem>` ` - Open a subsystem-specific debug tree (e.g. anni)\n\n`; DARK_GRAY `Use /wv help debug <set|trigger> for details.\n`; GRAY `Requires: `; WHITE `None (public)`.
+  - `buildHelpDebug()` has exactly 18 siblings: YELLOW `/wv debug\n`; GRAY `Run diagnostics and dump mod state to chat and log.\n\n`; GOLD `Subcommands:\n`; four subcommand rows of YELLOW head + GOLD args + GRAY description: `/wv debug ` `<boolean>` ` - Toggle debug logging\n`; `/wv debug set ` `<key> <value>` ` - Manage debug config keys\n`; `/wv debug trigger ` `<action>` ` - Run a one-shot debug action\n`; `/wv debug tree ` `<subsystem>` ` - Open a subsystem-specific debug tree (anni or retro)\n\n`; DARK_GRAY `Use /wv help debug <set|trigger> for details.\n`; GRAY `Requires: `; WHITE `None (public)`.
 - **`helpDebugSetPage_pinsItsEighteenSiblings`**: The `/wv debug set` page matches its tree; the `itemDump` row is a yellow head, a gray line and a dark-gray continuation, not flattened to gray.
   - `buildHelpDebugSet()` has exactly 18 siblings: YELLOW `/wv debug set `; GOLD `[<key> [<value>]]\n`; GRAY `Manage debug-only configuration keys.\n\n`; GOLD `Usage:\n`; three usage rows: YELLOW `/wv debug set` + GRAY ` - List all debug config keys and their values\n`; YELLOW `/wv debug set ` + GOLD `<key>` + GRAY ` - Show the current value of a key\n`; YELLOW `/wv debug set ` + GOLD `<key> <true|false>` + GRAY ` - Set a debug key to true or false\n\n`; GOLD `Available keys:\n`; YELLOW `itemDump`; GRAY ` - Dump an item's full component tree\n`; DARK_GRAY `  When on, press numpad + while hovering it\n`; GRAY `Requires: `; WHITE `None (public)`.
-- **`helpDebugTriggerPage_pinsItsFortySiblings`**: The `/wv debug trigger` page lists all eight actions; each has a gray description then dark-gray clarification, and long lines wrap into extra fragments of the same colour.
-  - `buildHelpDebugTrigger()` has exactly 40 siblings: YELLOW `/wv debug trigger `; GOLD `<action>\n`; GRAY `Run a one-shot debug action.\n\n`; GOLD `Actions:\n`; then eight actions, each YELLOW name line then GRAY description then DARK_GRAY clarification, with wrapped lines as separate siblings: `charDump\n` / GRAY `  Render PUA characters U+E001`, an en dash (U+2013), then `U+E040 in chat.\n` / two DARK_GRAY (`  Drawn as badge-style sequences in the resource\n`, `  pack's chat/prefix font.\n`); `forceChecks\n` / two GRAY (`  Force a re-check of guild membership, rank,\n`, `  and staff status.\n`) / three DARK_GRAY (`  Reports guild and staff state to chat, then\n`, `  re-runs /gu rank and /gu stats, skipping\n`, `  either if one is already in flight.\n`); `tabDump\n` / GRAY `  Dump the raw tab list to chat.\n` / two DARK_GRAY (`  Split into labelled columns, then shows the\n`, `  parsed guild members.\n`); `bossBarsDump\n` / GRAY `  Dump the boss bars on screen to chat.\n` / two DARK_GRAY (`  Order, id, name, colour, overlay and progress\n`, `  of each, with vetsmod's own bar marked.\n`); `nametagsDump\n` / GRAY `  Dump each player's nametag diagnostics.\n` / two DARK_GRAY (`  Anni gate, registry hit, tier and role, the\n`, `  display name, and the colour it would get.\n`); `ghostsPromptDump\n` / GRAY `  Log the ghosts-prompt inputs.\n` / two DARK_GRAY (`  To the log, not chat: the gate, each player's\n`, `  ghost flag, and whether the prompt would fire.\n`); `zoneLinesDump\n` / GRAY `  Dump the zone-line renderer's inputs.\n` / two DARK_GRAY (`  Gate, toggle and cache state, then each zone\n`, `  disc and its distance from you.\n`); `rsvpDump\n` / GRAY `  Log the RSVP client's state.\n` / two DARK_GRAY (`  To the log, not chat: auth, queue depth, the\n`, `  last attempt and ack, and the rsvp block.\n`); then GRAY `Requires: ` and WHITE `None (public)`. Action heads are written `/wv debug trigger <name>\n`.
+- **`helpDebugTriggerPage_pinsItsFortyFourSiblings`**: The `/wv debug trigger` page lists all nine actions; each has a gray description then dark-gray clarification, and long lines wrap into extra fragments of the same colour.
+  - `buildHelpDebugTrigger()` has exactly 44 siblings: YELLOW `/wv debug trigger `; GOLD `<action>\n`; GRAY `Run a one-shot debug action.\n\n`; GOLD `Actions:\n`; then nine actions, each YELLOW name line then GRAY description then DARK_GRAY clarification, with wrapped lines as separate siblings: `charDump\n` / GRAY `  Render PUA characters U+E001`, an en dash (U+2013), then `U+E040 in chat.\n` / two DARK_GRAY (`  Drawn as badge-style sequences in the resource\n`, `  pack's chat/prefix font.\n`); `forceChecks\n` / two GRAY (`  Force a re-check of guild membership, rank,\n`, `  and staff status.\n`) / three DARK_GRAY (`  Reports guild and staff state to chat, then\n`, `  re-runs /gu rank and /gu stats, skipping\n`, `  either if one is already in flight.\n`); `tabDump\n` / GRAY `  Dump the raw tab list to chat.\n` / two DARK_GRAY (`  Split into labelled columns, then shows the\n`, `  parsed guild members.\n`); `bossBarsDump\n` / GRAY `  Dump the boss bars on screen to chat.\n` / two DARK_GRAY (`  Order, id, name, colour, overlay and progress\n`, `  of each, with vetsmod's own bar marked.\n`); `nametagsDump\n` / GRAY `  Dump each player's nametag diagnostics.\n` / two DARK_GRAY (`  Anni gate, registry hit, tier and role, the\n`, `  display name, and the colour it would get.\n`); `ghostsPromptDump\n` / GRAY `  Log the ghosts-prompt inputs.\n` / two DARK_GRAY (`  To the log, not chat: the gate, each player's\n`, `  ghost flag, and whether the prompt would fire.\n`); `zoneLinesDump\n` / GRAY `  Dump the zone-line renderer's inputs.\n` / two DARK_GRAY (`  Gate, toggle and cache state, then each zone\n`, `  disc and its distance from you.\n`); `rsvpDump\n` / GRAY `  Log the RSVP client's state.\n` / two DARK_GRAY (`  To the log, not chat: auth, queue depth, the\n`, `  last attempt and ack, and the rsvp block.\n`); `retroDump\n` / GRAY `  Dump retro textures' state to chat.\n` / two DARK_GRAY (`  Whether drawn, why stopped, the last build's\n`, `  counts, parts off, Wynntils settings switched.\n`); then GRAY `Requires: ` and WHITE `None (public)`. Action heads are written `/wv debug trigger <name>\n`.
 - **`requiresFooter_coloursEachAccessStateOnEveryGatedPage`**: For each of `DENIED`, `GRANTED` and `CONFIRMED`, the last sibling of the check, laurels, return, staff, list and line pages has the right label and red, green or aqua colour.
   - For each `access` in `ACCESS_COLOURS` (DENIED to RED, GRANTED to GREEN, CONFIRMED to AQUA; `expected` is that colour): the last sibling of `buildHelpCheck(access)` is `Staff` in the `expected` colour.
   - For the same three `access` values: the last sibling of `buildHelpLaurels(access)` is `Staff` in the `expected` colour.
@@ -1110,10 +1121,11 @@ Tests:
   - `HelpCommands.access(true, false)` equals `Access.GRANTED`.
   - `HelpCommands.access(true, true)` equals `Access.CONFIRMED`.
   - `HelpCommands.access(false, true)` equals `Access.CONFIRMED` (server-confirmed outranks a stale local signal).
-- **`requiresFooter_staysWhiteOnTheFivePagesWithNoGate`**: The motd, anni, debug, debug set and debug trigger pages end with a white `None (public)` requirement. Its first assertion cannot fail: it looks `PUBLIC` up in the test's own `ACCESS_COLOURS` map, which has no `PUBLIC` key, so `getOrDefault` always returns the WHITE it is compared with.
+- **`requiresFooter_staysWhiteOnTheSixPagesWithNoGate`**: The motd, anni, retro, debug, debug set and debug trigger pages end with a white `None (public)` requirement. Its first assertion cannot fail: it looks `PUBLIC` up in the test's own `ACCESS_COLOURS` map, which has no `PUBLIC` key, so `getOrDefault` always returns the WHITE it is compared with.
   - `ACCESS_COLOURS.getOrDefault(Access.PUBLIC, ChatFormatting.WHITE)` equals `ChatFormatting.WHITE` (PUBLIC has no entry in the map, so the default is returned).
   - The last sibling of `buildHelpMotd()` is `None (public)` in WHITE.
   - The last sibling of `buildHelpAnni(false)` and of `buildHelpAnni(true)` is `None (public)` in WHITE.
+  - The last sibling of `buildHelpRetro()` is `None (public)` in WHITE.
   - The last sibling of `buildHelpDebug()` is `None (public)` in WHITE.
   - The last sibling of `buildHelpDebugSet()` is `None (public)` in WHITE.
   - The last sibling of `buildHelpDebugTrigger()` is `None (public)` in WHITE.
@@ -1250,7 +1262,7 @@ Test: [`ShippedConfigTest.java`](../src/test/java/org/wynnvets/config/ShippedCon
 
 Test: [`VetsConfigDefaultsTest.java`](../src/test/java/org/wynnvets/config/VetsConfigDefaultsTest.java) · Subject: [`VetsConfigDefaults`](../src/client/java/org/wynnvets/config/VetsConfigDefaults.java)
 
-`VetsConfigDefaults` holds the values `config.json` starts from; they also feed the shipped `config.yml` and `/wv config <key> default`. The suite pins every user-facing default against a frozen literal table in the test, and checks that each user key in `VetsConfigSchema.USER_CONFIG_KEYS` has a default of the right Java type, with the tri-state `handleSpoilers` left unset. It needs no running client because `VetsConfigDefaults` has no static state and does not load `VetsConfig`.
+`VetsConfigDefaults` holds the values `config.json` starts from; they also feed the shipped `config.yml` and `/wv config <key> default`. The suite pins every user-facing default against a frozen literal table in the test, and checks that each user key in `VetsConfigSchema.USER_CONFIG_KEYS` has a default of the right Java type, with the tri-state `handleSpoilers` left unset. Three internal defaults are pinned too: `retroTextures` starts off, and `retroWynntilsSnapshot` and `retroPartsOff` start empty. It needs no running client because `VetsConfigDefaults` has no static state and does not load `VetsConfig`.
 
 - **`userDefaults_areTheFirstRunValues`**: Each entry in the frozen user-default table (for example `printMOTD` true, `colorBlindMode` false, `legacyItemBackgroundGradientTopOpacity` 69) equals the value in `firstRunValues()`.
   - For each `(key, expected)` in the test's 29-entry `USER_DEFAULTS` table, from `legacyItemHighlighting` (true) to `moreReliableGuildCheck` (true): `VetsConfigDefaults.firstRunValues().get(key)` equals `expected`. Non-true entries: `colorBlindMode` false, `legacyItemBackgroundGradientTopOpacity` 69L, `legacyItemBackgroundGradientBottomOpacity` 100L, `vetsAnniRoleStyle` `"descriptive"`, `vetsAnniFlashIntensity` `"normal"`, `legacyItemBackgroundGradientTop` `"orange"`, `legacyItemBackgroundGradientBottom` `"crimson"`, `legacyItemForegroundSprite` `"box_gradient_2"`, `legacyItemForegroundColor` `"orange"`.
@@ -1260,6 +1272,12 @@ Test: [`VetsConfigDefaultsTest.java`](../src/test/java/org/wynnvets/config/VetsC
   - For each `key` where `isIntKey(key)` (the two `legacyItemBackgroundGradient*Opacity` keys): `values.get(key)` is a `Long`.
   - For each `key` where `isStringKey(key)` (the keys of `STRING_CONFIG_KEYS`): `values.get(key)` is a `String`.
   - For each other `key` in `USER_CONFIG_KEYS` (the remaining boolean keys): `values.get(key)` is a `Boolean`.
+- **`retroTextures_isOffOnAFirstRun`**: Retro textures start off, so installing vetsmod does not change how Wynncraft looks until `/wv retro on`.
+  - `firstRunValues().get("retroTextures")` equals `Boolean.FALSE`.
+- **`retroWynntilsSnapshot_isEmptyOnAFirstRun`**: Retro starts with no Wynntils setting switched, so there is nothing to put back.
+  - `firstRunValues().get("retroWynntilsSnapshot")` equals `""`.
+- **`retroPartsOff_isEmptyOnAFirstRun`**: Retro starts with every part on.
+  - `firstRunValues().get("retroPartsOff")` equals `""`.
 - **`firstRunValues_includeTheDebugKeys`**: `firstRunValues()` contains the debug key `itemDump` with value `false`.
   - `firstRunValues().get("itemDump")` equals `Boolean.FALSE`.
 
@@ -1270,7 +1288,7 @@ Test: [`VetsConfigKeysTest.java`](../src/test/java/org/wynnvets/config/VetsConfi
 `VetsConfigKeys` is the list of string constants naming each setting as stored in `config.json`. Those names are the file format: renaming one makes existing values unreadable and they are dropped at the next save. The suite compares the constants against a frozen constant-to-name table, read by reflection over all public static final `String` fields, so an added, removed or renamed key fails, and it checks the on-disk names are distinct.
 
 - **`everyKeyConstant_hasItsOnDiskName`**: The reflected map of constant name to string value equals the frozen expected table, in both content and key set.
-  - `keyConstants()`, the sorted map of every public static final `String` field of `VetsConfigKeys` (constant name to value), equals `new TreeMap<>(EXPECTED)`: the 44 frozen pairs from `VETS_AUTOMESSAGE` to `vetsAutomessage` through `LEGACY_ITEM_FOREGROUND_COLOR` to `legacyItemForegroundColor`.
+  - `keyConstants()`, the sorted map of every public static final `String` field of `VetsConfigKeys` (constant name to value), equals `new TreeMap<>(EXPECTED)`: the 47 frozen pairs from `VETS_AUTOMESSAGE` to `vetsAutomessage` through `LEGACY_ITEM_FOREGROUND_COLOR` to `legacyItemForegroundColor`.
 - **`onDiskNames_areDistinct`**: No two constants share the same on-disk name.
   - For each `name` in the values of `keyConstants()`: `seen.add(name)` is true, meaning no earlier constant has the same on-disk name.
 
@@ -1291,7 +1309,7 @@ Test: [`VetsConfigSchemaTest.java`](../src/test/java/org/wynnvets/config/VetsCon
   - `VALID_FLASH_INTENSITIES` equals, in order, `subtle`, `normal`, `strong`.
   - `VALID_SPRITES` equals, in order, the 10 names from `wynn` (first) to `box_gradient_2` (last).
 - **`fixedValuesOf_mapsOnlyRoleStyleAndFlashIntensity`**: For every known name, `fixedValuesOf` returns the role-style or flash-intensity list for those two keys and `null` for all others.
-  - For `name` = `vetsAnniRoleStyle` in `ALL_NAMES` (46 names, `vetsAutomessage` first, `noSuchKey` last): `fixedValuesOf(name)` equals `descriptive`, `short`, `formal`.
+  - For `name` = `vetsAnniRoleStyle` in `ALL_NAMES` (49 names, `vetsAutomessage` first, `noSuchKey` last): `fixedValuesOf(name)` equals `descriptive`, `short`, `formal`.
   - For `name` = `vetsAnniFlashIntensity`: `fixedValuesOf(name)` equals `subtle`, `normal`, `strong`.
   - For every other name in `ALL_NAMES`: `fixedValuesOf(name)` is null.
 - **`isFixedValue_acceptsTheListedLowercaseValuesOnly`**: Listed lowercase values pass for their key; wrong-list values, upper case `SHORT`, empty, `null`, colour keys and unknown keys fail.
@@ -1347,6 +1365,74 @@ Test: [`AnniDebugCommandsTest.java`](../src/test/java/org/wynnvets/debug/anni/An
   - `anni.getChildren().size()` equals 11, the direct children of the root.
   - `commandNodes(anni, true)` equals 24: leaves (no children) with a non-null command, over the whole tree.
   - `commandNodes(anni, false)` equals 18: inner nodes (with children) with a non-null command.
+
+## `org.wynnvets.debug.dump`
+
+### `LiveItemModelsTest`
+
+Test: [`LiveItemModelsTest.java`](../src/test/java/org/wynnvets/debug/dump/LiveItemModelsTest.java) · Subject: [`LiveItemModels`](../src/client/java/org/wynnvets/debug/dump/LiveItemModels.java)
+
+`LiveItemModels` walks a parsed item definition with a stack to list the models it draws. The walk needs parsed definitions and is not tested; the suite pins `pickedEntry`, the choice of a range dispatch's entry, which follows Minecraft's own: the entry with the highest threshold at or below the value.
+
+- **`theHighestThresholdAtOrBelowTheValueIsPicked`**: Over thresholds `{0, 10, 5}` the entry is the highest one not above the value, whatever the file's order.
+  - `pickedEntry(thresholds, 0)` equals 0, and so does `4.9f`.
+  - `pickedEntry(thresholds, 5)` equals 2 (the file's order does not matter).
+  - `pickedEntry(thresholds, 10)` and `1000` equal 1.
+- **`theLaterOfEqualThresholdsIsPicked`**: Two entries with the same threshold give the later one, as Minecraft's sort does.
+  - `pickedEntry({1, 5, 5}, 7)` equals 2, and `pickedEntry({5, 1, 5}, 7)` equals 2.
+- **`noThresholdAtOrBelowOrNoNumberPicksNone`**: A value below every threshold, `NaN`, or no thresholds at all picks nothing.
+  - `pickedEntry({1, 5}, 0.5f)` equals -1.
+  - `pickedEntry({1, 5}, Float.NaN)` equals -1.
+  - `pickedEntry({}, 1)` equals -1.
+
+## `org.wynnvets.debug.retro`
+
+### `AuditModelsTest`
+
+Test: [`AuditModelsTest.java`](../src/test/java/org/wynnvets/debug/retro/AuditModelsTest.java) · Subject: [`AuditModels`](../src/client/java/org/wynnvets/debug/retro/AuditModels.java)
+
+`AuditModels` reads Wynncraft's item models for the retro report: which model parents which, and which reach a stubbed model. The suite pins that over a `MemoryPack` of small model files. The ingredient lines read Wynntils and the vanilla pack and are not tested. `DAGGER` is the one stubbed model and `GLOVES` a model that parents it.
+
+- **`aModelsParentIsReadAndWhetherItHasArtOfItsOwn`**: `parents(pack)` records each model's parent and whether it sets `textures` or `elements`, skipping files that are not models.
+  - Over models with only a parent, with `textures`, with `elements`, with `display`, without a parent, not an object, unreadable, and a block model, the result equals the four with a parent: `GLOVES` and the `textures` and `display` models to `DAGGER`, and the `elements` model to `minecraft:item/generated`.
+- **`aModelWithNoArtOfItsOwnDrawsTheStubThroughItsParent`**: `drawnThroughParent` lists the models that show the stub's art; `derived` lists every model that reaches it.
+  - `drawnThroughParent` equals the grandchild's and `GLOVES`' chains, each ending in `DAGGER`; the stub itself and the models with art of their own are left out.
+  - `derived` adds the `textured` model and the one beneath it; a model that reaches no stub is left out.
+- **`aChainThatLoopsEnds`**: Two models that parent each other end the walk.
+  - `derived` over `a` parenting `b` and `b` parenting `a` equals the empty list.
+
+### `RetroDebugCommandsTest`
+
+Test: [`RetroDebugCommandsTest.java`](../src/test/java/org/wynnvets/debug/retro/RetroDebugCommandsTest.java) · Subject: [`RetroDebugCommands`](../src/client/java/org/wynnvets/debug/retro/RetroDebugCommands.java)
+
+`RetroDebugCommands` builds the Brigadier `retro` tree mounted under `/wv debug tree`, which is built when the client joins a server. The suite builds it and checks the shape its Javadoc documents: a usage line on `retro`, and the leaves `report` and `report ingredients`. No command is run, and building the tree touches neither Minecraft nor Wynntils. `names(node)` lists a node's children's names in order.
+
+- **`treeBuildsWithItsDocumentedShape`**: `buildCommandTree().build()` yields `retro`, whose command prints the usage, with the one child `report`, which has a command and the one child `ingredients`, a leaf with a command.
+  - `retro.getName()` equals `"retro"`, where `retro` is the `LiteralCommandNode` from `RetroDebugCommands.buildCommandTree().build()`.
+  - `retro.getCommand()` is not null: a bare `retro` prints its usage line.
+  - `names(retro)` equals `["report"]`.
+  - `report.getCommand()` is not null, where `report` is `retro.getChild("report")`.
+  - `names(report)` equals `["ingredients"]`.
+  - `ingredients.getCommand()` is not null, where `ingredients` is `report.getChild("ingredients")`.
+  - `names(ingredients)` equals `[]`.
+
+### `TextureDivergenceTest`
+
+Test: [`TextureDivergenceTest.java`](../src/test/java/org/wynnvets/debug/retro/TextureDivergenceTest.java) · Subject: [`TextureDivergence`](../src/client/java/org/wynnvets/debug/retro/TextureDivergence.java)
+
+`TextureDivergence` measures how closely Wynncraft's repaint of a block texture pictures vanilla's, for the retro report. The suite pins its brightness correlation on small hand-built images.
+
+- **`theSamePictureCorrelatesFullyInOtherColoursOrAtTwiceTheSize`**: `checker(dark, light)` is a 16x16 opaque checkerboard, `dark` at the top left; `doubled` is `numbered(16, 16)` at 32x32, each pixel two by two. Correlations compare within `1e-9`.
+  - `brightnessCorrelation(numbered(16, 16), numbered(16, 16))` equals 1.
+  - `brightnessCorrelation(checker(0xFF000000, 0xFFFFFFFF), checker(0xFF201008, 0xFF80FF40))` equals 1: dark and light in other colours.
+  - `brightnessCorrelation(numbered(16, 16), doubled)` equals 1: the larger one is scaled down to 16x16.
+- **`aNegativeCorrelatesAtMinusOne`**: A checkerboard against its negative.
+  - `brightnessCorrelation(checker(0xFF000000, 0xFFFFFFFF), checker(0xFFFFFFFF, 0xFF000000))` equals -1, within `1e-9`.
+- **`aFlatImageCorrelatesFullyOnlyWithAnotherFlatOne`**: Images of one colour throughout.
+  - `brightnessCorrelation(filled(16, 16, 0xFFFF0000), filled(8, 8, 0xFF0000FF))` equals 1: both are flat, whatever their colours and sizes.
+  - `brightnessCorrelation(filled(16, 16, 0xFFFF0000), checker(0xFF000000, 0xFFFFFFFF))` equals 0: only one is.
+- **`aStripOfFramesCountsByItsFirstAndATransparentPixelAsBlack`**: A 16x32 strip whose top frame is `checker(0x00FFFFFF, 0xFFFFFFFF)` (transparent and opaque white) and whose bottom frame is the negative checkerboard `checker(0xFFFFFFFF, 0xFF000000)`.
+  - `brightnessCorrelation(strip, checker(0xFF000000, 0xFFFFFFFF))` equals 1, within `1e-9`: its first frame, whose transparent squares count as black.
 
 ## `org.wynnvets.distribute`
 
@@ -2312,12 +2398,12 @@ The stored `/gu stats` result and the username of the account that made it (`vet
 - **`ownedByOtherAccount_emptyOwner_isALegacyResultAndIsAdopted`**: A result with no recorded owner is never doubted.
   - `ownedByOtherAccount("", "Wenweia")` is false.
   - `ownedByOtherAccount("", "")` is false.
-- **`worldJoinShouldClear_onlyAReturnersResultThatWynntilsNamesAnotherGuildFor`**: At world join only a `RETURNERS` result is cleared on Wynntils' word, and only when Wynntils names another guild; Wynntils' name can be left from an earlier scan, so a `GUILDLESS` or `OTHER_GUILD` result is left to `/gu stats`.
-  - True for `(RETURNERS, true, "Other Guild")`; false for `(RETURNERS, true, "Returners")`, `(RETURNERS, false, "")`, `(GUILDLESS, true, "Returners")`, `(OTHER_GUILD, true, "Returners")` and `(UNKNOWN, true, "Other Guild")`.
 - **`ownedByOtherAccount_sameName_ignoringCase_isNotAnotherAccount`**: The same username in any letter case is the same account.
   - `ownedByOtherAccount("Wenweia", "Wenweia")` is false.
   - `ownedByOtherAccount("Wenweia", "wenweia")` is false.
   - `ownedByOtherAccount("WENWEIA", "wenWEia")` is false.
+- **`worldJoinShouldClear_onlyAReturnersResultThatWynntilsNamesAnotherGuildFor`**: At world join only a `RETURNERS` result is cleared on Wynntils' word, and only when Wynntils names another guild; Wynntils' name can be left from an earlier scan, so a `GUILDLESS` or `OTHER_GUILD` result is left to `/gu stats`.
+  - True for `(RETURNERS, true, "Other Guild")`; false for `(RETURNERS, true, "Returners")`, `(RETURNERS, false, "")`, `(GUILDLESS, true, "Returners")`, `(OTHER_GUILD, true, "Returners")` and `(UNKNOWN, true, "Other Guild")`.
 - **`ownedByOtherAccount_differentName_isAnotherAccount`**: Any other name, including an empty current name, is another account.
   - `ownedByOtherAccount("Wenweia", "Holidaze")` is true.
   - `ownedByOtherAccount("Wenweia", "Wenweia2")` is true.
@@ -3257,7 +3343,7 @@ Test: [`AnniWindowsTest.java`](../src/test/java/org/wynnvets/mwe/anni/state/Anni
 
 Test: [`ColorMathTest.java`](../src/test/java/org/wynnvets/rendering/colors/ColorMathTest.java) · Subject: [`ColorMath`](../src/client/java/org/wynnvets/rendering/colors/ColorMath.java)
 
-`ColorMath.interpolateRgb` linearly interpolates the three 8-bit channels of two `0xRRGGBB` colours and is the mod's single RGB lerp. The suite pins in-range behaviour (endpoints, midpoint rounding half up, independent channels, alpha discarded) and, deliberately, that `t` is not clamped: values outside 0 to 1 overshoot and bleed into the neighbouring channel or the sign bit, so the exact out-of-range literals are asserted. `ColorMath` has no static state or Minecraft imports, so the suite loads no Minecraft classes.
+`ColorMath` is arithmetic on one colour: its channels, luma, strongest channel and the mod's single RGB interpolation. The suite pins in-range behaviour (endpoints, midpoint rounding half up, independent channels, alpha discarded) and, deliberately, that `t` is not clamped: out-of-range values bleed into the neighbouring channel or the sign bit, so adding a clamp has to be argued rather than tidied in. The `double` overload of `interpolateRgb` is pinned to the same literals. The class has no supertypes, no static fields and no Minecraft imports, so the suite loads zero Minecraft.
 
 - **`endpointsReturnTheirInputColour`**: Black to white gives black at `t` 0 and white at `t` 1.
   - `ColorMath.interpolateRgb(BLACK, WHITE, 0f)` equals `0x000000`, where `BLACK` = `0x000000` and `WHITE` = `0xFFFFFF`.
@@ -3275,6 +3361,2049 @@ Test: [`ColorMathTest.java`](../src/test/java/org/wynnvets/rendering/colors/Colo
   - `ColorMath.interpolateRgb(BLACK, WHITE, 2f)` equals `0x01FFFFFE`.
 - **`tBelowZeroUnderShootsIntoNegativeChannelsAndTheSignBit`**: Black to white at `t` -0.5 gives 0xFFFFFF81, as negative channels collapse the whole word.
   - `ColorMath.interpolateRgb(BLACK, WHITE, -0.5f)` equals `0xFFFFFF81`.
+
+- **`theDoubleOverloadRoundsLikeTheFloatOneInRange`**: The `double` overload gives the float one's answers at `t` 0.5 and 1.
+  - `interpolateRgb(BLACK, WHITE, 0.5)` equals `0x808080`.
+  - `interpolateRgb(0x102030, 0x405060, 0.5)` equals `0x283848`.
+  - `interpolateRgb(BLACK, WHITE, 1.0)` equals `WHITE`.
+- **`theDoubleOverloadDoesNotClampEither`**: The same literals as the float overload's out-of-range pins.
+  - `interpolateRgb(BLACK, WHITE, 1.5)` equals `0x017F7F7F`.
+  - `interpolateRgb(BLACK, WHITE, -0.5)` equals `0xFFFFFF81`.
+- **`theDoubleOverloadDropsAnAlphaByte`**: An alpha byte on either input does not reach the result.
+  - `interpolateRgb(0xFF123456, 0xFF123456, 0.25)` equals `0x123456`.
+- **`channelsReadTheirOwnEightBits`**: The channel readers return the byte at their shift.
+  - `alpha(0x80123456)` equals `0x80`, and `alpha(0xFF123456)` equals `0xFF` (the sign bit does not spread).
+  - `red`, `green` and `blue` of `0xFF123456` equal `0x12`, `0x34` and `0x56`.
+  - `channel(0xFF123456, 8)` equals `0x34`.
+- **`rgbPacksTheChannels`**: Three channels pack into `0xRRGGBB`.
+  - `rgb(0x12, 0x34, 0x56)` equals `0x123456`.
+- **`lumaWeighsTheChannelsAndIgnoresAlpha`**: Luma is `0.299` red, `0.587` green and `0.114` blue.
+  - `luma(0xFFFFFF)` equals 255, and the pure red, green and blue give `0.299 * 255`, `0.587 * 255` and `0.114 * 255`, each within `1e-9`.
+  - `luma(0x80123456)` equals `luma(0x123456)`.
+- **`theStrongestChannelIsItsShiftOrMinusOneOnATie`**: `strongestChannel` gives the shift of the one channel above the others, and -1 when two or more tie.
+  - `0x804020` gives 16, `0x408020` gives 8 and `0x204080` gives 0.
+  - A grey (`0x808080`) and each pair tied for the top (`0x808000`, `0x800080`, `0x008080`) give -1.
+  - `0xFF800000` gives 16: alpha is ignored.
+
+### `RecoloursTest`
+
+Test: [`RecoloursTest.java`](../src/test/java/org/wynnvets/rendering/colors/RecoloursTest.java) · Subject: [`Recolours`](../src/client/java/org/wynnvets/rendering/colors/Recolours.java)
+
+`Recolours` is the mod's whole-image recolouring: factories returning an `IntUnaryOperator` on one `0xAARRGGBB` pixel, each keeping alpha and clamping. The suite runs each factory pixel by pixel on literal colours through the helper `applied(recolour, pixels...)`: `scale`, `hueOnly`, `ramp`, the outline rules (`Outline.greyBelow`, `Outline.keepNeutralBelow`) and `outlineCutoff`. The multiply, tint and contrast factories are pinned through `TintFactorsTest`.
+
+- **`aTintMultipliesEachChannelRoundedAndKeepsAlpha`**: `tint` by `0xA06540` of `0xFF808080`, `0x80FFFFFF` and `0x00000000`.
+  - `argb()` equals `[0xFF503320, 0x80A06540, 0x00000000]`: 128 * 160 / 255 = 80.3, 128 * 101 / 255 = 50.7 and 128 * 64 / 255 = 32.1, rounded.
+- **`aWhiteTintChangesNothing`**: `tint` by `0xFFFFFF` of `numbered(3, 2)`.
+  - `argb()` equals its copy from before.
+- **`multiplyClampsEachChannelAt255`**: `multiply(image, 3.0, 0.5, 1.0)` of `0xFF808080` and `0x40102030`.
+  - `argb()` equals `[0xFFFF4080, 0x40301030]`.
+- **`scaleTurnsOneColourIntoAnotherAndClampsTheBrighter`**: `scale(from, to)` scales each channel so `from` becomes `to`, and a brighter pixel stops at 255.
+  - `scale(0x804020, 0xC0C0C0)` over `0xFF804020`, `0x80804020` and `0xFFFF8040` gives `0xFFC0C0C0`, `0x80C0C0C0` (alpha kept) and `0xFFFFFFFF`.
+- **`scaleLeavesAChannelThatIsZeroInTheFromColour`**: A channel that is 0 in `from` cannot be scaled and is left as it is.
+  - `scale(0x000000, 0x808080)` over `0xFF105020` gives `0xFF105020`.
+- **`hueOnlyTurnsOnlyTheFromColoursHueAndKeepsItsShade`**: `hueOnly(from, to)` recolours only the pixels whose strongest channel is `from`'s, each at its own brightness.
+  - `hueOnly(0x204080, 0xC06000)` over `0xFF204080`, `0x80102040`, `0xFF808080` and `0xFF804020` gives `0xFFC06000`, `0x80603000`, and the grey and the brown unchanged.
+- **`hueOnlyReachesAColourWithAZeroChannelAndClamps`**: A `from` with a zero channel still reaches the `to` colour, clamped.
+  - `hueOnly(0x00F080, 0x6E3CA8)` over `0xFF00FF80` gives `0xFF7540B3`.
+- **`hueOnlyRefusesAFromWithoutOneStrongestChannel`**: A `from` that is grey, black or has a tie for its strongest channel is refused.
+  - `hueOnly` throws `IllegalArgumentException` for `0x808080`, `0x000000`, `0x808000`, `0x008080` and `0x800080`.
+- **`rampPlacesEachPixelAlongTheRampByItsLumaAndKeepsAlpha`**: `ramp(colours)` runs the colours evenly from black to white by a pixel's luma.
+  - Over the ramp `0x100000, 0x00FF00, 0x0000F0`, `0xFF000000`, `0x80808080`, `0xFFFFFFFF` and `0x00000000` give `0xFF100000`, `0x8000FE01`, `0xFF0000F0` and `0x00100000`: the ends, nearly the middle at 128 of 255, and alpha as it was.
+- **`rampRefusesFewerThanTwoColours`**: One colour is not a ramp.
+  - `ramp(List.of(0x808080))` throws `IllegalArgumentException`.
+- **`withOutlineTurnsAPixelDarkerThanTheCutoffGrey`**: With `Outline.greyBelow(32)` a pixel darker than the cutoff becomes the grey of its luma, and a brighter one still follows the ramp.
+  - Over the ramp, `0xFF191919`, `0xFF201000` and `0xFF808080` give `0xFF191919`, `0xFF131313` and `0xFF00FE01`.
+- **`withOutlineKeepsAnOutlinePixelsAlpha`**: The grey an outline pixel turns keeps its alpha.
+  - `0x40191919` through `withOutline(ramp, greyBelow(32))` stays `0x40191919`.
+- **`withOutlineAtZeroIsTheInnerRecolourAlone`**: A cutoff of 0 makes no pixel outline.
+  - Over `0xFF000000`, `0x80808080`, `0xFFFFFFFF` and `0x00000000`, `withOutline(ramp, greyBelow(0))` gives what the ramp alone gives.
+- **`keepingANeutralOutlineLeavesItsDarkGreysAndDyesAColouredDark`**: `Outline.keepNeutralBelow(outlineCutoff(main))` leaves near-grey darks undyed and dyes a dark that is not near grey.
+  - With `main` `0xD8D8D8` scaled to `0x6CB0F0`: `0xFF353535`, `0x40000000` and `0xFF3A3530` stay as they are, whatever their alpha.
+  - `0xFF3A2020` (too far from grey) and `0xFF808080` (above the cutoff) get what the plain scale gives them.
+  - `0xFFD8D8D8` becomes `0xFF6CB0F0`.
+- **`theBodyOfDarkArtIsNotItsOutline`**: The cutoff is relative to the art's main colour, so dark art's body is dyed.
+  - With `main` `0x3B393B` scaled to `0xC96DC6`: `0xFF3B393B` becomes `0xFFC96DC6`; `0xFF242424` gets the plain scale's answer; `0xFF111111` stays.
+- **`anOutlinesCutoffIsHalfTheMainColourUpTo64`**: `outlineCutoff(main)` is half the main colour's luma, rounded, and never above 64.
+  - `outlineCutoff` of `0xFFFFFF` and `0x808080` equals 64, of `0x424242` equals 33, of `0x000000` equals 0.
+- **`greyBelowCountsAPixelWhateverItsSpread`**: `greyBelow` turns any dark pixel grey, where `keepNeutralBelow` keeps only the near-grey ones.
+  - `0xFF201000` through `withOutline(ramp, greyBelow(32))` equals `0xFF131313`.
+  - The same pixel through `keepNeutralBelow(32)` equals the ramp's own answer for it.
+- **`contrastAroundAPivotMovesEachVisibleChannelTowardItAndKeepsAlpha`**: `0xFF000000`, `0x80C8643C` and `0x00FFFFFF`, whose own means are (100, 50, 30), around the pivot (50, 100, 0).
+  - After `contrast(image, 0.5, [50, 100, 0])`, `argb()` equals `[0xFF193200, 0x807D641E, 0x00FFFFFF]`: 25, 50, 0 and 125, 100, 30, each channel halfway to the pivot's, alpha kept and the transparent pixel left as it is.
+  - `contrast` of one `0xFF64C832` pixel at 3 around (0, 255, 100) gives `[0xFFFF5A00]`: 300 stops at 255, 255 + 3 * (200 - 255) = 90, and -50 stops at 0.
+  - `contrast(numbered(3, 2), 0.45)` gives the same `argb()` as `contrast(copy, 0.45, mean(numbered(3, 2)))`: the plain contrast pivots on the image's mean.
+
+### `VanillaGuiColorsTest`
+
+Test: [`VanillaGuiColorsTest.java`](../src/test/java/org/wynnvets/rendering/colors/VanillaGuiColorsTest.java) · Subject: [`VanillaGuiColors`](../src/client/java/org/wynnvets/rendering/colors/VanillaGuiColors.java)
+
+`VanillaGuiColors` holds the vanilla container colours the mod draws in, as ARGB for `GuiGraphics`. The suite pins that every one is opaque, since `fill` and `drawString` skip a colour whose alpha is 0, and that each is the value vanilla draws. The class holds constants only, so the suite loads no Minecraft.
+
+- **`everyColourIsOpaque`**: `SLOT_HIGHLIGHT` has alpha `0xFF`.
+  - `SLOT_HIGHLIGHT >>> 24` equals `0xFF`.
+- **`theColoursAreVanillas`**: It is `gui/container/inventory.png`'s light slot edge.
+  - `SLOT_HIGHLIGHT & 0xFFFFFF` equals `0xFFFFFF`.
+
+## `org.wynnvets.rendering.image`
+
+### `PixelDrawingTest`
+
+Test: [`PixelDrawingTest.java`](../src/test/java/org/wynnvets/rendering/image/PixelDrawingTest.java) · Subject: [`PixelDrawing`](../src/client/java/org/wynnvets/rendering/image/PixelDrawing.java)
+
+`PixelDrawing` holds the guarded fill, edge, outline, nine-slice and stack on `Pixels`. The suite pins each on small hand-built images.
+
+- **`aFillPaintsARectangleThatHoldsOnlyPaletteColours`**: A 4x4 `SLOT` image with one `LIGHT` pixel at (2, 2).
+  - `fill(image, Rect(1, 1, 2, 2), PANEL, SLOT_PALETTE)` is true.
+  - For each pixel: it equals `PANEL` inside the rectangle and `SLOT` outside.
+- **`aFillLeavesARectangleWithAColourOutsideThePaletteAlone`**: One pixel of the rectangle is `0xFF123456`, so the layout has changed.
+  - The fill returns false.
+  - `argb()` equals its copy from before.
+- **`aFillLeavesATranslucentPixelAlone`**: One pixel is `0x808B8B8B`, a palette RGB at half alpha.
+  - The fill returns false.
+  - `argb()` equals its copy from before.
+- **`aFillLeavesARectangleThatLeavesTheImageAlone`**: `Rect(3, 3, 2, 2)` on a 4x4 image.
+  - The fill returns false.
+  - `argb()` equals its copy from before.
+- **`edgeKeepsOnlyThePixelsBesideTransparencyInOneColour`**: `edge` of a 3x3 opaque square in a 5x5 image is its ring in the colour, with nothing in the middle.
+- **`edgeCountsTheImagesBorderAsTransparent`**: `edge` of a single opaque pixel is that pixel in the colour.
+- **`edgeAlsoDrawsTheInnerPixelsDarkerThanTheBrightnessGiven`**: With a brightness of 30, a pale 3x3 square with a dark middle is drawn whole in the colour; with one that is not above the middle's own, it is the plain ring.
+- **`outlinedGrowsTheCanvasAndRingsTheArtInACircle`**: `outlined` of one opaque pixel, thickness 1, is a 3x3 image of the pixel, the outline on its four sides, and nothing in the corners.
+- **`outlinedIgnoresAPixelOfLessThanHalfOpacity`**: `outlined` of a faint and an opaque pixel rings only the opaque one, and drops the faint one.
+- **`nineSliceCopiesTheCornersAndTilesTheEdgesAndMiddle`**: `nineSlice(numbered(5, 5), Rect(0, 0, 5, 5), 1, 7, 4)`: a one-pixel border and a 3x3 middle.
+  - For each output pixel: it equals the source pixel at column `[0, 1, 2, 3, 1, 2, 4][x]` and row `[0, 1, 2, 4][y]`.
+- **`nineSliceReadsOnlyItsRegion`**: `nineSlice(numbered(6, 6), Rect(2, 1, 3, 3), 1, 3, 3)`.
+  - For each output pixel: it equals the source pixel at (2 + x, 1 + y).
+- **`nineSliceShrinksABorderWiderThanHalfTheOutput`**: As Minecraft does, a 2x2 output of `numbered(6, 6)` with a 2-pixel border shows the four corner pixels.
+  - `argb()` equals the source pixels at (0, 0), (5, 0), (0, 5) and (5, 5).
+- **`nineSliceRefusesARegionItCannotTile`**:
+  - `Rect(1, 1, 5, 5)` of a 5x5 source throws `IllegalArgumentException`: the region leaves the image.
+  - `Rect(0, 0, 4, 4)` with border 2 throws `IllegalArgumentException`: the borders leave no middle.
+- **`stackPutsTheFramesTopToBottom`**: A 2x1 `SLOT` frame over a 2x2 `PANEL` one.
+  - `width()` equals 2.
+  - `height()` equals 3.
+  - `argb()` equals `[SLOT, SLOT, PANEL, PANEL, PANEL, PANEL]`.
+- **`stackRefusesNoFramesOrFramesOfDifferentWidths`**:
+  - `stack(List.of())` throws `IllegalArgumentException`.
+  - `stack([blank(2, 1), blank(3, 1)])` throws `IllegalArgumentException`.
+
+### `PixelsTest`
+
+Test: [`PixelsTest.java`](../src/test/java/org/wynnvets/rendering/image/PixelsTest.java) · Subject: [`Pixels`](../src/client/java/org/wynnvets/rendering/image/Pixels.java)
+
+`Pixels` is a plain ARGB image. The suite pins its size guard, rectangles, per-pixel apply, copies and mean on small hand-built images.
+
+- **`aBlankImageIsFullyTransparent`**: `blank(3, 2)`.
+  - `width()` equals 3.
+  - `height()` equals 2.
+  - `argb()` equals six zeros.
+- **`anImageMustHoldExactlyItsPixels`**:
+  - `new Pixels(2, 2, new int[3])` throws `IllegalArgumentException`.
+  - `new Pixels(0, 2, new int[0])` throws `IllegalArgumentException`.
+- **`containsTakesOnlyRectanglesWhollyInside`**: A 4x3 image.
+  - `contains(Rect(0, 0, 4, 3))` is true.
+  - `contains(Rect(3, 2, 1, 1))` is true.
+  - `contains(Rect(3, 2, 2, 1))` is false: it leaves on the right.
+  - `contains(Rect(-1, 0, 1, 1))` is false: it starts outside.
+  - `contains(Rect(0, 0, 0, 1))` is false: it is empty.
+- **`theMeanCountsEachVisiblePixelOnce`**: `0xFF000000`, `0x80FF0000` and `0x00FFFFFF`.
+  - `mean(image)` equals `[127.5, 0, 0]`: the half-alpha red counts as much as the black, the invisible white not at all.
+  - `mean(blank(2, 2))` is null: nothing visible.
+- **`applyReplacesEveryPixelInPlace`**: `apply` runs an operator over every pixel and stores the result.
+  - A 2x1 image `{1, 2}` after `apply(pixel -> pixel + 10)` has `argb()` equal to `{11, 12}`.
+- **`aCopySharesNothingWithItsOriginal`**: A copy has the size of the original, and writing to it leaves the original alone.
+  - `copy.width()` equals 2 and `copy.height()` equals 1.
+  - After `copy.set(0, 0, 9)`, the original's `get(0, 0)` still equals 1.
+- **`aRectWritesItselfAsAYamlFlowList`**: A `Rect` writes itself the way the rule files do.
+  - `new Rect(97, 17, 74, 36).toYaml()` equals `[97, 17, 74, 36]`.
+
+### `PngCodecTest`
+
+Test: [`PngCodecTest.java`](../src/test/java/org/wynnvets/rendering/image/PngCodecTest.java) · Subject: [`PngCodec`](../src/client/java/org/wynnvets/rendering/image/PngCodec.java)
+
+`PngCodec` writes PNGs in plain Java and decodes through Minecraft's `NativeImage`. Loom puts the natives on the test classpath, so the decoder works under JUnit; the suite reads the writer's output back with `ImageIO`.
+
+- **`theWrittenPngReadsBackPixelForPixel`**: A 3x2 image with opaque, half, quarter and zero alpha, written by `png` and read with `ImageIO`.
+  - The read image is not null.
+  - Its width equals 3.
+  - Its height equals 2.
+  - For each pixel: `getRGB(x, y)` equals the written ARGB.
+- **`pngSizeReadsTheHeaderAlone`**:
+  - `pngSize(png(blank(5, 7)))` equals `[5, 7]`.
+  - `pngSize(new byte[30])` throws `IOException`: no PNG signature.
+  - `pngSize` of two bytes throws `IOException`.
+
+## `org.wynnvets.retro`
+
+### `LivePackTest`
+
+Test: [`LivePackTest.java`](../src/test/java/org/wynnvets/retro/LivePackTest.java) · Subject: [`LivePack`](../src/client/java/org/wynnvets/retro/LivePack.java)
+
+`LivePack` answers what the retro pack drawn right now holds: the pack's copy of Wynncraft's unique tooltip border, its other copies of Wynncraft's textures, the vanilla item definitions it copied, the items it generated and the `image_edits` it painted. Every answer is true or present only while the pack is drawn and only if its generation wrote it. The suite drives `RetroModeManager` with reports built in the test; `reset` clears its state after each test.
+
+- **`theLegacyStyleIsDrawnOnlyWhileTheLivePackHasBothItsSprites`**: A report with both sprites, then the pack going live, then a report with the frame alone, then a new reload.
+  - After `generated(generatedWith(LEGACY_TOOLTIP_SPRITES))`: `LivePack.isLegacyTooltipStyle()` is false, as the pack is not live yet.
+  - After `packWentLive(reloadStarted())`: it is true.
+  - After `generated(generatedWith({vetsmod:gui/sprites/tooltip/legacy_frame}))`: it is false; a frame without its background would draw half a border.
+  - After a report with both sprites and another `reloadStarted()`: it is false; a reload clears it.
+- **`anImageEditCountsOnlyWhileTheLivePackPaintedIt`**: A report that painted `[97, 17, 74, 36]` on `minecraft:gui/container/inventory`, then the pack going live, then a report that painted nothing, then a new reload.
+  - After `generated(...)`: `LivePack.imageEdits(inventory)` equals `List.of()`, as the pack is not live yet.
+  - After `packWentLive(reloadStarted())`: it equals `[Rect(97, 17, 74, 36)]`.
+  - `LivePack.imageEdits("minecraft:gui/container/generic_54")` equals `List.of()`: nothing was painted there.
+  - After `generated(generatedWith(Set.of()))`: `LivePack.imageEdits(inventory)` equals `List.of()`; a generation whose guard refused every fill painted nothing.
+  - After a report with the rectangle and another `reloadStarted()`: it equals `List.of()`; a reload clears it.
+- **`aWynncraftTexturesCopyCountsOnlyWhileTheLivePackWroteIt`**: The real rule files copy `minecraft:gui/container/generic_54` (`chest`) to `vetsmod:gui/container/wynncraft/generic_54` (`copy`); a report that wrote that copy, then the pack going live, then a new reload.
+  - After `generated(generatedWith({copy}))`: `LivePack.wynncraftCopy(chest)` equals `Optional.empty()`, as the pack is not live yet.
+  - After `packWentLive(reloadStarted())`: it equals `Optional.of(copy)`.
+  - `LivePack.wynncraftCopy("minecraft:gui/container/hopper")` equals `Optional.empty()`: its copy was not written.
+  - `LivePack.wynncraftCopy(copy)` equals `Optional.empty()`: a copy is found by the texture it copies.
+  - After another `reloadStarted()`: `LivePack.wynncraftCopy(chest)` equals `Optional.empty()`.
+- **`anItemDefinitionsCopyCountsOnlyWhileTheLivePackWroteIt`**: A report that copied the item definition of `minecraft:bow`, then the pack going live, then a new reload.
+  - After `generated(generatedWith({}, {minecraft:bow}, {}))`: `LivePack.itemDefinition("minecraft:bow")` equals `Optional.empty()`, as the pack is not live yet.
+  - After `packWentLive(reloadStarted())`: it equals `Optional.of("vetsmod:retro/minecraft/bow")`.
+  - `LivePack.itemDefinition("minecraft:stick")` equals `Optional.empty()`: its definition was not copied.
+  - After another `reloadStarted()`: `LivePack.itemDefinition("minecraft:bow")` equals `Optional.empty()`.
+- **`aGeneratedItemCountsOnlyWhileTheLivePackWroteIt`**: `LivePack.isGeneratedItem` is true for an item the live generation wrote for `accessory_tiers` or `outlined_icons`, and for nothing else.
+  - After a generation that wrote `vetsmod:retro/accessory/ring_gold`, `isGeneratedItem` of it is false while the pack is not live.
+  - Once the pack is live it is true, and false for `vetsmod:retro/accessory/ring_iron`.
+  - After a new reload starts it is false again.
+- **`aCopiedItemAndAGeneratedItemAreDifferentQuestions`**: The report keeps the copied vanilla item definitions and the generated items apart.
+  - With `minecraft:bow` copied and `vetsmod:retro/accessory/ring_gold` generated, and the pack live: `isGeneratedItem("minecraft:bow")` is false.
+  - `itemDefinition("vetsmod:retro/accessory/ring_gold")` is empty.
+
+### `RetroCommandsTest`
+
+Test: [`RetroCommandsTest.java`](../src/test/java/org/wynnvets/retro/RetroCommandsTest.java) · Subject: [`RetroCommands`](../src/client/java/org/wynnvets/retro/RetroCommands.java)
+
+`RetroCommands` builds the Brigadier `/wv retro` tree. The suite builds it and checks the shape its Javadoc documents, and pins what the parts commands work out. No command is run: an answer goes through Wynntils' chat and a stored setting through `VetsConfig`. `names(node)` lists a node's children's names in order.
+
+- **`treeBuildsWithItsDocumentedShape`**: `buildCommandTree().build()` yields `retro`.
+  - `retro.getName()` equals `"retro"`.
+  - `retro.getCommand()` is not null: a bare `retro` says its state.
+  - Its children are `on`, `off`, `parts` and `only`.
+  - For each of `on` and `off`: it has a command and no children.
+- **`partsListsAndTakesAPartOnOrOff`**: The `parts` child.
+  - It has a command: a bare `parts` lists them.
+  - Its one child is the `part` argument, which has no command.
+  - That has the children `on` and `off`, each with a command.
+- **`onlyTakesOnePart`**: The `only` child.
+  - It has no command.
+  - Its one child is the `part` argument, which has a command and no children.
+- **`onePartChangesAndTheOthersKeepTheirState`**: `offAfter`, with `HUD` off.
+  - `MOBS` going off gives `{HUD, MOBS}`.
+  - `HUD` going on gives none.
+  - `HUD` going off, and `MOBS` going on, each give `{HUD}`.
+- **`anAnswerSaysWhatHappensToTheResources`**: `partsText` with retro on.
+  - `RELOADING` adds `. Reloading resources…`.
+  - `UNCHANGED` adds the full stop.
+  - `NO_WYNNCRAFT_PACK` adds `. It shows once Wynncraft's resource pack has loaded.`
+- **`anAnswerWithRetroOffSaysNothingShowsUntilItIsOn`**: `partsText` with retro off and `UNCHANGED` ends `Retro itself is off: /wv retro on shows it.`
+
+### `RetroModeManagerTest`
+
+Test: [`RetroModeManagerTest.java`](../src/test/java/org/wynnvets/retro/RetroModeManagerTest.java) · Subject: [`RetroModeManager`](../src/client/java/org/wynnvets/retro/RetroModeManager.java)
+
+`RetroModeManager` holds the retro mode's state. The suite pins the live flag (which finished reload may say the retro pack is drawn), which report counts as the live one, `isLiveOnWynncraft`, the rule files it keeps for the session, and the parts that are on, read outside the game as every part. The setting goes through `VetsConfig` and the latch posts a chat line through Wynntils, so the suite leaves both alone; `RetroPackResourcesTest` reaches the latch through the pack, which swallows that line's failure.
+
+- **`aReloadThatFinishesLateCannotMarkALaterOneLive`**: Two reloads start, and the first finishes after the second has started.
+  - After `packWentLive(first)`: `isPackLive()` is false.
+  - After `packWentLive(second)`: `isPackLive()` is true.
+  - After another `reloadStarted()`: `isPackLive()` is false, since a reload clears it as it starts.
+- **`aLivePackIsNotLiveOnWynncraftWhileWynntilsCannotSaySo`**: `isLiveOnWynncraft` is false without a live pack and when Wynntils cannot answer, and throws nothing.
+  - With no pack, `isLiveOnWynncraft()` is false.
+  - After the pack goes live, `isPackLive()` is true but `isLiveOnWynncraft()` is false: Wynntils is not on the test classpath, and the `LinkageError` is swallowed.
+- **`theLiveReportIsTheLatestGenerationsOnlyWhileThePackIsLive`**: `liveReport` is the last generation's report while the pack is live, `lastReport` always.
+  - Before any generation `liveReport()` is `null`.
+  - After `generated(report)`, `lastReport()` is `report` and `liveReport()` is `null`.
+  - Once the pack is live, `liveReport()` is `report`.
+  - After a new reload starts, `liveReport()` is `null` and `lastReport()` is still `report`.
+- **`theRuleFilesAreParsedOnceASession`**: `manifest()` keeps what it parsed.
+  - A second `manifest()` is the same object as the first.
+  - Its `slotFills()` is not empty: the real files, not the empty stand-in for unreadable ones.
+- **`everyPartIsOnWhileTheSettingCannotBeRead`**: `VetsConfig` does not load under JUnit, and that leaves every part on.
+  - `partsOn()` equals `RetroPart.all()`.
+  - Two calls return the same set: it is parsed once.
+  - `isPartOn(WEAPONS)` is true.
+- **`newPartsReloadOnlyAChangeOverALoadedRetroPack`**: `partsOutcome`, not latched.
+  - A change with a retro pack loaded is `RELOADING`.
+  - No change is `UNCHANGED`.
+  - A change with retro off and no retro pack is `UNCHANGED`.
+  - A change with retro on and no Wynncraft pack is `NO_WYNNCRAFT_PACK`.
+  - With retro off and no Wynncraft pack it is `UNCHANGED`: nothing waits for it.
+- **`aStoppedSessionAnswersThatWhileRetroIsOn`**: `partsOutcome`, latched.
+  - With retro on it is `LATCHED`, even for a change over a loaded pack.
+  - With retro off it is `UNCHANGED`.
+- **`aPartIsLiveOnlyWhileThePackIsLiveAndThePartIsOn`**: With `hud` off through `setPartsOnForTesting`.
+  - With no pack, `isPartLive(WEAPONS)` is false.
+  - Once the pack is live, `isPartLive(WEAPONS)` is true.
+  - `isPartLive(HUD)` is false.
+  - `isPartLiveOnWynncraft(WEAPONS)` is false: Wynntils is not on the test classpath, and nothing is thrown.
+
+### `WynntilsConfigOverridesTest`
+
+Test: [`WynntilsConfigOverridesTest.java`](../src/test/java/org/wynnvets/retro/WynntilsConfigOverridesTest.java) · Subject: [`WynntilsConfigOverrides`](../src/client/java/org/wynnvets/retro/WynntilsConfigOverrides.java), [`WynntilsSettings`](../src/client/java/org/wynnvets/retro/WynntilsSettings.java)
+
+`WynntilsConfigOverrides` switches Wynntils settings while retro is on and puts them back. The suite pins its snapshot as stored in `retroWynntilsSnapshot` (the text form), and what applying and restoring do to a setting, over `FakeSettings` and `FakeSetting`, stand-ins for `WynntilsSettings` and its `Setting`: `FakeSetting` holds a text value (the text `unreadable` reads as nothing) and can refuse to set or to read back, and `FakeSettings` finds settings by `"<feature> <setting>"`, holds a stored snapshot and records what was done in order. `LiveWynntilsSettings` needs Wynntils and is not tested.
+
+- **`applyingSavesThePlayersValueBeforeItChangesAnything`**: `apply` writes the snapshot before it changes the setting, then saves Wynntils' config.
+  - A `FakeSetting` holding `players` (set by the player) becomes `retro`.
+  - The snapshot decodes to one entry: original `players`, user-edited, applied `retro`.
+  - The calls, in order, are `snapshot players` and `save retro`.
+- **`aSnapshotThatSurvivedACrashKeepsThePlayersValue`**: When the snapshot already holds the player's value, a setting that already has retro's value is not saved over it.
+  - With the setting at `retro` and a snapshot entry (`players`, not edited, `retro`), `apply` leaves the entry as it was.
+  - The calls are `snapshot retro` alone: nothing changed, so nothing is saved.
+- **`aRowsNewValueKeepsThePlayersSavedValue`**: When the rule file's value changes, the saved player value stays.
+  - With the setting at `older` and a snapshot entry (`players`, edited, `older`), `apply` sets `retro`.
+  - The entry becomes (`players`, edited, `retro`).
+- **`aSettingThisWynntilsLacksKeepsItsEntryWhenApplying`**: A snapshot entry for a setting this Wynntils does not have is kept.
+  - With a snapshot entry for `Gone setting` and a row for it, `apply` finds nothing and the entry decodes unchanged.
+- **`aValueWynntilsCannotReadIsSkippedAndSavesNothing`**: A row value the setting cannot read is skipped.
+  - With the row value `unreadable`, the setting still holds `players` and the snapshot has no entries.
+- **`aValueThatDoesNotReadBackIsNotChanged`**: A setting whose new value would not read back as text is never changed, because retro could not put it back.
+  - With `roundTrips` false the setting still holds `players` and the snapshot has no entries.
+- **`aSettingTheRuleFilesNoLongerChangeIsPutBack`**: A saved setting the rule files no longer list goes back to the player's value.
+  - With the setting at `retro`, an entry (`players`, edited, `retro`) and no rows, `apply` sets `players`.
+  - The snapshot is empty afterwards, and the calls are `snapshot players` and `save players`.
+- **`aSettingTheRuleFilesNoLongerChangeStaysSavedWhenItCannotBePutBack`**: If that setting cannot be set, its entry stays.
+  - With `throwsOnSet` true, the entry (`players`, edited, `retro`) decodes unchanged.
+- **`partOwningTheFeature`**: Helper: a `PartFilter` over a `parts` fixture whose `hud` row owns the feature `Feature`, with the given parts on.
+- **`aRowIsPassedOnlyWhileThePartOwningItsFeatureIsOn`**: `rowsOn` over `ROW` and a row of a feature no part owns.
+  - With every part on, it equals both rows.
+  - With `hud` off, it equals the unowned row alone.
+- **`aSettingWhosePartGoesOffIsPutBackAndComesBackWithIt`**: `apply` over `rowsOn`, as `/wv retro parts` drives it, on a setting holding `players`.
+  - With the part on, the setting holds `retro`.
+  - With it off, it holds `players` again.
+  - The snapshot is empty.
+  - With it on again, it holds `retro`.
+  - The snapshot decodes to one entry: original `players`, user-edited, applied `retro`.
+  - After it goes off again and `restore` finds nothing to do, it holds `players`.
+- **`applyingDoesNothingUntilWynntilsHasItsFeatures`**: Before Wynntils has loaded its features, `apply` touches nothing.
+  - With `loaded` false the setting still holds `players` and no snapshot was written.
+- **`restoringPutsThePlayersValueBackAndClearsTheSnapshot`**: `restore` sets the saved value, saves Wynntils' config, then clears the snapshot.
+  - The setting goes from `retro` to `players`, the snapshot to `""`.
+  - The calls are `save players` then `snapshot players`.
+- **`restoringResetsASettingThePlayerNeverSet`**: An entry saved as not user-edited is reset, not set.
+  - The setting holds `default` and `userEdited()` is false, so Wynntils again leaves it out of its file.
+- **`aSettingThePlayerChangedSinceIsLeftAndItsEntryDropped`**: A setting that no longer has retro's value stays as it is.
+  - With the setting at `changed by hand`, `restore` leaves it, clears the snapshot, and saves nothing (the only call is the snapshot write).
+- **`aSettingThatCannotBeFoundKeepsItsEntry`**: An entry for a setting this Wynntils lacks survives `restore`.
+  - The `Gone setting` entry decodes unchanged.
+- **`aSettingThatCannotBeSetKeepsItsEntry`**: A setting that throws on set keeps its entry.
+  - With `throwsOnSet` true, `restore` leaves the entry (`players`, edited, `retro`).
+- **`aSavedValueThatCannotBeReadKeepsItsEntry`**: A saved value the setting cannot read is not set.
+  - With the saved value `unreadable`, the setting still holds `retro` and the entry is kept.
+- **`restoringDoesNothingWithoutASnapshotOrUntilWynntilsHasItsFeatures`**: `restore` has no effect without a snapshot, or before Wynntils has loaded.
+  - With no snapshot, no calls are made.
+  - With a snapshot and `loaded` false, the setting still holds `retro` and the entry is kept.
+- **`aSnapshotReadsBackAsWritten`**: `SAVED` survives a round trip, and an empty snapshot is `[]`.
+  - `decode(encode(SAVED))` equals `SAVED`.
+  - `encode(List.of())` equals `"[]"`.
+  - `decode("[]")` equals `List.of()`.
+- **`noSnapshotReadsAsNone`**: The empty default, or no key at all, is no snapshot.
+  - `decode(null)` equals `List.of()`.
+  - `decode("")` equals `List.of()`.
+- **`anUnreadableSnapshotReadsAsNone`**: A snapshot that cannot be read is dropped (with a warning), not half-read.
+  - For each of `{`, `{}`, `[1]` and `[{"feature": "ItemHighlight"}]`: `decode(text)` equals `List.of()`.
+- **`aSettingIsNamedAsWynntilsConfigCommandNamesIt`**: A setting's key is its feature, a space and its setting.
+  - `SAVED.get(0).key()` equals `"ItemHighlight highlightTexture"`.
+
+## `org.wynnvets.retro.manifest`
+
+### `AssetSectionsTest`
+
+Test: [`AssetSectionsTest.java`](../src/test/java/org/wynnvets/retro/manifest/AssetSectionsTest.java) · Subject: [`AssetSections`](../src/client/java/org/wynnvets/retro/manifest/AssetSections.java), [`Recipe`](../src/client/java/org/wynnvets/retro/manifest/Recipe.java)
+
+The parser's reading of `AssetSections`: the image edits, copies, recipes, blank textures, Wynntils textures and language, on small fixtures.
+
+- **`imageEditsReadTheirFillsInOrder`**: Two fills for `minecraft:gui/container/inventory`, one in block style and one in flow style.
+  - `imageEdits().get("minecraft:gui/container/inventory")` equals `[Fill(Rect(97, 17, 74, 36), 172, 17, {0xC6C6C6, 0x8B8B8B}), Fill(Rect(76, 61, 18, 18), 0, 0, {0x373737})]`.
+- **`aMalformedImageEditFailsTheParse`**: Starting from the valid fill `{fill: [1, 1, 2, 2], sample: [0, 0], palette: ['#C6C6C6']}` under `'minecraft:gui/x'`.
+  - Each of these variants throws `IllegalArgumentException` (7 assertions): a three-number `fill`; a negative coordinate; a zero width; a non-integer `2.5`; a one-number `sample`; an empty `palette`; no `palette`.
+  - The key `'minecraft:gui/.*'` throws `IllegalArgumentException`: a key is an id, not a pattern.
+  - The valid fill parses: `imageEdits().size()` equals 1.
+- **`wynncraftCopiesWriteOnlyIntoVetsmod`**: A copy anywhere but vetsmod's namespace would hide a texture of Minecraft's or Wynncraft's own.
+  - For `'vetsmod:gui/sprites/tooltip/legacy_frame': 'minecraft:gui/sprites/tooltip/unique_frame'`: `wynncraftCopies()` equals that one entry.
+  - The key `'minecraft:gui/sprites/tooltip/frame'` throws `IllegalArgumentException`.
+  - The original `'minecraft:gui/(a|b)'` throws `IllegalArgumentException`: it is an id, not a pattern.
+- **`aRecipeHasAHueOfOrAScaleFromNotBoth`**: A recipe is `hue_of` or `scale_from`; the source copy that names it takes the matching recolour.
+  - With a `hue_of` recipe `a` and a `scale_from` recipe `b`, each used by a `source_copies` row, `copyHueOnly(manifest)` equals `{vetsmod:item/retro/a}`.
+  - A recipe with both `hue_of` and `scale_from` throws `IllegalArgumentException`.
+- **`hueOfRefusesAColourWithoutOneStrongestChannel`**: A `hue_of` colour whose strongest channel is not one is refused by the parse.
+  - For `#808080`, `#808000`, `#008080`, `#800080` and `#000000`, `parseTextures` throws `IllegalArgumentException` whose message contains `recipes: 'a'` and `strongest`.
+- **`aSourceCopyPicksItsRecolourByItsRecipe`**: `SourceCopy.recolour()` is the recipe's recolour for the row's colour, and null for a plain copy.
+  - `SourceCopy.of(art).recolour()` is `null` and its `source()` is the art.
+  - A multiply recipe gives `Recolours.tint(colour)`, a scale recipe `Recolours.scale(from, colour)` and a hue recipe `Recolours.hueOnly(from, colour)`, each equal pixel for pixel on a probe.
+- **`aScaleOrMultiplyRecipeLeavesTheArtsOutlineAndAHueRecipePassesOverGrey`**: A near-grey dark pixel is the art's outline: the multiply and scale recipes leave it, and a hue recipe does not touch grey at all; a lighter grey is dyed.
+  - For a multiply, a scale (`0xD8D8D8`) and a hue (`0x345FDA`) recipe, `recolour(0x6CB0F0)` of `0xFF353535` equals `0xFF353535`.
+  - A lighter grey, `0xFF808080`, comes out as `Recolours.tint(colour)` for the multiply recipe and `Recolours.scale(main, colour)` for the scale recipe.
+- **`blankTexturesAreIdsAndAPatternFailsTheParse`**: A row parses to its id, and a pattern throws `IllegalArgumentException`.
+- **`aSourceCopyCanCarryATint`**: A `source_copies` row may be a mapping that names a recipe and a colour.
+  - With the recipe `g: {art: 'minecraft:block/g'}` and the rows `'vetsmod:block/retro/g': {g: '#48B518'}` and `'vetsmod:block/retro/p': 'minecraft:block/p'`: `copySources` equals `{vetsmod:block/retro/g: minecraft:block/g, vetsmod:block/retro/p: minecraft:block/p}`.
+  - `copyTints` equals `{vetsmod:block/retro/g: 0x48B518}`, and `copyFroms` is empty.
+  - With `scale_from: '#102030'` on the recipe, `copyFroms` equals `{vetsmod:block/retro/g: 0x102030}`.
+  - A row of `{source: 'minecraft:block/g'}`, `{tint: '#48B518'}`, `{g: '#48B518', tint: '#48B518'}`, `{g: 'green'}` or `{}` throws `IllegalArgumentException`, and so does a recipe with `scale_from: 'green'`.
+- **`sourceCopiesWriteOnlyIntoVetsmod`**: A copy of a source's texture anywhere but vetsmod's namespace would hide a texture of Minecraft's or Wynncraft's own. The rows `'vetsmod:block/retro/b': 'minecraft:block/b'` then `'vetsmod:block/retro/a': 'minecraft:entity/chest/normal'`.
+  - The entries of `sourceCopies()` equal those two, in file order.
+  - The key `'minecraft:block/b'` throws `IllegalArgumentException`.
+  - The original `'minecraft:block/(a|b)'` throws `IllegalArgumentException`: it is an id, not a pattern.
+  - An empty original throws `IllegalArgumentException`: nothing to copy.
+- **`wynntilsTexturesAreBlankOrFramesAndWriteOnlyIntoWynntils`**: `emerald_count_background: blank`, and `quick_jump_button` with a flow-style frame and a block-style frame with a region.
+  - `wynntilsTextures().get("wynntils:ui_components/emerald_count_background")` equals `List.of()`: blank.
+  - `wynntilsTextures().get("wynntils:ui_components/quick_jump_button")` equals `[Frame("minecraft:gui/sprites/widget/button", null, 3), Frame("minecraft:gui/demo_background", Rect(0, 0, 248, 166), 4)]`.
+  - Each of these rows throws `IllegalArgumentException` (6 assertions): `'minecraft:gui/x': blank` (not the `wynntils` namespace); `'wynntils:x': []` (no frames); `'wynntils:x': transparent`; a frame with no `source`; a frame with no `border`; a frame with `border: -1`.
+- **`langReadsItsLocalesAndStringsInOrder`**: `locales: ['en_us', 'en_gb']` and the strings `menu.game` then `container.inventory`.
+  - `lang().locales()` equals `["en_us", "en_gb"]`.
+  - The keys of `lang().strings()` equal `["menu.game", "container.inventory"]`, in file order.
+  - `locales: ['en US']` throws `IllegalArgumentException`: not a file name.
+  - `strings: {'menu.game': ''}` throws `IllegalArgumentException`: an empty string.
+
+### `ManifestParserTest`
+
+Test: [`ManifestParserTest.java`](../src/test/java/org/wynnvets/retro/manifest/ManifestParserTest.java) · Subject: [`RetroManifest`](../src/client/java/org/wynnvets/retro/manifest/RetroManifest.java), [`ManifestYaml`](../src/client/java/org/wynnvets/retro/manifest/ManifestYaml.java)
+
+`RetroManifest`'s parser on small fixtures fed through `ManifestFixtures.parse` and `parseTextures`. The suite pins what every section's mapping must satisfy (one document, no repeated keys, rows in file order, patterns that compile and are not empty, entries of the right shape), the empty manifest and its immutability, and the Wynntils settings. Each family's own rows are `TextureSectionsTest`'s, `ModelSectionsTest`'s, `AssetSectionsTest`'s, `StackSectionsTest`'s and `ScreenSectionsTest`'s.
+
+- **`aRepeatedSectionFailsTheParse`**: A section named twice in one mapping makes `parse` throw `YAMLException` instead of letting the second list replace the first, and nothing from that document loads.
+  - Parsing a fixture with `definitions: - "^FirstProbe$"` followed by a second `definitions: - "^SecondProbe$"` throws `YAMLException`
+  - Afterwards `ItemDefinitions.isLegacy("FirstProbe")` and `ItemDefinitions.isLegacy("SecondProbe")` are both false
+- **`aRepeatedRowFailsTheParse`**: A repeated key inside a section fails the parse too, in either file.
+  - Parsing `aliases` with the key `'minecraft:block/a'` twice throws `YAMLException`.
+  - Parsing an ingredients fixture with `gold_nugget` twice throws `YAMLException`.
+- **`aSecondDocumentFailsTheParse`**: A `---` separator fails the parse.
+  - Parsing two documents, each with a `same_name` section, throws `YAMLException`.
+- **`anUnknownSectionIsIgnored`**: A misspelt `same_nmae` section is dropped while `same_name` still loads.
+  - `manifest.sameName().size()` equals 1.
+  - `manifest.sameName().get(0).pattern()` equals `"minecraft:block/.*"`.
+- **`emptyFilesGiveAnEmptyManifest`**: Two empty inputs give a manifest with every list and map empty.
+  - `sources()`, `keepWynncraft()`, `tints()`, `aliases()`, `sameName()`, `layerGroups()`, `itemModels()`, `potions()`, `equipment()`, `recipes()`, `imageEdits()`, `wynncraftCopies()`, `sourceCopies()`, `wynntilsTextures()`, `gearBoxIcons()`, `lang().locales()`, `lang().strings()` and `ingredients()` are each empty (18 assertions).
+- **`anEmptyPatternIsIgnored`**: An empty and a null `same_name` entry, an empty alias key and an empty ingredient stem are dropped.
+  - `manifest.sameName().size()` equals 1: the section's `'minecraft:block/.*'` entry still loads.
+  - `manifest.aliases()` is empty.
+  - `manifest.models().ingredients()` is empty.
+- **`aBadOrUnquotedColourFailsTheParse`**: A colour must be a quoted `'#RRGGBB'`. Unquoted, `#A06540` is a YAML comment, which leaves the key empty, so a present but empty `tint` fails too.
+  - For each tint `'A06540'`, `'#A0654'`, `'#A06540FF'`, `red` and `#A06540` (unquoted): the `tints` row `'minecraft:block/x'` throws `IllegalArgumentException`.
+  - The `potions` family `x: {colour: '00AA00'}` throws `IllegalArgumentException`.
+  - The family `x: {colour: #00AA00` (unquoted, so empty) throws `IllegalArgumentException`.
+  - The family `x: empty` throws `IllegalArgumentException`: every potion row is a mapping with a liquid's colour.
+- **`theEmptyManifestHasNoRows`**: `RetroManifest.empty()` has every family empty.
+  - `textures().sources()`, `models().ingredients()`, `assets().lang().strings()`, `stacks().accessoryTiers().tiers()`, `screens().slotFills()` and `wynntilsConfig()` are each empty.
+- **`aRowKeyItsSectionDoesNotHaveFailsTheParse`**: A misspelt or foreign key in a row fails the parse, whichever section the row is in.
+  - Over seventeen rows (a `strenght` in a tint, a `note` in an item model, a `colour` in an image edit, a `huo_of` in a recipe, an `avomood` in a potion, a `from` in a content book state, a `regoin` in a Wynntils texture, `string` for `strings` in `lang`, extras in `stack_models`, `outlined_icons`, `accessory_tiers`, `slot_fills` and `slot_values`), `parseTextures` throws `IllegalArgumentException` whose message contains `unknown key`.
+- **`wynntilsConfigReadsFeatureSettingAndValueInFileOrder`**: Two `ItemHighlight` settings and one `CustomPlayerListOverlay` setting.
+  - `wynntilsConfig()` equals `[WynntilsSetting(ItemHighlight, highlightTexture, boxTransparent), WynntilsSetting(ItemHighlight, hotbarHighlightEnabled, false), WynntilsSetting(CustomPlayerListOverlay, userEnabled, false)]`.
+  - For each of a feature name with a space, a setting name with a space, a feature with no settings (`{}`), an unquoted `false` and an empty value: parsing it throws `IllegalArgumentException`.
+- **`theManifestIsImmutable`**: The record's lists, a source row's order and the maps reject changes.
+  - `manifest.sameName().add(...)` throws `UnsupportedOperationException`.
+  - `manifest.sources().get(0).order().add(RetroSource.PROGRAMMER_ART)` throws `UnsupportedOperationException`.
+  - `manifest.tints().add(...)` throws `UnsupportedOperationException`.
+  - `manifest.equipment().add(...)` throws `UnsupportedOperationException`.
+  - `manifest.models().ingredients().put("a", "b")` throws `UnsupportedOperationException`.
+  - `manifest.assets().imageEdits().put("a", List.of())` throws `UnsupportedOperationException`.
+  - `manifest.assets().sourceCopies().put("a", SourceCopy.of("b"))` throws `UnsupportedOperationException`.
+  - `manifest.gearBoxIcons().put("a", "b")` throws `UnsupportedOperationException`.
+  - `manifest.lang().strings().put("a", "b")` throws `UnsupportedOperationException`.
+  - `manifest.slotFills().add(new SlotFill.PlayerSlots())` throws `UnsupportedOperationException`.
+  - `manifest.wynntilsConfig().add(new WynntilsSetting("a", "b", "c"))` throws `UnsupportedOperationException`.
+- **`aGroupThePatternLacksFailsTheParse`**: A `$n` whose group the pattern lacks, a named group reference and a trailing backslash each fail the parse, since `Matcher.appendReplacement` would otherwise throw at decision time, inside a reload; `$0` is accepted.
+  - The alias `'minecraft:block/a_(\d)'` → `'minecraft:block/$2'` throws `IllegalArgumentException`.
+  - The `item_models` row `'minecraft:item/wynn/(\w+)'` with texture `'minecraft:item/$2'` throws `IllegalArgumentException`.
+  - The alias `'minecraft:block/(?<n>a)'` → `'minecraft:block/${n}'` throws `IllegalArgumentException`.
+  - The alias target `'minecraft:block/a\'`, ending in a backslash, throws `IllegalArgumentException`.
+  - For the alias `'minecraft:block/(a)_(\d)'` → `'minecraft:block/$2$1$0'`, `manifest.aliases().get(0).target()` equals `"minecraft:block/$2$1$0"`.
+- **`aReplacementWithoutItsNamespaceFailsTheParse`**: An alias target, an `item_models` texture and an ingredient's model must start with a literal namespace; `keep` is the one exception.
+  - The alias target `'block/stone'` throws `IllegalArgumentException`.
+  - The alias target `'$1:block/stone'` throws `IllegalArgumentException`: the namespace must be literal.
+  - The `item_models` texture `'item/stick'` throws `IllegalArgumentException`.
+  - The ingredient `gold_nugget: 'item/gold_nugget'` throws `IllegalArgumentException`.
+  - For `gold_nugget: 'minecraft:item/gold_nugget'` and `ram_horn: keep`, `manifest.models().ingredients()` equals `{gold_nugget: "minecraft:item/gold_nugget", ram_horn: RetroManifest.KEEP}`.
+- **`aBadRegexFailsTheParse`**: An unclosed group fails the parse.
+  - Parsing `keep_wynncraft` with `'minecraft:block/(tripwire'` throws `PatternSyntaxException`.
+- **`anEntryOrSectionOfTheWrongShapeFailsTheParse`**: Each of these throws `IllegalArgumentException` (5 assertions): a `same_name` entry YAML reads as the number `1`; `same_name` written as a mapping; `aliases` written as a list; an ingredient stem YAML reads as the number `1234`; and a document that is a list rather than a mapping of sections.
+
+### `ModelSectionsTest`
+
+Test: [`ModelSectionsTest.java`](../src/test/java/org/wynnvets/retro/manifest/ModelSectionsTest.java) · Subject: [`ModelSections`](../src/client/java/org/wynnvets/retro/manifest/ModelSections.java), [`ItemTables`](../src/client/java/org/wynnvets/retro/manifest/ItemTables.java)
+
+The parser's reading of `ModelSections` and `ItemTables`: the item models, equipment and potion rows, the tables and the order of a table's rows against the item models', on small fixtures.
+
+- **`itemModelRowsRefuseKeysTheyDoNotUse`**: An `item_models` row with a key it does not use fails the parse.
+  - A row with `texture`, `parent` and a spare `note` throws `IllegalArgumentException`.
+- **`aPlainStringItemModelRowIsATextureHeldFlat`**: A string value is a texture, held flat, and must be a full id with only groups the pattern has.
+  - `'minecraft:item/wynn/(\w+)': 'minecraft:item/$1'` parses to texture `minecraft:item/$1`, parent `ParentKind.GENERATED` and no model.
+  - `'item/stick'`, `'minecraft:item/$2'`, `''` and `5` each throw `IllegalArgumentException`.
+- **`itemModelRowsReadAModelInPlaceOfATextureAndParent`**: The row `'minecraft:item/wynn/(\w+)'` with `model: 'minecraft:item/leather_$1'`.
+  - `row.model()` equals `"minecraft:item/leather_$1"`.
+  - `row.texture()` is null.
+  - `row.parent()` is null.
+  - Under `'minecraft:item/wynn/(x)'`, each of these rows throws `IllegalArgumentException` (5 assertions): a model with a texture; a model with a parent; `'item/stick'`, with no namespace; `'minecraft:item/$2'`, a group the pattern lacks; an empty model.
+- **`equipmentRowsReadAVanillaAssetOrKeepInFileOrder`**: `'minecraft:hidden': keep` then `'minecraft:(pale_)?(iron|gold)': 'minecraft:$2'`.
+  - The rows' patterns equal `["minecraft:hidden", "minecraft:(pale_)?(iron|gold)"]`.
+  - The first row's `target()` equals `RetroManifest.KEEP`.
+  - The second's equals `"minecraft:$2"`.
+  - Each of `'minecraft:a': 'iron'` (no namespace), `'minecraft:(a)': 'minecraft:$2'` (a group the pattern lacks) and `'minecraft:a': ''` throws `IllegalArgumentException`.
+- **`potionRowsReadALiquidColourInFileOrder`**: The `potions` families `mana: {colour: '#385DC6'}` and `dexterity: {colour: '#ffff55', avomod: potion_sp_dexterity}`, under `ManifestFixtures.POTION_RECIPE`.
+  - `potions().size()` equals 3: a family with an `avomod` model makes a second row.
+  - `potions().get(0).liquid()` equals `vetsmod:item/retro/potion/mana` and `get(1).liquid()` equals `vetsmod:item/retro/potion/dexterity`; their copies take `0x385DC6` and `0xFFFF55`: either case.
+  - `get(0).models().pattern()` equals `minecraft:item/wynn/potion/mana_(empty|half|full)`, and `get(2).models().pattern()` equals `avomod2:item/potion_sp_dexterity`, with `get(1)`'s liquid: a family's Avomod model takes its colour.
+  - A family with no `potion_overlay` recipe throws `IllegalArgumentException`.
+  - A family with `avomod: 'a.*'` (a pattern), or with no `colour`, throws `IllegalArgumentException`, and so does a family named `mana_(a|b)`: a family is a name, not a pattern.
+- **`anUnknownOrMissingParentFailsTheParse`**: An `item_models` row needs a `parent` of `handheld`, `handheld_rod`, `bow` or `generated`.
+  - A row with `parent: held` throws `IllegalArgumentException`.
+  - A row with no `parent` throws `IllegalArgumentException`.
+- **`aMalformedTableFailsTheParse`**: `materials`, `recipes` and `content_book_activities` refuse what they cannot make rows of.
+  - A family without `models`, with an unknown recipe, with a name under two headings, or whose name is not a lower-case word, a bad colour or a prefix with a group each throw `IllegalArgumentException`.
+  - So do a recipe named `vanilla` (a family's own key), a recipe without `art`, a table copy a `source_copies` row repeats, and a content book table without `models` or whose state names a `scale_from` without a colour.
+- **`aTablesRowsComeBeforeItemModelsOwn`**: A `materials` row beats an `item_models` pattern that also matches.
+  - With `'minecraft:item/.*'` in `item_models` and a family `f` drawing `minecraft:item/x` for `f_x`, `itemStub("minecraft:item/f_x")` equals `TintProof("minecraft:item/x", GENERATED, ITEMS)`.
+
+### `PartSectionsTest`
+
+Test: [`PartSectionsTest.java`](../src/test/java/org/wynnvets/retro/manifest/PartSectionsTest.java) · Subject: [`PartSections`](../src/client/java/org/wynnvets/retro/manifest/PartSections.java)
+
+The parser's reading of `PartSections`, on small fixtures.
+
+- **`aRowReadsItsAboutItsPatternsAndItsFeatures`**: A `weapons` row with every key.
+  - `part()` equals `WEAPONS`.
+  - `about()` equals `Weapons`.
+  - The first of `textures()` has the pattern `minecraft:a/.*`.
+  - `models()` has 2 patterns.
+  - `wynntils()` equals `{Feature}`.
+- **`onlyAboutIsRequiredAndTheRowsKeepTheirOrder`**: `hud` then `blocks`, each with only `about`.
+  - The keys equal `[HUD, BLOCKS]`.
+  - `hud`'s `textures()` is empty.
+  - `hud`'s `wynntils()` is empty.
+- **`noSectionMeansNoRows`**: An empty file gives no rows.
+- **`aMalformedRowFailsTheParse`**:
+  - For each of a name that is no part, an upper-case one, no `about`, an unknown key, an empty feature, and `models` that is not a list: the parse throws `IllegalArgumentException`.
+  - A pattern that does not compile throws `PatternSyntaxException`.
+
+### `RetroPartTest`
+
+Test: [`RetroPartTest.java`](../src/test/java/org/wynnvets/retro/manifest/RetroPartTest.java) · Subject: [`RetroPart`](../src/client/java/org/wynnvets/retro/manifest/RetroPart.java)
+
+`RetroPart` names the parts of retro, and holds the stored form of those turned off, `retroPartsOff`. The suite pins the names' lookup and the stored form's round trip.
+
+- **`aPartIsFoundByItsExactName`**:
+  - `fromYaml("gear_boxes")` equals `GEAR_BOXES`.
+  - `fromYaml("player_list")` equals `PLAYER_LIST`.
+  - `fromYaml("GEAR_BOXES")`, `fromYaml("nope")` and `fromYaml(null)` are null.
+- **`aPartIsFoundByWhatAPlayerSpells`**:
+  - `fromName("GEAR_Boxes")` equals `GEAR_BOXES`.
+  - `fromName(" hud ")` equals `HUD`.
+  - `fromName("nope")` is null.
+- **`namesAreJoinedInDeclarationOrder`**:
+  - `names([GEAR_BOXES, BLOCKS], ", ")` equals `blocks, gear_boxes`.
+  - `names` of none equals `""`.
+- **`theStoredPartsReadBackAsWritten`**: `{HUD, BLOCKS, GEAR_BOXES}`.
+  - `formatOff` equals `blocks,gear_boxes,hud`, in declaration order.
+  - `parseOff` of that equals the set.
+- **`noneStoredIsEveryPartOn`**:
+  - `formatOff` of none equals `""`.
+  - `parseOff("")` is empty.
+  - `parseOff(null)` is empty.
+  - `allBut(parseOff(""))` equals `all()`.
+- **`aNameThisClientDoesNotKnowIsIgnoredSoADowngradeSurvives`**: `parseOff("from_a_newer_client, hud ,,MOBS")` equals `{HUD, MOBS}`.
+- **`takingPartsLeavesTheRest`**: `allBut({WEAPONS})`.
+  - It has one part fewer than `values()`.
+  - It lacks `WEAPONS` and has `ITEMS`.
+
+### `ScreenSectionsTest`
+
+Test: [`ScreenSectionsTest.java`](../src/test/java/org/wynnvets/retro/manifest/ScreenSectionsTest.java) · Subject: [`ScreenSections`](../src/client/java/org/wynnvets/retro/manifest/ScreenSections.java)
+
+The parser's reading of `ScreenSections`: the container and glyph titles, the slot fills and values and the hidden inventory effects, on small fixtures.
+
+- **`aSlotFillFallbackIsTrueOrFalse`**: `fallback` takes a boolean, not a string.
+  - `{title: 'a', slots: all, fallback: 'yes'}` throws `IllegalArgumentException`.
+- **`glyphTitlesAreKeyedByCodePointAndAMalformedOneFailsTheParse`**:
+  - `'E006': 'Merchant'` gives `{0xE006: "Merchant"}`.
+  - A key that is not a glyph, and a row with no title, each throw `IllegalArgumentException`.
+- **`containerTitlesReadATitleOrKeepInFileOrder`**: `'AccountBankContainer': 'Account Bank'` then `'Blacksmith.*': keep`.
+  - `containerTitles()` has 2 rows.
+  - The first row's pattern is `AccountBankContainer`.
+  - Its title is `Account Bank`.
+  - The second row's title is `RetroManifest.KEEP`.
+  - `'X': ''` throws `IllegalArgumentException`: an empty title.
+- **`slotFillsReadPlayerAndContainerRows`**: `{player: wynntils}`, a Trade Market row, an `outside_bounds` row, a title row with columns, a slot and a range, `{container: 'Sell', slots: all, except: [22, '28-29']}` and `{title: '.*', slots: all, unless: 'Chest|.+Bank'}`.
+  - `slotFills()` with `ManifestFixtures.withoutPatterns` applied equals `[PlayerSlots(), ContainerSlots(rows {5}), ContainerSlots(outsideBounds true), ContainerSlots(cols {0, 8}, slots {3, 45, 46, 47}), ContainerSlots(all true, except {22, 28, 29}), ContainerSlots(all true)]`, every other set empty, `unless` null and `fallback` false: the range `'45-47'` is inclusive, and so is `except`'s `'28-29'`.
+  - The Trade Market row's `containers()` pattern is `TradeMarketContainer`, its `titles()` and `unless()` are null.
+  - The title row's `containers()` is null and its `titles()` pattern is `.+ Rewards`.
+  - The last row's `unless()` pattern is `Chest|.+Bank`.
+- **`aMalformedSlotFillFailsTheParse`**: Seventeen malformed rows each fail the parse with `IllegalArgumentException`.
+  - For each of `{player: everyone}`, `{player: wynntils, rows: [1]}`, `{rows: [1]}` (neither a container nor a title), `{container: 'A', title: 'B', rows: [1]}` (both), `{container: 'A'}` (no slots), `{container: 'A', rows: [6]}`, `{container: 'A', cols: [9]}`, `{container: 'A', slots: [54]}` (past a chest), `{container: 'A', slots: ['53-45']}` (a backward range), `{container: 'A', slots: empty}` (no longer a value), `{container: 'A', slots: all, unless: '('}` (a bad pattern), `{container: 'A', slots: ['4 5']}`, `{container: 'A', slots: everything}`, `{container: 'A', row: [1]}` (an unknown key), `{container: 'A(', rows: [1]}` (a bad pattern), `{container: 'A', except: [1]}` (an exception but no slots), `{container: 'A', slots: empty, except: [54]}` (an exception past a chest), `{container: 'A', slots: empty, except: everything}` and `{player: wynntils, except: [1]}` (a player row takes no other key): parsing `slot_fills` with it throws `IllegalArgumentException`.
+- **`hiddenInventoryEffectsArePatterns`**: One pattern, kept as written.
+  - The patterns of `hiddenInventoryEffects()` equal `["minecraft:(haste|speed)"]`.
+- **`aSlotValueRowNamesAContainerAnItemAndALoreGroup`**: `{container: 'A', name: 'B', lore: 'c (d)'}` parses to those three.
+  - A row missing the container, the name or the lore, one whose lore pattern has no group, and one with an extra `slot` key each throw `IllegalArgumentException`.
+
+### `ShippedAssetsTest`
+
+Test: [`ShippedAssetsTest.java`](../src/test/java/org/wynnvets/retro/manifest/ShippedAssetsTest.java) · Subject: [`AssetSections`](../src/client/java/org/wynnvets/retro/manifest/AssetSections.java)
+
+The shipped asset rows against the client jar: the source copies and recipes, the image edits, the Wynntils frames and the language.
+
+- **`anOilTintsOnlyTheWater`**: `copyHueOnly(manifest)` of the real file holds `material/oil_salmon` and `material/gem_dernic`, and not `material/ingot_cobalt`.
+- **`aRecipeGivesItsArtInAColourFromOneLine`**: The shipped `bucket` recipe dyes the water of the water bucket and nothing else.
+  - `bucket.recolour(0x7E9A50)` of the water pixel `0xFF345FDA` equals `0xFF7E9A50`.
+  - Of the rim `0xFF808080` it equals `0xFF808080`: the bucket stays a bucket.
+- **`everyRecipeIsUsed`**: Every shipped recipe is the recipe of at least one `source_copies` row (the tables' copies included), so none is dead.
+  - For each name in `assets().recipes()`, the recipe is among the recipes of `assets().sourceCopies()`.
+- **`theGreyPlantsAreBakedGreen`**: `block/vine`, `fern`, `large_fern_top`, `short_grass`, `lily_pad`, `grass_block_top` and `grass_block_side_overlay` are grey and take their colour from the vanilla item's definition or the biome; Wynncraft's items are potions, whose white tint leaves them grey.
+  - `copyTints(manifest)`, of the copies under `vetsmod:block/retro/green/` by name, equals vine `0x48B518`, lily_pad `0x71C35C`, and `0x7CBD6B` for the other five: vanilla's constants, and `colormap/grass.png` at (127, 127).
+  - Each of those copies is of `minecraft:block/<name>`.
+  - `itemStub` of the 7 vine, 7 fern, 4 large fern, 2 short grass and 5 lily pad models is a `TintProof` whose art is `vetsmod:block/retro/green/<plant>`.
+  - `itemStub("minecraft:item/wynn/outer_void/drop/arable_chunk")` equals `ItemParent("vetsmod:item/retro/arable_chunk")`, and that model's `top` and `overlay` are tinted copies.
+- **`everyOverhealthHeartIsACopyOfVanillasHeartOfItsFill`**: For each of `OVERHEALTH_COLOURS` and each fill, the copy's source at `overhealthTexture(colour, fill)` is `minecraft:gui/sprites/hud/heart/<fill>`, so `RetroHud`'s sprites exist.
+- **`theSourceCopiesAreTheKeysHookAndTheGearBoxesChest`**: `block/tripwire_hook` is kept (its blockstate draws a blank, and Wynncraft ships no such texture, so it stays today's vanilla hook), so the keys draw a copy of the 2013 one; the chest is an entity texture, which no item atlas takes, so the gear boxes' chest model draws a copy in the blocks atlas.
+  - The copies' sources map `vetsmod:block/retro/tripwire_hook` to `minecraft:block/tripwire_hook` and `vetsmod:block/retro/chest` to `minecraft:entity/chest/normal`.
+  - `decide("minecraft:block/tripwire_hook", EVERYTHING_BLANK)` equals `Keep(KEEP_WYNNCRAFT)`: the hook a stub could not draw from its own id.
+  - For each copy: `textureInClientJar(original)` is true and, outside `vetsmod:gui/sprites/`, `Atlas.of(copy)` is present: a stub can draw it from an atlas.
+  - `sourceOrder("minecraft:block/tripwire_hook")` and `sourceOrder("minecraft:entity/chest/normal")` each equal `[PROGRAMMER_ART, VANILLA]`: Programmer Art first, as any block or entity texture.
+- **`everyImageEditFitsItsVanillaTextureAndPassesItsGuard`**: The client jar has the 1.21.11 textures the edits are written for (Programmer Art has no container textures, and the GUI reads vanilla only), so a rectangle the guard would refuse in game fails here first.
+  - `RetroManifest.load().assets().imageEdits()` is not empty.
+  - For each edited texture: `decide(texture, CLIENT_JAR)` equals `Copy(texture, VANILLA)`, so the edits apply.
+  - For each fill: its sample lies inside `texture(id)`.
+  - The rectangle's right edge is within the width.
+  - Its bottom edge is within the height.
+  - For each pixel in the rectangle: its alpha is `0xFF`.
+  - Its RGB is in the fill's palette.
+- **`theInventoryLosesItsCraftingGridAndOffhandToThePanelGrey`**: `InventoryMenu`'s 2x2 grid starts at (98, 18), its result slot is at (154, 28) and its offhand slot at (77, 62); each slot is drawn one pixel out on every side.
+  - The rects of the inventory's fills equal `[Rect(97, 17, 74, 36), Rect(76, 61, 18, 18)]`.
+  - For each fill: the jar texture's `getRGB` at its sample equals `0xFFC6C6C6`, the panel grey.
+  - Its palette equals `0xC6C6C6`, `0x8B8B8B`, `0x373737` and the RGB of `VanillaGuiColors.SLOT_HIGHLIGHT`: the guard allows the panel and the slots.
+- **`theCopiesAreTheLegacyBorderAndTheContainerBackgrounds`**: The tooltip alias turns the unique style vanilla; its copy keeps it as `vetsmod:legacy`. `same_name` turns the chest, hopper and horse screens vanilla; a container that keeps Wynncraft's label is drawn on the copy of its own. The inventory screen is always retro's, so its texture needs no copy.
+  - `wynncraftCopies()` equals `{vetsmod:gui/sprites/tooltip/legacy_background: minecraft:gui/sprites/tooltip/unique_background, vetsmod:gui/sprites/tooltip/legacy_frame: minecraft:gui/sprites/tooltip/unique_frame, vetsmod:gui/container/wynncraft/generic_54: minecraft:gui/container/generic_54, vetsmod:gui/container/wynncraft/hopper: minecraft:gui/container/hopper, vetsmod:gui/container/wynncraft/horse: minecraft:gui/container/horse, vetsmod:item/retro/tier_tag: wynntils:ui_components/sprites/highlight_tag}`.
+  - For each original but Wynntils' tag: `decide(original, CLIENT_JAR)` is a `TextureDecision.Copy`, so a rule replaces it and only the copy keeps Wynncraft's. Nothing replaces the tag: its copy is there to reach the items atlas.
+- **`theRaptorAndWyvernSaddlesAreRecolouredFromTheLeather`**: The leather's colour is in both art sources, so the copy comes out the same from either.
+  - For `vetsmod:item/retro/saddle_red` (tint `0xC8241C`) and `saddle_white` (tint `0xE9E9E9`): `sourceCopies()` maps it to `minecraft:item/saddle`, `copyFroms(manifest)` to `0xDA662C` and `copyTints(manifest)` to that tint.
+- **`theHorseWhistleIsLeatherHorseArmourInVanillasColour`**: Vanilla's art is grey and its item definition dyes it: a white stack would leave it grey, so the dyed layer is a copy baked in that colour, under vanilla's undyed overlay.
+  - `sourceCopies()` maps `vetsmod:item/retro/leather_horse_armor_dyed` to `minecraft:item/leather_horse_armor`.
+  - `copyTints(manifest)` of that copy equals `0xA06540`.
+  - `model("vetsmod:item/retro/leather_horse_armor")`'s `layer0` equals `vetsmod:item/retro/blank`, `layer1` that copy, and `layer2` `minecraft:item/leather_horse_armor_overlay`.
+- **`theAbilityShardIsALingeringPotionInItsNamesColour`**: A shard's stack is white, which would leave vanilla's liquid pale, so its liquid is a copy baked in the colour of the shard's name.
+  - `sourceCopies()` maps `vetsmod:item/retro/ability_shard_liquid` to `minecraft:item/potion_overlay`.
+  - `copyTints(manifest)` of that copy equals `0x82EFF4`.
+  - `model("vetsmod:item/retro/ability_shard")`'s `layer0` equals `vetsmod:item/retro/blank`, `layer1` that copy, and `layer2` `minecraft:item/lingering_potion`.
+- **`everyWynntilsFrameStretchesAVanillaTextureItFits`**:
+  - `wynntilsTextures().get("wynntils:ui_components/emerald_count_background")` equals `List.of()`: blank.
+  - The `quick_jump_button` row has 2 frames: normal over hovered.
+  - For each frame of each row: `firstSourceWith(frame.source(), CLIENT_JAR)` equals `VANILLA`.
+  - Its region (the whole `texture(source)` when it has none) ends within the source's width.
+  - It ends within the source's height.
+  - Its width is more than twice the border.
+  - Its height is more than twice the border.
+- **`theLangSectionRestoresVanillasStringsInWynncraftsLocales`**: Wynncraft pack `a43ae4e6` overrides five English locales and blanks or renames these strings; the values must be vanilla's `en_us` ones, read from the client jar's `assets/minecraft/lang/en_us.json` (whose stream is not null).
+  - `lang().locales()` equals `["en_us", "en_gb", "en_ca", "en_au", "en_nz"]`.
+  - The keys of `lang().strings()` equal `{container.inventory, menu.returnToGame, menu.game}`.
+  - For each string: its value equals vanilla's value for its key.
+  - `lang().strings()` has no `container.crafting`: the inventory has no crafting grid.
+
+### `ShippedEquipmentTest`
+
+Test: [`ShippedEquipmentTest.java`](../src/test/java/org/wynnvets/retro/manifest/ShippedEquipmentTest.java) · Subject: [`ModelSections`](../src/client/java/org/wynnvets/retro/manifest/ModelSections.java)
+
+The shipped equipment rows: that every Wynncraft equipment asset (`WYNNCRAFT_EQUIPMENT`, taken from the pack) has a row, and that the vanilla armour the rows name exists.
+
+- **`everyArmourMaterialWithAVanillaPieceShowsOneThatExists`**: Every material a row covers, plain and `pale_`, in every piece: gold shows `golden`, titanium (Wynncraft's tier above diamond) `netherite`, and chainmail, iron, diamond, netherite and leather their own.
+  - For each material, `pale_` or not, and piece (`helmet`, `chestplate`, `leggings`, `boots`), with `model` = `minecraft:item/wynn/armor/<piece>/<pale><material>_<piece>`: `itemStub(model)` is present, and `stub.art()` equals `minecraft:item/<vanilla material>_<piece>`.
+  - For a tint-proof stub: `parent()` equals `ParentKind.GENERATED`.
+  - `textureInClientJar` of that texture is true.
+- **`leatherIsTheVanillaLeatherPieceInTheStacksOwnDye`**: Wynncraft's leather and `pale_leather` models take the stack's dye on tint index 0, as vanilla's leather items do, so the stub is the vanilla model itself: its layer 0, the piece, takes the dye, and layer 1, the overlay, does not; both are in the items atlas. For each of `""` and `pale_`, and each piece, with `vanilla` = `minecraft:item/leather_<piece>`:
+  - `itemStub("minecraft:item/wynn/armor/<piece>/<pale>leather_<piece>")` equals `Optional.of(Model(vanilla))`.
+  - The client jar's model for `vanilla` has the parent `minecraft:item/generated`.
+  - Its `layer0` equals `vanilla`.
+  - Its `layer1` equals `vanilla + "_overlay"`.
+  - Its `textures` has exactly those 2 entries.
+  - For each of the two textures: `textureInClientJar` is true.
+  - `Atlas.of` equals `Optional.of(Atlas.ITEMS)`.
+- **`everyWynncraftEquipmentAssetHasARowAndItsVanillaAsset`**: Each of the 24 assets of pack `a43ae4e6` is decided by a row of its own, `keep` included, so a new one of Wynncraft's shows up as a test to extend rather than a silent keep.
+  - For each entry of `WYNNCRAFT_EQUIPMENT`, with `id` = `minecraft:<asset>`: some `equipment` row's pattern matches `id`.
+  - `equipmentAsset(id)` equals `Optional.empty()` for `keep`, and `Optional.of(<target>)` otherwise.
+- **`everyEquipmentRowCoversAPinnedAsset`**: No `equipment` row is a typo or a stale name.
+  - For each row of the real file, its pattern matches `minecraft:<asset>` for at least one key of `WYNNCRAFT_EQUIPMENT`.
+- **`everyEquipmentTargetIsAVanillaAssetWhoseTexturesSameNameCopies`**: The generator copies vanilla's file as it is, so each layer's texture must be one the client jar has, and one `same_name` gives its 2013 art; vanilla stands for every source here.
+  - The vanilla assets the rows pick for `WYNNCRAFT_EQUIPMENT` equal `{minecraft:leather, minecraft:chainmail, minecraft:iron, minecraft:gold, minecraft:diamond, minecraft:netherite}`.
+  - For each: the `layers` of `equipment(target)` is not empty.
+  - For each layer and each of its entries, with `id` = `<namespace>:entity/equipment/<layer>/<texture>`: `textureInClientJar(id)` is true.
+  - `decide(id, CLIENT_JAR)` equals `Copy(id, VANILLA)`.
+  - In the helper `equipment`, the resource is not null.
+
+### `ShippedItemModelsTest`
+
+Test: [`ShippedItemModelsTest.java`](../src/test/java/org/wynnvets/retro/manifest/ShippedItemModelsTest.java) · Subject: [`ModelSections`](../src/client/java/org/wynnvets/retro/manifest/ModelSections.java), [`ItemTables`](../src/client/java/org/wynnvets/retro/manifest/ItemTables.java), [`retro_ingredients.yml`](../src/client/resources/retro_ingredients.yml)
+
+The shipped item model rows and tables against the client jar and vetsmod's own assets: that the rows cover the pinned models and send them to the art each row names, that every stub is held like the item it shows and its parent ships with a blank, and the ingredients. `PINNED_MODELS` maps Wynncraft item models, taken from the pack, to what their stub shows: the texture a tint-proof stub draws, or the item model a model stub parents, as a path under `minecraft:` or in full for one of vetsmod's own. It covers weapons, armour and tools, keys, scrolls and papers, meals, saddles, gear boxes, the pouches, powders, runes, wards, the tier layer, the content book, the ability shard, the augments, Hashr's Crown, the compass menu's buttons, the tomes, and of each table's family one name of each kind. `realTables`, `realSections`, `tableModel`, `original` and `assertHeldLikeItsItem` are the helpers.
+
+- **`redstoneTorchesAreVanillasCandlesAndEveryParentExists`**:
+  - `blockModels()` equals the four rows: the two torches to `block/candle_one_candle_lit` and `block/candle_one_candle`, and the two wall torches to `vetsmod:block/retro/wall_candle_lit` and `wall_candle`.
+  - Each parent is on the classpath.
+- **`eachWoodsPaperIsInItsPlanksColourAndItsPlankIsItsDoor`**:
+  - `paper_oak` copies `item/paper` in `0x9C7F4E`, oak planks' mean, and `paper_willow` in `0x4B5C39`, the tinted planks' mean.
+  - The papers of oak, dark, sky, dernic, willow and maple each show their own copy.
+  - `item/poplar_door` is not in the client jar, and `plank_willow` and `plank_pine` copy `item/oak_door` and `item/spruce_door`.
+- **`everyItemModelRowOutsideTheTablesCoversAPinnedModel`**: Every `item_models` row the tables did not make matches at least one model in `PINNED_MODELS`, so no hand-written row goes unchecked.
+  - For each row whose pattern is not a table row's, some pinned model under `minecraft:item/wynn/` matches the pattern.
+- **`everyTableFamilyHasAPinOfEachKind`**: Each `materials` family pins a name drawn from vanilla's art and one in a recipe's colour, and the content book pins an activity in every state.
+  - For each family with a `vanilla` heading, a pinned model under its prefix draws a non-`vetsmod:` texture.
+  - For each family with a recipe heading, a pinned model under its prefix draws a `vetsmod:` copy.
+  - `gui/content_book/raid_active`, `raid_tracked` and `raid_locked` are pinned.
+- **`everyTableRowMatchesOneModelAndNoOtherRowDoes`**: A table row is one literal model id, and exactly one `item_models` row, its own, matches it.
+  - For each row the tables make, the count of `item_models` rows matching its model equals 1.
+- **`everyTableRowDrawsArtThatExistsHeldAsItsItemIs`**: Each table row is a flat tint-proof stub of art that exists, held as the vanilla item whose icon it is.
+  - Its stub is a `TintProof` of parent `GENERATED`.
+  - The texture it draws, or its original if it is a copy, is in the client jar.
+  - `assertHeldLikeItsItem` holds: the vanilla item named by the art draws that art on its `layer0` and parents what the stub parents.
+- **`theMaterialTablesExpandToACopyAndARowPerName`**: A coloured name is a copy at `material/<family>_<name>` with a row on it; a vanilla name is a row on its texture and no copy.
+  - The oil `bass` copy's source is `minecraft:item/water_bucket`, its `from` is `0x345FDA` and its colour `0x7E9A50`, and it is a hue copy.
+  - `itemStub("minecraft:item/wynn/economy/fishing/oil_bass")` draws that copy.
+  - `vetsmod:item/retro/material/oil_koi` has no copy.
+- **`theContentBookTableMakesEachActivitysThreeRowsAndTwoCopies`**: Each activity has an active row on its art and tracked and locked rows on copies of it.
+  - The table makes a row under `content_book/` per activity in `activities`, active and in each of `states`, the count worked out from the table.
+  - `book/raid_tracked` copies `minecraft:item/red_dye` with `from` `0x808080` and colour `0xFFFFFF`.
+  - `book/raid_locked` copies it with no `from` and colour `0x707070`.
+- **`everyItemModelRowNamesAnAtlasTextureOrAnItemModel`**: The folder comes before any `$n`, so a row's template already shows its stub's atlas, or that its model is a vanilla item's or block's or one of vetsmod's retro models.
+  - For each row of the real file with a model: the model starts with `minecraft:item/`, `minecraft:block/` or `vetsmod:item/retro/`.
+  - For each other row: `Atlas.of(row.texture())` is present (`block/` or `item/`).
+- **`pinnedModelsGetTheirVanillaItemFromTheClientJar`**: The pins cover the weapons and a skin of each, the armour, the tools, and the keys, paper, meals, saddles, gear boxes, pouches, powders and the rest of the families `PINNED_MODELS` lists.
+  - For each entry of `PINNED_MODELS`: `itemStub("minecraft:item/wynn/<path>")` is present and its `art()` equals the pinned art: titanium shows netherite, the relik the bone, leather the vanilla leather piece's model, the keys the tripwire hook's copy, the gear boxes vetsmod's chest, the grey plants their green copies, the arable chunk vetsmod's grass block, the tier layer vetsmod's tag and the ability shard vetsmod's lingering potion.
+  - For a `ModelStub.TintProof`: `Atlas.of(art)` equals `Optional.of(atlas())`, so the stub's parent and blank come from the art's atlas (the hook's copy's is the blocks atlas), and `textureInClientJar(original(art))` is true: the art, or the original a copy holds.
+  - For any other stub: `onClasspath(model, "models", ".json")` is true (vetsmod's own assets are on the classpath too) or the model is one `accessory_tiers` generates.
+- **`everyStubIsHeldLikeTheVanillaItemItShows`**: A tint-proof stub is held as `minecraft:item/<kind>`, which must be the vanilla model that positions the item whose icon its art is: `minecraft:item/<name>`, the art's last path segment without a trailing `_top` (the large fern's icon is its top), for a block texture as for an item one (the poppy's icon is `block/poppy`). A model stub parents the vanilla item's own model, so it is held as the item is and is skipped.
+  - For each pinned model, in sorted order, `assertHeldLikeItsItem` holds, with `art` = `original(stub.art())` (a copy draws its original's art: the keys' hook is `minecraft:block/tripwire_hook`) and `item` = `minecraft:item/<art's last segment>`: `inFull` of the `layer0` of the client jar's model for `item` equals `art`, so `item` is the item whose icon the stub shows.
+  - `"minecraft:item/" + parent().yamlName()` equals `item` when its model has a `display` that is not just `head` (the bow: `minecraft:item/bow`), and otherwise `inFull` of its `parent` (`minecraft:item/handheld`, `minecraft:item/handheld_rod` for the fishing rod, or `minecraft:item/generated`).
+- **`everyStubParentShipsWithABlankFromItsArtsAtlas`**: Each of the eight tint-proof parents a stub can name ships in vetsmod's assets, holds the art on an untinted layer, and takes its tint layer's blank from the art's atlas, so no stub draws from two atlases.
+  - For each `ParentKind` (`HANDHELD`, `HANDHELD_ROD`, `BOW`, `GENERATED`) and `Atlas` (`BLOCKS`, `ITEMS`), with `stub` an `ModelStub.TintProof` drawing `minecraft:<folder>/stone` of that kind and atlas, `parent` the JSON of `model(stub.parentModel())` and `textures` its `textures` object (the model resource is not null, in `model`):
+  - `parent`'s `parent` equals `minecraft:item/<kind>` (`handheld`, `handheld_rod`, `bow` or `generated`).
+  - `textures`' `layer0` equals `stub.blank()`.
+  - `textures`' `layer1` equals `#art`.
+  - `textures`' `particle` equals `#art`.
+  - `Atlas.of(stub.blank())` equals `Optional.of(atlas)`.
+- **`theBlanksAreFullyTransparent`**: Both blanks are 16 by 16 and every pixel has alpha 0.
+  - For each `Atlas`: the resource `/assets/vetsmod/textures/<folder>/retro/blank.png` is not null.
+  - Its `ImageIO.read` image's width equals 16.
+  - Its height equals 16.
+  - For each of the 256 pixels: `getRGB(x, y) >>> 24` equals 0.
+- **`modelsNoRowCoversKeepWynncraftsModel`**: Materials with no 2013 armour, Wynncraft's own armour, cosmetics, potions (which the `potions` rows cover instead), accessories, ingredients, the models Wynntils reads itself, and the neighbours of the families the rows cover (a key ingredient, dungeon fragments and tokens, props, the GUI's scroll, food and lootrun icons, the loot cache, the pouch screen's buttons, the emerald pouch, the blank rune, the tier layer's fade, and the frying pan) get no item stub.
+  - `covered` equals `List.of()`, where `covered` collects each of `armor/boots/copper_boots`, `armor/chestplate/pale_copper_chestplate`, `armor/helmet/quartz_helmet`, `armor/leggings/hidden_leggings`, `armor/chestplate/tan_chestplate`, `armor/helmet/shaman_helmet`, `potion/mana_full`, `skin/hat/adventurer_hat`, `accessory/ring/ring_base_a`, `ingredient/gold_nugget`, `ingredient/skeleton_key`, `dungeon/fragment/decrepit_sewers`, `dungeon/token/ice_barrows`, `prop/quest_scroll`, `skin/dagger/frying_pan`, `outer_void/drop/frying_pan`, `gui/item_upgrader/scrolls`, `gui/trade_market/filter/scroll`, `gui/trade_market/filter/food`, `gui/lootrun/boon/loot`, `loot/cache`, `pouch/ingredient_add`, `pouch/ingredient_default`, `pouch/emerald_full`, `rune/blank`, `gui/layer/tier/fade`, `minecraft:item/oak_boat` and `minecraft:w1000` for which `itemStub(model)` is present.
+- **`everyIngredientModelIsInTheClientJar`**: Each ingredient row's model exists.
+  - For each ingredient row whose value is not `keep`: `onClasspath(value, "models", ".json")` is true.
+- **`ingredientsWithNoVanillaParentGetTheirLegacyIconOrKeepWynncrafts`**: Stems whose Wynncraft model (pack `a43ae4e6`) parents no vanilla model get the vanilla item of their legacy icon, or keep Wynncraft's model when that icon only selected Wynncraft's own art.
+  - `ingredientParent("aspect_of_the_void")` equals `Optional.of("minecraft:item/enderman_spawn_egg")`: legacy `383:58`, and Wynncraft's model parents the missing `item/spawn_egg`.
+  - `ingredientParent("penguin_egg")` equals `Optional.of("minecraft:item/egg")`: legacy `383:0`, a spawn egg naming no mob.
+  - `ingredientParent("rocky_spirit")` equals `Optional.of("minecraft:item/light_blue_dye")`: legacy `351:12`, and Wynncraft's model parents its own powder art.
+  - `ingredientParent("gilded_regalia")` equals `Optional.of("minecraft:item/golden_chestplate")`.
+  - `ingredientParent("cursed_wings")` equals `Optional.of("minecraft:item/elytra")`.
+  - `burial_talisman` gives `vetsmod:item/retro/accessory/necklace_netherite`, and `fox_coat` `minecraft:item/rabbit_hide`.
+  - `liff_leaf`, with no row of its own, has its `item_models` stub from `modelStub`.
+  - For each of `butterfly_buckler` and `router_shield`: `ingredientParent` equals `Optional.empty()`.
+- **`everyPlantIngredientFallsThroughToItsGreenCopy`**: Twenty-six plant ingredients have no row in `retro_ingredients.yml`, so `item_models` draws each on its green copy.
+  - For each stem, `modelStub` is a `TintProof` of `vetsmod:block/retro/green/<copy>`, parent `GENERATED`, atlas `BLOCKS`.
+  - `ingredients()` has no key for the stem.
+- **`theGearBoxChestIsVanillasChestModelDrawnFromOneAtlas`**: `vetsmod:item/retro/chest` is 1.21.11's `ChestModel` (`createSingleBodyLayer`) as block-model elements in a template both chests share (`template_retro_chest`), held as vanilla's chest item is, every face on the chest's copy in the blocks atlas.
+  - Its `parent`, and the ender chest's, equal `vetsmod:item/retro/template_retro_chest`; the template's `parent` equals `minecraft:item/template_chest` and it has no `textures`.
+  - The client jar's `minecraft:item/template_chest` has a `display`.
+  - The chest's `textures` are exactly `chest` and `particle`, each `vetsmod:block/retro/chest`, and `original("vetsmod:block/retro/chest")` equals `minecraft:entity/chest/normal`.
+  - The template's elements' `from` and `to` equal `[1,0,1] [15,10,15]` (the bottom), `[1,9,1] [15,14,15]` (the lid at its offset) and `[7,7,15] [9,11,16]` (the latch), in that order.
+  - `texture("minecraft:entity/chest/normal")` is 64 wide and 64 high.
+  - For each element: its faces are exactly `north`, `east`, `south`, `west`, `up` and `down`.
+  - For each face: its `texture` equals `#chest`; it has no `tintindex`; its `uv`, in the texture's pixels (4 per unit), is as wide as the face (the element's x size for `north`, `south`, `up` and `down`, its z size for `east` and `west`) and as high (its y size for a side, its z size for `up` and `down`); and every pixel of the jar's chest texture inside it has alpha `0xFF`, so no face samples the empty parts of the chest's layout.
+- **`theGearBoxesAreTheChestInTheGuiAndInTheHand`**: Wynncraft draws a gear box from `gui/loot/<tier>` in the GUI and `loot/<tier>` elsewhere (`potion.json` selects on the display context); set boxes draw `loot/set` throughout.
+  - For each tier of `unique`, `rare`, `legendary`, `fabled`, `mythic` and `set`, and each folder of `gui/loot/` and `loot/`: `itemStub("minecraft:item/wynn/<folder><tier>")` equals `Optional.of(ItemParent("vetsmod:item/retro/chest"))`.
+- **`eachPowderIsTheDyeWynncraftsOwnItemsSendToIt`**: Both sizes of each element draw the dye Wynncraft's own `items/<colour>_dye.json` send to that powder.
+  - Each of the ten powder models has a `TintProof` stub of its dye (air gray and light gray, earth lime and green, thunder yellow and orange, water light blue and cyan, fire pink and red), parent `GENERATED`, atlas `ITEMS`.
+  - Each dye texture is in the client jar.
+
+### `ShippedManifestTest`
+
+Test: [`ShippedManifestTest.java`](../src/test/java/org/wynnvets/retro/manifest/ShippedManifestTest.java) · Subject: [`retro_textures.yml`](../src/client/resources/retro_textures.yml), [`retro_ingredients.yml`](../src/client/resources/retro_ingredients.yml)
+
+The shipped rule files as files: they load, hold exactly the known sections, and the client jar's assets are on the test classpath. `ShippedFiles` holds what the `Shipped*Test` suites share: the files are read as production reads them (`src/client/resources` is on the test runtime classpath), and so is the client jar (Loom's `minecraft-clientOnly`, which carries the vanilla assets), so the suites check that every vanilla texture, model and equipment asset the files name exists in 1.21.11. vetsmod's own assets are on the classpath too. The Wynncraft pack is not, so the suites pin ids taken from Wynncraft pack `a43ae4e6` and check that the rows cover them and send them where each row says. A new shipped family or section goes in a `Shipped<Family>Test`, and a parser test in `<Family>SectionsTest`.
+
+- **`theRealFilesLoadWithoutError`**: `RetroManifest.load()` reads both shipped files with nothing catching, so a malformed edit, a repeated section included, fails the build rather than emptying the retro pack in game.
+  - `manifest.sameName().size()` is above 0.
+  - `manifest.itemModels().size()` is above 0.
+  - `manifest.models().ingredients().size()` is above 0.
+- **`theRealFilesHaveExactlyTheKnownSections`**: Each shipped file's top-level keys, read with a plain SnakeYAML load, are exactly the sections the parser knows, so a misspelt section fails the build instead of silently losing its rows.
+  - `sectionNames("/retro_textures.yml")` equals `RetroManifest.TEXTURE_SECTIONS`.
+  - `sectionNames("/retro_ingredients.yml")` equals `RetroManifest.INGREDIENT_SECTIONS`.
+  - In the helper `sectionNames`, the resource stream is not null.
+- **`theClientJarsAssetsAreOnTheTestClasspath`**: The guard for the existence checks below, which would otherwise fail for the wrong reason.
+  - `textureInClientJar("minecraft:block/stone")` is true.
+  - `onClasspath("minecraft:item/stick", "models", ".json")` is true.
+
+### `ShippedPartsTest`
+
+Test: [`ShippedPartsTest.java`](../src/test/java/org/wynnvets/retro/manifest/ShippedPartsTest.java) · Subject: [`PartSections`](../src/client/java/org/wynnvets/retro/manifest/PartSections.java), [`PartFilter`](../src/client/java/org/wynnvets/retro/rules/PartFilter.java)
+
+The shipped `parts` rows: that every part has a row, and that the ids the rule files act on land in the part they should. `MODELS` and `TEXTURES` are the samples, `FAMILIES` the part of each folder of Wynncraft's models, and `modelOwner` and `textureOwner` ask `PartFilter` which part's going off turns an id off.
+
+- **`rows`**: Helper: the real file's `parts`.
+- **`withOff`**: Helper: a filter with one part off.
+- **`modelOwner`**: Helper: the part whose going off turns a model off, or null.
+- **`textureOwner`**: Helper: the part whose going off turns a texture off, with no shared art, or null.
+- **`family`**: Helper: the part a model belongs to by its folders, `ITEMS` for a folder `FAMILIES` does not name.
+- **`everyPartHasARowInTheOrderTheEnumDeclaresThem`**: The keys of `parts()` equal `RetroPart.values()`, in order.
+- **`everyPinnedModelLandsInItsFamilysPart`**: For each of `ShippedItemModelsTest`'s `PINNED_MODELS`: `modelOwner` equals `family` of it.
+- **`everyTableRowsModelLandsInItsTablesPart`**: Over what the real tables make.
+  - For each `item_models` row: `modelOwner` of its one id equals `SCREENS` under `gui/content_book/` and `CRAFTING` otherwise (`materials`).
+  - For each `potions` row: `modelOwner` of its full bottle, or its Avomod model, equals `POTIONS`.
+- **`wynncraftsModelsLandInTheirParts`**:
+  - For each of `MODELS`: `modelOwner` of `minecraft:item/wynn/<path>` equals its part: weapons and skins `WEAPONS`, armour `ARMOUR`, tools `TOOLS`, ingredients and the `economy/` models `CRAFTING`, potions `POTIONS`, loot and mastery tomes `GEAR_BOXES`, the tier layer `HIGHLIGHTS`, the rest of `gui/`, every empty slot's placeholder among it, `SCREENS`, and keys, scrolls, powders, runes, wards and both of the content book's models `ITEMS`.
+  - `modelOwner` of `avomod2:item/potion_health` equals `POTIONS`.
+- **`theBlockModelsAreTheBlocksPart`**: For each `block_models` key: `modelOwner` equals `BLOCKS`.
+- **`theTextureSamplesLandInTheirParts`**: For each of `TEXTURES`: `textureOwner` equals its part: `block/` and the block entities' `entity/` textures (signs, beds, banners, chests, the conduit, decorated pots, the bell, shulker boxes, the enchanting table's book, the beacon's and end gateway's beams, the end portal) `BLOCKS`, the rest of `entity/`, the shield's art among it, `MOBS` but `entity/equipment/`, `ARMOUR`, whose `llama_body` is `MOBS`; `item/` `ITEMS`, `mob_effect/` `EFFECTS`, the containers, widgets, slot sprites and `wynn/gui/slot/` `SCREENS`, the tooltips `TOOLTIPS`, and the HUD's sprites `HUD`.
+- **`everyPinnedTintAndVariantIsTheBlocksPart`**:
+  - For each of `PINNED_TINTS`: `textureOwner` equals `BLOCKS`.
+  - For each of `PINNED_VARIANTS`: `textureOwner` of `minecraft:block/variants/<variant>` equals `BLOCKS`.
+- **`theTexturesTheStepsDrawLandInTheirParts`**:
+  - For each of `blank_textures`: `textureOwner` equals `HUD`.
+  - For each of `wynntils_textures`: `SCREENS`.
+  - For each of `image_edits`: `SCREENS`.
+- **`everyWynntilsSettingBelongsToAPart`**:
+  - The features of `wynntils_config` equal `ItemHighlight`, `CustomPlayerListOverlay`, `UnidentifiedItemIcon` and `WynntilsContentBook`.
+  - For each feature and each part: `settingOn` is false with that part off only for `HIGHLIGHTS`, `PLAYER_LIST`, `GEAR_BOXES` and `SCREENS` respectively.
+- **`theShieldsRowIsCraftingsAndTheOtherStackRowsItems`**: For each `stack_models` row: `part()` equals `CRAFTING` for `minecraft:shield`, and `ITEMS` otherwise.
+
+### `ShippedPotionsTest`
+
+Test: [`ShippedPotionsTest.java`](../src/test/java/org/wynnvets/retro/manifest/ShippedPotionsTest.java) · Subject: [`ModelSections`](../src/client/java/org/wynnvets/retro/manifest/ModelSections.java)
+
+The shipped potion rows: that every potion model gets its family's liquid (`POTION_FAMILIES`, `AVOMOD_POTIONS`), and that the potion parent draws it under the vanilla bottle.
+
+- **`everyPotionModelGetsItsFamilysLiquidWhateverItsFill`**: Each of Wynncraft's 27 potion models, and the seven Avomod models. Wynncraft's empty, half and full potions are all full of liquid in its own art (pack `a43ae4e6`), and "empty" is not an empty bottle: a Potion of Dexterity [1/2], custom model data 3441, draws `dexterity_empty`.
+  - For each family and fill of `empty`, `half` and `full`: `potionStub("minecraft:item/wynn/potion/<family>_<fill>").orElseThrow().liquid()` equals `RetroAssetIds.potionLiquid(<family>)`, a copy of `minecraft:item/potion_overlay` in the family's colour.
+  - For each entry of `AVOMOD_POTIONS`: `potionStub("avomod2:item/<model>").orElseThrow().liquid()` equals its family's liquid.
+  - `potionStub("avomod2:item/potion_rainbow")` equals `Optional.empty()`: Avomod's crafted and mixed potions keep Avomod's art.
+- **`everyPotionRowCoversAPinnedModel`**: No `potions` row is a typo or a stale path.
+  - For each row of the real file, its pattern matches at least one of the 27 Wynncraft potion models (`minecraft:item/wynn/potion/<family>_<empty|half|full>`) and the seven `avomod2:item/<model>` ids.
+- **`thePotionParentDrawsTheTintedLiquidUnderTheVanillaBottleFromOneAtlas`**: `model(RetroAssetIds.TINTED_POTION)` and its `textures`; a stub drawing from two atlases would send Wynncraft's whole `potion.json` to the missing model, and layer 0 takes the stack's colour, so it is a blank.
+  - Its `parent` equals `"minecraft:item/generated"`.
+  - `layer0` equals `"vetsmod:item/retro/blank"`.
+  - `layer1` equals `"#liquid"`.
+  - `layer2` equals `RetroAssetIds.POTION_BOTTLE`.
+  - `particle` equals `"#liquid"`.
+  - For each of the blank, `potionLiquid("mana")`, `RetroAssetIds.POTION_BOTTLE` and `POTION_OVERLAY`: `Atlas.of` equals `Optional.of(Atlas.ITEMS)`.
+  - `textureInClientJar(POTION_OVERLAY)` is true.
+  - `textureInClientJar(RetroAssetIds.POTION_BOTTLE)` is true.
+- **`thePotionRecipeTintsEveryVisiblePixelOfTheLiquid`**: The recipe's outline rule keeps a near-black line, and the liquid has none to keep.
+  - The `potion_overlay` recipe's art equals `POTION_OVERLAY`.
+  - For each visible pixel of the jar's overlay: `recipe.recolour(0x385DC6)` equals `Recolours.tint(0x385DC6)`.
+
+### `ShippedScreensTest`
+
+Test: [`ShippedScreensTest.java`](../src/test/java/org/wynnvets/retro/manifest/ShippedScreensTest.java) · Subject: [`ScreenSections`](../src/client/java/org/wynnvets/retro/manifest/ScreenSections.java)
+
+The shipped screen rows: the titles, the slot fills and their labels, the hidden effects and the Wynntils settings.
+
+- **`theBanksAndTheTradeMarketGetPlainTitles`**: The Wynntils classes in `models/containers/containers/` (`personal/`, `trademarket/`) get their seeded titles; the Members screen and a class that only starts like a row get none.
+  - For each of `AccountBankContainer` (`Account Bank`), `CharacterBankContainer` (`Character Bank`), `TradeMarketContainer` (`Trade Market`), `TradeMarketBuyContainer` (`Trade Market: Buy`), `TradeMarketSellContainer` (`Trade Market: Sell`), `TradeMarketOrderContainer` (`Trade Market: Order`), `TradeMarketFiltersContainer` (`Trade Market: Filters`) and `TradeMarketTradesContainer` (`Trade Market: Trades`): `realTitle(class)` equals `Optional.of(title)`.
+  - The rest of Wynntils' `PersonalStorageContainer` family gets its titles: `MiscBucketContainer` (`Misc. Bucket`), `BookshelfContainer` (`Bookshelf`), `PersonalBlockBankContainer` (`Block Bank`), `IslandBlockBankContainer` (`Island Block Bank`).
+  - `realTitle("GuildMemberListContainer")` is empty: its title is text, which the readable title keeps.
+  - `realTitle("TradeMarketRevealItemsContainer")` is empty: the patterns match whole names.
+- **`characterInfoAndTheContentBookGetPlainTitlesAndTheAbilityTreeKeepsItsArt`**: Wynntils' class names, the same in 4.1.17 (built against) and 4.2.16 (run).
+  - `realTitle("CharacterInfoContainer")` equals `Optional.of("Character Info")`.
+  - `realTitle("ContentBookContainer")` equals `Optional.of("Content Book")`.
+  - For each of `AbilityTreeContainer`, `AbilityTreeResetContainer` and `AspectsContainer`: `realTitle(class)` equals `Optional.of(RetroManifest.KEEP)`.
+  - `realTitle("CharacterCreationContainer")` is empty: no row.
+- **`theSlotFillsAreThePlayersFixedSlotsEachScreensButtonsAndEveryOtherScreensSlots`**: The player row first, then the sixteen others.
+  - `slotFills().get(0)` equals `PlayerSlots()`.
+  - The other rows with `withoutPatterns` applied equal, in order: `outsideBounds`; `all` except 22, 28 and 31, the item on sale, its price and its quantity; rows {0, 4, 5} with cols {0, 8}; row 5; slot 8; `outsideBounds`; cols {0, 1}; col 1; `all` except 11-15; row 0 with cols {0, 8}; `all` except 3 and 5; rows {0, 2} with cols {0, 8}; rows {0, 4, 5} with cols {0, 8}; slot 13; col 4 with slots {5, 21}; and `all`.
+  - The first nine's `containers()` patterns are the banks and storage, the market's buy and sell views, its trades, the market, its reveal screen, the blacksmith's and identifier's four screens, the guild bank, the Mount Feeder and Character Info; then `titles()` `Merchant`, `titles()` `Item Pedestal`, `titles()` `Housing Islands|Powder Master.*`, `titles()` `Party Finder: .*`, `containers()` `CraftingStationContainer`, `titles()` `\S+ {4,}\S+` and `titles()` `.*`.
+- **`everyContainerWithSlotFillsHasItsLabelDrawnByRetro`**: Slot fills apply only on a screen whose label retro draws, so a container row on a class whose title is `keep` would never paint. None of these is a Wynntils full-screen view, where fills never apply; the test cannot load Wynntils to check that.
+  - For each of `TradeMarketContainer`, `TradeMarketRevealItemsContainer`, the two `Blacksmith` and two `ItemIdentifier` screens, `GuildBankContainer`, `MountFeederContainer`, `CharacterInfoContainer`, `CraftingStationContainer`, `TradeMarketBuyContainer`, `TradeMarketSellContainer`, `TradeMarketTradesContainer`, `AccountBankContainer`, `CharacterBankContainer`, `MiscBucketContainer`, `BookshelfContainer`, `PersonalBlockBankContainer` and `IslandBlockBankContainer`: some `ContainerSlots` row's `containers()` pattern matches it.
+  - `realTitle(class)` is not `keep`.
+- **`theAttackSpeedEffectsAreHidden`**: Wynncraft's attack speed is an endless haste or mining fatigue.
+  - The patterns of `hiddenInventoryEffects()` equal `["minecraft:(haste|mining_fatigue)"]`.
+- **`theWynntilsSettingsAreTheFourSeeded`**: `/wynntils config set ItemHighlight highlightTexture tag` and `/wynntils config set CustomPlayerListOverlay userEnabled false`; `/wynntils config set UnidentifiedItemIcon userEnabled false`, whose icon would sit on retro's gear box icons (its texture setting has no "none"); and `/wynntils config set WynntilsContentBook shiftBehaviorConfig enabledIfShiftHeld`: the feature's short name (`WynntilsContentBookFeature`), its `Config` field, and `ShiftBehavior.ENABLED_IF_SHIFT_HELD` as `EnumUtils.toJsonFormat` writes it, which `tryParseStringValue` reads back (`fromJsonFormat`), in 4.1.17 and 4.2.16 alike; and nothing else.
+  - `wynntilsConfig()` equals `[WynntilsSetting(ItemHighlight, highlightTexture, tag), WynntilsSetting(CustomPlayerListOverlay, userEnabled, false), WynntilsSetting(UnidentifiedItemIcon, userEnabled, false), WynntilsSetting(WynntilsContentBook, shiftBehaviorConfig, enabledIfShiftHeld)]`.
+
+### `ShippedStacksTest`
+
+Test: [`ShippedStacksTest.java`](../src/test/java/org/wynnvets/retro/manifest/ShippedStacksTest.java) · Subject: [`StackSections`](../src/client/java/org/wynnvets/retro/manifest/StackSections.java)
+
+The shipped stack rows: that every outlined icon has art, and every gear box type its icon.
+
+- **`everyOutlinedIconHasArtThatExists`**: The real file's keys are the five weapon types and the six tome types but `GUILD_TOME`, which is the real shield in `gear_box_icons`, and each texture is in the client jar.
+- **`everyGearTypeOfABoxShowsTheItemRetroShowsItsClassOrPieceAs`**: The gear types a box can be, as Wynntils' `UnidentifiedItemIconFeature` draws them (its icons also cover the tome and charm, which are not boxes).
+  - The keys of `gearBoxIcons()` equal `{SPEAR, WAND, DAGGER, BOW, RELIK, HELMET, CHESTPLATE, LEGGINGS, BOOTS, RING, NECKLACE, BRACELET}`.
+  - For each weapon type and a pinned model of its class (`weapon/warrior/spear_air_a`, `weapon/mage/wand_basic_wood`, `weapon/assassin/dagger_fire_c`, `weapon/archer/bow_thunder_b`, `weapon/shaman/relik_basic_wooden`): `inFull` of the `layer0` of the client jar's model `<namespace>:item/<item>` of its icon equals `shown` of that model's stub, so the icon is the item the class's stubs show.
+  - For each piece: its icon equals `minecraft:iron_<piece>`.
+  - `RING`'s icon equals `minecraft:gold_nugget`.
+  - `NECKLACE`'s equals `minecraft:lead`.
+  - `BRACELET`'s equals `minecraft:clock`.
+  - For each icon: `onClasspath(item, "items", ".json")` is true: the jar has the item definition the pack copies.
+  - `RetroAssetIds.itemDefinitionCopy(item)` equals `vetsmod:retro/<namespace>/<item>`.
+
+### `ShippedTexturesTest`
+
+Test: [`ShippedTexturesTest.java`](../src/test/java/org/wynnvets/retro/manifest/ShippedTexturesTest.java) · Subject: [`TextureSections`](../src/client/java/org/wynnvets/retro/manifest/TextureSections.java), [`retro_textures.yml`](../src/client/resources/retro_textures.yml)
+
+The shipped texture rows against the client jar: the sources, the aliases, the variants, the tints and the decisions the rows give the textures Wynncraft repaints. `PINNED_TINTS` and `PINNED_VARIANTS` pin the ids taken from the Wynncraft pack.
+
+- **`wynncraftsGreenPlantsTakeItsColourUnderTheBiomesTint`**: `decide` of the fern, large fern, short and tall grass, vine and a short grass variant is a `Tint` with an `Auto` factor.
+- **`theRealSourcesReadProgrammerArtFirstAndTheGuiFromVanilla`**: The shipped `sources` rows.
+  - `sourceOrder("minecraft:block/stone")`, `sourceOrder("minecraft:item/stick")` and `sourceOrder("minecraft:entity/chest/normal")` each equal `[PROGRAMMER_ART, VANILLA]`.
+  - `sourceOrder("minecraft:gui/container/inventory")` equals `[VANILLA]`: Programmer Art's GUI files would mix two looks.
+  - `sourceOrder("minecraft:gui/sprites/widget/button_highlighted")` equals `[VANILLA]`.
+- **`everyAliasRowCoversAPinnedTexture`**: No alias row is a typo or a stale name.
+  - For each alias row of the real file, its pattern matches at least one of `minecraft:block/variants/<name>` for a name in `PINNED_VARIANTS`, `minecraft:block/<face>` for a face in `PISTON_FACES`, `minecraft:block/purpur_block`, `minecraft:block/purpur_pillar_top`, `minecraft:wynn/gui/slot/<piece>` for a piece in `ARMOUR_PIECES`, and `minecraft:gui/sprites/tooltip/<style>_background` or `_frame` for a style in `TOOLTIP_STYLES`.
+- **`everyWynncraftTooltipStyleGetsVanillasNineSliceTooltip`**: Every style's frame and background, and vanilla's own (which Wynncraft repaints), become vanilla's, whose `.mcmeta` makes them nine-slice sprites.
+  - For each `part` of `background` and `frame`, with `vanilla` = `minecraft:gui/sprites/tooltip/<part>`: `onClasspath(vanilla, "textures", ".png.mcmeta")` is true.
+  - `decide(vanilla, CLIENT_JAR)` equals `Copy(vanilla, VANILLA)`: Wynncraft repaints it.
+  - For each style in `TOOLTIP_STYLES`: `decide("minecraft:gui/sprites/tooltip/<style>_<part>", CLIENT_JAR)` equals `Copy(vanilla, VANILLA)`.
+- **`theContainerTexturesWynncraftRepaintsBecomeVanillas`**:
+  - For each of `generic_54`, `hopper`, `horse` and `inventory`: `decide("minecraft:gui/container/<name>", CLIENT_JAR)` equals `Copy` of the same id from `VANILLA`.
+- **`emptyArmourSlotsShowVanillasGreySilhouettes`**: Wynncraft (pack `a43ae4e6`) fills an empty armour slot with a placeholder item whose model, `item/wynn/gui/slot/<piece>`, draws its orange `wynn/gui/slot/<piece>`, and blanks the slot's own silhouette; both become vanilla's grey one. The accessory placeholders have no vanilla silhouette, and the offhand's shield stays blank under the panel grey `image_edits` paints there.
+  - For each piece in `ARMOUR_PIECES`, with `silhouette` = `minecraft:gui/sprites/container/slot/<piece>`: `decide("minecraft:wynn/gui/slot/<piece>", CLIENT_JAR)` equals `Copy(silhouette, VANILLA)`.
+  - `decide(silhouette, EVERYTHING_BLANK)` equals `Copy(silhouette, VANILLA)`: `same_name` wins over Wynncraft's blank.
+  - For each of `ring`, `bracelet` and `necklace`: `decide("minecraft:wynn/gui/slot/<accessory>", CLIENT_JAR)` equals `Keep(NO_RULE)`.
+  - `decide("minecraft:gui/sprites/container/slot/shield", CLIENT_JAR)` equals `Keep(KEEP_WYNNCRAFT)`.
+- **`theHudRetroDrawsBecomesVanillasOverWynncraftsBlanks`**: `RetroHud` draws vanilla's hearts, food and experience bar, which Wynncraft (pack `a43ae4e6`) ships fully transparent, over the vanilla hotbar, which it repaints under its ornate frame. A `same_name` copy beats the automatic keep of a blank, and the GUI reads vanilla alone.
+  - For each of `hud/heart/container`, `hud/heart/half`, `hud/heart/full`, `hud/food_empty`, `hud/food_half`, `hud/food_full`, `hud/experience_bar_background`, `hud/experience_bar_progress`, `hud/hotbar`, `hud/hotbar_selection`, `hud/hotbar_offhand_left` and `hud/hotbar_offhand_right` under `minecraft:gui/sprites/`: `textureInClientJar(id)` is true.
+  - `decide(id, EVERYTHING_BLANK)` equals `Copy(id, VANILLA)`.
+  - `decide(id, CLIENT_JAR)` equals `Copy(id, VANILLA)`.
+- **`wynncraftsOtherGuiSpritesStayItsOwn`**: No rule covers its other GUI sprites, its other HUD sprites among them, which retro draws nothing new with: armour, air, a mount's hearts and jump bar, the attack indicators, and the heart and food kinds `RetroHud` never draws.
+  - For each of `hud/armor_full`, `hud/air`, `hud/heart/vehicle_full`, `hud/jump_bar_progress`, `hud/hotbar_attack_indicator_progress`, `hud/crosshair_attack_indicator_full`, `hud/heart/poisoned_full`, `hud/food_full_hunger`, `container/slot_highlight_back`, `widget/button` and `boss_bar/white_background` under `minecraft:gui/sprites/`: `decide(id, CLIENT_JAR)` equals `Keep(NO_RULE)`.
+- **`pinnedVariantsBecomeTheirVanillaBlockFromTheClientJar`**: Each pinned variant becomes its vanilla block's texture, and since only vanilla has anything under `CLIENT_JAR`, the target exists in the client jar. The pins include `stone_0` → `stone`, `dirt_top_0` → `dirt`, `grass_top_1` → `grass_block_top`, `pumpkin_bottom` → `pumpkin_top`, `oak_planks_flat` → `oak_planks`, `iron_bars_top` → `iron_bars`, and `piston_bottom`, `piston_inner`, `piston_side_sticky` and `piston_top_sticky` → `piston_top`.
+  - For each entry of `PINNED_VARIANTS`: `decide("minecraft:block/variants/<name>", CLIENT_JAR)` equals `Copy("minecraft:block/<block>", VANILLA)`.
+- **`variantsWithNoVanillaBlockKeepWynncraftsTexture`**: Wynncraft's own blocks match no tint or alias, and no source has them by name.
+  - For each of `dead_grass_2`, `crops_wheat`, `chain`, `cauldron_side`, `enchanting_table_side`, `chiseled_red_sandstone_0`, `candle_flame`, `potted_cactus` and `books`: `decide("minecraft:block/variants/<name>", CLIENT_JAR)` equals `Keep(NO_RULE)`.
+- **`theSixSidedPistonIsThePlankFaceOnEverySide`**: Wynncraft's pistons are crates (pack `a43ae4e6`): vanilla's `piston` blockstate, which it leaves alone, draws `block/piston`, `block/piston_base` and the heads with vanilla's piston textures, repainted; its own `sticky_piston` blockstate draws `variants/sticky_piston` (bottom, platform, side) and `variants/sticky_piston_base` (bottom, inside, side) with four textures of its own. Every one becomes the plank face, which `same_name` makes 2013's.
+  - For each face in `PISTON_FACES`: `decide("minecraft:block/<face>", CLIENT_JAR)` equals `Copy("minecraft:block/piston_top", VANILLA)`.
+  - For each of `piston_bottom`, `piston_inner`, `piston_side_sticky` and `piston_top_sticky`: `decide("minecraft:block/variants/<face>", CLIENT_JAR)` equals the same.
+  - `decide("minecraft:block/piston_top", CLIENT_JAR)` equals the same: the plank face itself, by `same_name`.
+- **`pinnedTexturesGetTheirTints`**: Each pinned texture is tinted as `PINNED_TINTS` says, its texture ids filled in; under `CLIENT_JAR` vanilla supplies every read.
+  - For each entry of `PINNED_TINTS`: `decide("minecraft:<texture>", CLIENT_JAR)` equals its decision.
+- **`everyTintRowCoversAPinnedTexture`**: No `tints` row is a typo or a stale name.
+  - For each row of the real file, its pattern matches `minecraft:<texture>` for at least one key of `PINNED_TINTS`.
+- **`everyTextureATintReadsIsAVanillaBlockTexture`**: A tint's source and its `match` texture come from the sources, for which vanilla stands here, and a `relative_to` texture is read from Wynncraft's pack or, where Wynncraft ships none, vanilla's. A like also reads what the row it names reads for the texture it names.
+  - For each pinned decision, and for the decision a like carries (`like()`), for its `from()` and its `match` or `relative_to` texture (a colour, `auto`, a like or no tint reads its source alone): `textureInClientJar` is true.
+  - `Atlas.of` equals `Optional.of(Atlas.BLOCKS)`.
+- **`theDarkStoneVariantsAreTheirStoneDarkenedAsWynncraftDarkenedIt`**: More of pack `a43ae4e6`'s dark variants, against Wynncraft's own copy of their stone.
+  - For each of `dark_stone_0` (`stone`), `dark_cobblestone` (`cobblestone`), `dark_cracked_stone_bricks_0` and `dark_cracked_stone_bricks` (`cracked_stone_bricks`), and `dark_mossy_stone_bricks` and `dark_mossy_stone_bricks_1` (`mossy_stone_bricks`): `decide("minecraft:block/variants/<variant>", CLIENT_JAR)` equals `tint("block/<stone>", relative("block/<stone>"))`.
+- **`aTintBeatsTheSameNameCopy`**: Under `EVERYTHING_BLANK` every source has every texture, so `same_name` would copy it; the tint comes first, and a block reads Programmer Art first.
+  - `decide("minecraft:block/note_block")` equals `Tint("minecraft:block/note_block", PROGRAMMER_ART, match(block/oak_log), 1, 1)`.
+- **`skyWoodIsThePlainOakLogOnEveryFace`**: Under `EVERYTHING_BLANK`, `decide` of `purpur_block`, `purpur_pillar` and `purpur_pillar_side` equals `Copy("minecraft:block/oak_log", PROGRAMMER_ART)`, and of `purpur_pillar_top` equals `Copy("minecraft:block/oak_log_top", PROGRAMMER_ART)`.
+- **`furnacesDispensersAndDroppersAreCalmedAndTheLitFurnaceStaysStill`**: The two plain faces (`furnace_side`, `furnace_top`) take the 2013 stone bricks' colour at contrast 0.45, and the dispenser's, dropper's and furnace's fronts exactly the change of the face beside them (`PINNED_TINTS`); like any block, a face, and the face a like names, reads Programmer Art first, ahead of `same_name`. Only Wynncraft's lit furnace is animated (16x32, frametime 28, in `a43ae4e6`); vanilla's, like Programmer Art's, is one still frame with no `.mcmeta`, so the tint writes a still texture and no `.mcmeta`, and Wynncraft's, in a pack below, is not read for it.
+  - `decide("minecraft:block/furnace_front_on", EVERYTHING_BLANK)` equals `Tint("minecraft:block/furnace_front_on", PROGRAMMER_ART, Like("minecraft:block/furnace_side"), 1, 0.45, side)`, where `side` is `furnace_side`'s own decision.
+  - `decide("minecraft:block/furnace_side", EVERYTHING_BLANK)` equals `side`, `Tint("minecraft:block/furnace_side", PROGRAMMER_ART, match(block/stone_bricks), 1, 0.45)`.
+  - `decide("minecraft:block/dispenser_front", EVERYTHING_BLANK)` equals `Tint("minecraft:block/dispenser_front", PROGRAMMER_ART, Like("minecraft:block/furnace_side"), 1, 0.45, side)`.
+  - `onClasspath("minecraft:block/furnace_front_on", "textures", ".png.mcmeta")` is false.
+  - `texture("minecraft:block/furnace_front_on")`'s width equals its height: one square frame.
+- **`eachDispenserAndDropperFrontIsLikeTheFaceItsModelDrawsBesideIt`**: Wynncraft overrides none of these blockstates or models. A front facing sideways (`orientable`) sits between `furnace_side` faces, one facing up or down (`orientable_vertical`) among `furnace_top` faces, and each model names that face its `side`.
+  - For each of the vanilla models `minecraft:block/dispenser`, `dropper`, `dispenser_vertical` and `dropper_vertical`, with `front` and `side` its `textures`' `front` and `side` in full: `decide(front, CLIENT_JAR)` is a `TextureDecision.Tint`.
+  - Its `factor()` equals `Like(side)`.
+- **`deliberateBlanksAndRepurposedTexturesKeepWynncraftsTexture`**: Every source has these, and `same_name` matches most of them. The sponges are Wynncraft's rainbow strips; the two paintings stand for Wynncraft's repainted world art, which a source could only remove; the three particles for Wynncraft's sprite effects, which retro leaves alone; the two copper layers for worn copper armour, which has no 2013 art.
+  - For each of `block/tripwire`, `block/tripwire_hook`, `block/sponge`, `block/wet_sponge`, `block/daylight_detector_top`, `item/barrier`, `item/light_07`, `gui/sprites/container/slot/shield`, `particle/generic_0`, `particle/generic_1`, `particle/sga_k`, `mob_effect/haste`, `mob_effect/mining_fatigue`, `entity/trident`, `entity/iron_golem/iron_golem_crackiness_low`, `entity/equipment/humanoid/copper`, `entity/equipment/humanoid_leggings/copper`, `painting/bust` and `painting/back`, each prefixed `minecraft:`: `decide(id, EVERYTHING_BLANK)` equals `Keep(KEEP_WYNNCRAFT)`.
+- **`theirNeighboursAreStillReplaced`**: The keep rows name exactly what they keep. Under `EVERYTHING_BLANK`, where Wynncraft ships everything blank, `same_name` still wins over the automatic keep; a HUD blank retro draws nothing with, which no rule covers, is an automatic keep.
+  - `decide("minecraft:mob_effect/strength")` equals `Copy("minecraft:mob_effect/strength", PROGRAMMER_ART)`.
+  - `decide("minecraft:entity/iron_golem/iron_golem")` equals `Copy("minecraft:entity/iron_golem/iron_golem", PROGRAMMER_ART)`.
+  - `decide("minecraft:entity/equipment/humanoid/iron")` equals `Copy` of the same id from `PROGRAMMER_ART`: only copper keeps Wynncraft's worn armour.
+  - `decide("minecraft:gui/sprites/hud/armor_full")` equals `Keep(TRANSPARENT)`.
+- **`layeredEntitiesAreReplacedWholeOrNotAtAll`**: `decideAll` over eight villager, sheep and wolf textures. Wynncraft ships the villager body and the farmer profession; Programmer Art has the villager body, the sheep body and wool, and the wolf body and collar; vanilla has what the client jar has.
+  - `entity/villager/villager` and `entity/villager/profession/farmer` each equal `Copy(<itself>, VANILLA)` (2 assertions): villagers read vanilla whole.
+  - `entity/villager/farmer` is not `Keep(LAYER_GROUP)`: Wynncraft's leftover, which vanilla lacks, is no member, so it breaks nothing.
+  - `entity/sheep/sheep`, `entity/sheep/sheep_wool` and `entity/sheep/sheep_wool_undercoat` each equal `Keep(LAYER_GROUP)` (3 assertions): Programmer Art has no undercoat.
+  - `entity/wolf/wolf` equals `Copy("minecraft:entity/wolf/wolf", PROGRAMMER_ART)`.
+  - `entity/wolf/wolf_collar` equals `Copy("minecraft:entity/wolf/wolf_collar", PROGRAMMER_ART)`.
+- **`moltenRockIsTheAnimated2013MagmaTintedLikeWynncrafts`**: The double petrified oak slab and the old double wood slab draw Wynncraft's `variants/molten_rock` and `_0` to `_2`, animated strips; the tint reads magma, whose `.mcmeta` goes with it, and keeps the strip whole.
+  - For each of `molten_rock`, `molten_rock_0` and `molten_rock_1`: `decide("minecraft:block/variants/<variant>", CLIENT_JAR)` equals `tint("block/magma", Auto())`.
+  - `onClasspath("minecraft:block/magma", "textures", ".png.mcmeta")` is true.
+  - `texture("minecraft:block/magma")`'s height is a multiple of its width: a strip of square frames.
+  - Its height is more than its width: more than one frame.
+
+### `StackSectionsTest`
+
+Test: [`StackSectionsTest.java`](../src/test/java/org/wynnvets/retro/manifest/StackSectionsTest.java) · Subject: [`StackSections`](../src/client/java/org/wynnvets/retro/manifest/StackSections.java)
+
+The parser's reading of `StackSections`: the stack models, the gear box icons, the outlined icons and the accessory tiers, on small fixtures.
+
+- **`aStackModelRowNeedsItsThreeFields`**:
+  - A full row's `item()`, `name()` pattern and `model()` are read.
+  - Its `part()` equals `ITEMS`, a row with none.
+  - A row with no `name` throws `IllegalArgumentException`.
+- **`aStackModelRowCanNameItsPartAndNoOtherName`**:
+  - `part: crafting` reads as `CRAFTING`.
+  - `part: nope` throws `IllegalArgumentException`.
+- **`outlinedIconsTakeTheirGroupsOutlineAndScaleAndAMalformedOneFailsTheParse`**: A row takes its group's `outline` and `scale`; a malformed group fails the parse.
+  - A group with `scale: 0.5` and `outline: {pixels: 3, colour: '#191919'}` over `WEAPON_TOME: 'minecraft:item/iron_sword'` gives `outlinedIcons()` equal to `{WEAPON_TOME: OutlinedIcon("minecraft:item/iron_sword", 3, 0x191919, 0.5)}`.
+  - An `outline` of 9 pixels, one without a `colour`, one that is a number, no `outline`, no `scale`, a `scale` of 0 or of 1.5, and a type in lower case each throw `IllegalArgumentException`.
+- **`gearBoxIconsReadAGearTypeAndAnItemInFileOrder`**: `'SPEAR': 'minecraft:iron_shovel'` then `'MASTERY_TOME': 'minecraft:book'`.
+  - The entries of `gearBoxIcons()` equal `[SPEAR=minecraft:iron_shovel, MASTERY_TOME=minecraft:book]`, in file order.
+  - For each of the rows `'Spear'` and `'SPEAR TYPE'` (not a gear type's upper-case name), and `'SPEAR'` with `'iron_shovel'` (no namespace), `'minecraft:iron_.*'` (a pattern) or `''` (no item): parsing `gear_box_icons` with it throws `IllegalArgumentException` (5 assertions).
+- **`accessoryArtNeedsTheColourOfItsEmptySlotsOutline`**: A `accessory_tiers` section with art names the colour of its empty slots' outline.
+  - `emptyOutline()` equals `0x555555` for `empty_outline: '#555555'`.
+  - Without the key, the parse throws `IllegalArgumentException`.
+- **`anEmptySlotsInnerLinesAreABrightnessAndOptional`**: `empty_lines_below_luma` is optional.
+  - `emptyLinesBelowLuma()` equals 0 without the key and 30 for `30`.
+  - `256` throws `IllegalArgumentException`.
+
+### `TextureSectionsTest`
+
+Test: [`TextureSectionsTest.java`](../src/test/java/org/wynnvets/retro/manifest/TextureSectionsTest.java) · Subject: [`TextureSections`](../src/client/java/org/wynnvets/retro/manifest/TextureSections.java)
+
+The parser's reading of `TextureSections`: the sources, the tints and their likes, the aliases and the mapping rows' order, on small fixtures.
+
+- **`mappingRowsKeepTheirFileOrder`**: Alias rows come back in file order, which "the first matching row decides" relies on.
+  - The rows' patterns equal `["minecraft:block/z", "minecraft:block/a", "minecraft:block/m"]`.
+- **`tintRowsReadTheirSourceTintStrengthAndContrastInFileOrder`**: Seven `tints` rows: `'#80c0ff'`; a dark-variant row from `'minecraft:block/$1'`, `{relative_to: 'minecraft:block/$1'}`; `{match: 'minecraft:block/c'}` at strength 0.7; `auto` at strength 0; `auto` at strength 1; `auto` at contrast 0.45; and contrast 2 with no tint.
+  - The rows' patterns come back in file order.
+  - The first row's `factor()` equals `Colour(0x80C0FF)`.
+  - Its `source()` is null: the texture's own id.
+  - Its `strength()` equals 1.0: the whole factor by default.
+  - The second row's `source()` equals `"minecraft:block/$1"`.
+  - Its `factor()` equals `RelativeTo("minecraft:block/$1")`.
+  - The third row's `factor()` equals `Match("minecraft:block/c")`.
+  - Its `strength()` equals 0.7.
+  - The fourth row's `factor()` equals `Auto()`.
+  - Its `strength()` equals 0.0.
+  - The fifth row's `strength()` equals 1.0: a whole number is read too.
+  - The first row's `contrast()` equals 1.0: the contrast kept by default.
+  - The sixth row's `contrast()` equals 0.45.
+  - The seventh row's `factor()` equals `Unchanged()`: no tint.
+  - Its `contrast()` equals 2.0: a whole number, and above 1.
+- **`aMalformedTintFailsTheParse`**: Under `'minecraft:block/(x)'`, each of these rows throws `IllegalArgumentException` (18 assertions): a `source` with neither a `tint` nor a `contrast`; `tint: automatic`; `{matches: ...}`; both `match` and `relative_to`; a `match` with no namespace; a `relative_to` naming `$2`, a group the pattern lacks; a `source` naming `$2`; a `source` with no namespace; strength 1.5; strength -0.1; strength `half`; strength `'0.5'`, a quoted string; a strength alone, with neither a `tint` nor a `contrast`; contrast -0.1; contrast `high`; contrast `'0.5'`, a quoted string; contrast `.inf`, beside `auto`; and a contrast beside a `match` with no namespace.
+- **`aLikeRowNamesALiteralTextureAndHasNoStrengthOrContrastOfItsOwn`**: A like row first, `'minecraft:block/(front)'` from `'minecraft:block/$1_art'` with `{like: 'minecraft:block/side'}`, then the row it names, `'minecraft:block/side'` with `{match: 'minecraft:block/bricks'}` at strength 0.5 and contrast 0.45.
+  - The first row's `factor()` equals `Like("minecraft:block/side")`.
+  - Its `source()` equals `"minecraft:block/$1_art"`: a like may have a source.
+  - Its `strength()` equals 1.0: none of its own.
+  - Its `contrast()` equals 1.0: none of its own.
+- **`aMalformedLikeFailsTheParse`**: Fixtures built from `a` (`'minecraft:block/a': `), `likeB` (`{tint: {like: 'minecraft:block/b'}`, left open) and `named` (`'minecraft:block/b': {tint: auto, contrast: 0.5}`), so each fails for its like alone.
+  - The control, `a` with `likeB` closed and `named`, parses to 2 `tints()` rows: the like and its row alone parse.
+  - Each of these throws `IllegalArgumentException` (12 assertions): the like with its own `contrast: 0.5`; with its own `strength: 1`; naming `minecraft:block/c`, which no row matches; naming `b` with a third row `'minecraft:block/(b|c)'` also matching it; naming `b` whose row is a like of `c` (a chain); a `'minecraft:block/(a|b)'` like naming `b`, which only its own row matches; naming `'minecraft:block/$1'`; naming `'minecraft:block/(b)'`; naming `'block/b'`, with no namespace; naming `''`; naming `5`, not a string; and `like` beside a `match` in one `tint`.
+- **`anUnknownSourceFailsTheParse`**: A misspelt source name fails the parse.
+  - Parsing `sources` with `'.*': [programmer_art, vanila]` throws `IllegalArgumentException`.
+
+## `org.wynnvets.retro.pack`
+
+### `PackFilesTest`
+
+Test: [`PackFilesTest.java`](../src/test/java/org/wynnvets/retro/pack/PackFilesTest.java) · Subject: [`PackFiles`](../src/client/java/org/wynnvets/retro/pack/PackFiles.java)
+
+`PackFiles` holds where a resource pack keeps what retro reads and writes: the file of each kind of id and back, the `.mcmeta` of a file, and reading a file's bytes. The suite pins the converters and `jsonFiles`.
+
+- **`eachKindOfIdHasItsFile`**: A texture, model or equipment id maps to its file.
+  - `textureFile("minecraft:block/stone")` is `minecraft:textures/block/stone.png`.
+  - `modelFile("minecraft:item/stick")` is `minecraft:models/item/stick.json`.
+  - `equipmentFile("minecraft:iron")` is `minecraft:equipment/iron.json`.
+- **`aTextNotAnIdHasNoFile`**: Text that is not an id maps to `null`.
+  - `textureFile`, `modelFile` and `equipmentFile` of `"Not An Id"` are each `null`.
+- **`theMcmetaSitsBesideItsFile`**: The `.mcmeta` of a file is the file's id plus `.mcmeta`.
+  - `mcmeta(minecraft:textures/block/stone.png)` is `minecraft:textures/block/stone.png.mcmeta`.
+- **`onlyAPathEndingInJsonIsJson`**: `isJson` tests the extension.
+  - True for `minecraft:models/item/stick.json`, false for `stick.png`.
+- **`readingGivesTheBytesAndNoSupplierGivesNull`**: `read` returns a supplier's bytes, and `null` for no supplier.
+  - `read(() -> new ByteArrayInputStream({1, 2, 3}))` equals `{1, 2, 3}`.
+  - `read(null)` is `null`.
+- **`aFoldersJsonFilesAreThoseOfThatNamespaceAndFolderAlone`**: `jsonFiles(pack, namespace, folder)` lists only that folder's `.json` files in that namespace.
+  - Over `minecraft:models/item/a.json`, `a.png`, `minecraft:models/block/b.json` and `other:models/item/c.json`, `jsonFiles(pack, "minecraft", "models/item")` equals `[minecraft:models/item/a.json]`.
+
+### `RetroPackInjectorTest`
+
+Test: [`RetroPackInjectorTest.java`](../src/test/java/org/wynnvets/retro/pack/RetroPackInjectorTest.java) · Subject: [`RetroPackInjector`](../src/client/java/org/wynnvets/retro/pack/RetroPackInjector.java)
+
+`RetroPackInjector` adds the retro pack to a reload above the highest Wynncraft pack. The suite pins how it tells Wynncraft's pack: by its id's prefix and a file only it has (`isWynncraftPack`), which pack is highest (`highestWynncraftPack`), and `isRetroPack`, over `MemoryPack`s. Adding the pack to a reload needs a running client and is not tested.
+
+- **`wynncraftsPackIsAServerOrPreloadedPackWithTheProbe`**: A pack is Wynncraft's when its id starts with `server/` or `wynntils_preloaded/` and it holds `minecraft:font/banner/box.json`.
+  - `isWynncraftPack` is true for `server/abc` and `wynntils_preloaded/abc` packs with the probe.
+  - It is false for a `server/abc` pack without the probe, and for `file/mine.zip` with it.
+- **`aPackThatThrowsIsNotWynncrafts`**: A pack that throws on a lookup is not taken for Wynncraft's, and nothing is thrown.
+  - `isWynncraftPack` of a `server/abc` pack with the probe whose lookup throws is false.
+- **`theHighestWynncraftPackIsChosen`**: The retro pack goes above the highest Wynncraft pack in the list.
+  - Over `[vanilla, wynntils_preloaded/abc, mine, server/abc, mine]`, `highestWynncraftPack` is 3.
+  - Over `[vanilla, mine]` and over the empty list it is -1.
+- **`onlyTheInjectorsOwnPackIsARetroPack`**: A pack other than the retro pack is not one.
+  - `isRetroPack(new MemoryPack("retro"))` is false.
+
+### `RetroPackResourcesTest`
+
+Test: [`RetroPackResourcesTest.java`](../src/test/java/org/wynnvets/retro/pack/RetroPackResourcesTest.java) · Subject: [`RetroPackResources`](../src/client/java/org/wynnvets/retro/pack/RetroPackResources.java)
+
+`RetroPackResources` is the retro pack as Minecraft's resource manager sees it: an in-memory pack whose files a generator makes on the first request inside its folders (`textures`, `models`, `items`, `equipment`), plus static files (`lang`) a second supplier reads without generating. The suite pins when generation runs (never while the reload is being created, never for a request outside those folders or in the static one, then once), what is served and listed, and that a failed generation, failed static files, a close, and a close before the first request each leave an empty pack rather than an exception. `pack(generator)` builds a pack with no static files (`Map::of`); the static-file tests pass `langFiles()`, which holds `EN_US` (`minecraft:lang/en_us.json`) and `EN_GB` (`minecraft:lang/en_gb.json`), each holding its own id's UTF-8 bytes. Each test gives the pack a generator over `files()`: `STONE` (`minecraft:textures/block/stone.png`), `STONE_MCMETA` (the `.mcmeta` beside it), `STICK_MODEL` (`minecraft:models/item/wynn/stick.json`), `BLANK` (`vetsmod:textures/item/blank.png`) and `LOOKALIKE` (`minecraft:texturesque/x.png`, which starts with `textures` but is not in that folder), each holding its own id's UTF-8 bytes. `counting(calls, files)` returns them and counts its calls in `calls`; `read(supplier)` reads a supplier's bytes; `listed(pack, type, namespace, path)` collects, sorted, the ids `listResources` hands its output. The failure test reaches `RetroModeManager.latch`, whose chat line fails at test runtime because Wynntils is absent; the pack swallows that failure too. An `@AfterEach` clears the latch through `RetroTestState.clear()` (see `RetroModeManagerTest`), so it never reaches another suite.
+
+- **`nothingIsGeneratedUntilAFileIsAskedFor`**: What the resource manager asks while it builds itself, and what the reload's listeners ask outside the generated folders (the font loader lists `font/` on the render thread; `lang/` is the static folder, empty in this pack), generates nothing; the first request in a generated folder generates, and later ones reuse the files.
+  - `getNamespaces(CLIENT_RESOURCES)` equals `{minecraft, wynntils, avomod2, vetsmod}`.
+  - `getMetadataSection(ResourceFilterSection.TYPE)` is null.
+  - `packId()` equals `"vetsmod/retro"`.
+  - `getRootResource("pack.mcmeta")` is null.
+  - `generatedFiles()` is false.
+  - `calls.get()` equals 0.
+  - `listed(CLIENT_RESOURCES, "minecraft", "font")` is empty.
+  - `getResource(CLIENT_RESOURCES, minecraft:font/default.json)` is null.
+  - `getResource(CLIENT_RESOURCES, minecraft:sounds.json)` is null.
+  - `listed(CLIENT_RESOURCES, "minecraft", "lang")` is empty.
+  - `listed(CLIENT_RESOURCES, "minecraft", "")` is empty: the root is outside the folders too.
+  - `getResource(CLIENT_RESOURCES, LOOKALIKE)` is null.
+  - `calls.get()` equals 0.
+  - After `getResource` of `STONE`, `listResources` of `minecraft` `textures` and `getResource` of `STICK_MODEL`: `calls.get()` equals 1.
+  - `generatedFiles()` is true.
+- **`getResourceServesEachFilesBytesAgainAndAgain`**: A served supplier opens a fresh stream on each call; an absent file and the server pack type give none.
+  - `read(stone)` equals `STONE`'s id as UTF-8 bytes, where `stone` is `getResource(CLIENT_RESOURCES, STONE)`.
+  - `read(stone)` equals them again.
+  - `getResource(CLIENT_RESOURCES, minecraft:textures/block/dirt.png)` is null.
+  - `getResource(SERVER_DATA, STONE)` is null.
+- **`listResourcesListsEveryFileUnderTheFolderInTheNamespace`**: A listing holds every file under the folder at any depth, in that namespace only, as a folder pack lists one.
+  - `listed(CLIENT_RESOURCES, "minecraft", "textures")` equals `{STONE, STONE_MCMETA}`: `LOOKALIKE` is not in the folder.
+  - `listed(CLIENT_RESOURCES, "minecraft", "textures/block")` equals `{STONE, STONE_MCMETA}`.
+  - `listed(CLIENT_RESOURCES, "minecraft", "models")` equals `{STICK_MODEL}`.
+  - `listed(CLIENT_RESOURCES, "vetsmod", "textures")` equals `{BLANK}`.
+  - `listed(CLIENT_RESOURCES, "minecraft", "item")` is empty.
+  - `listed(SERVER_DATA, "minecraft", "textures")` is empty.
+  - `getNamespaces(SERVER_DATA)` is empty.
+- **`theEquipmentFolderIsGeneratedLikeTexturesAndModels`**: The equipment asset loader lists `equipment/` on a reload worker, so a request there may generate. `files()` plus `minecraft:equipment/pale_leather.json`.
+  - `listed(CLIENT_RESOURCES, "minecraft", "equipment")` equals `{minecraft:equipment/pale_leather.json}`.
+  - `calls.get()` equals 1: the listing generated.
+  - `getResource(CLIENT_RESOURCES, minecraft:equipment/pale_leather.json)` is not null.
+- **`theItemsFolderIsGeneratedLikeTexturesAndModels`**: The model manager's item definition loader lists `items/` on a reload worker, so a request there may generate. `files()` plus `vetsmod:items/retro/minecraft/bow.json`, a `gear_box_icons` copy.
+  - `listed(CLIENT_RESOURCES, "vetsmod", "items")` equals `{vetsmod:items/retro/minecraft/bow.json}`.
+  - `calls.get()` equals 1: the listing generated.
+  - `getResource(CLIENT_RESOURCES, vetsmod:items/retro/minecraft/bow.json)` is not null.
+  - `listed(CLIENT_RESOURCES, "minecraft", "items")` is empty: the copies are in vetsmod's namespace only.
+- **`aFailedGenerationServesAnEmptyPackAndThrowsNothing`**: A generator that throws `IllegalStateException` leaves an empty pack, is not called again, and stops retro for the session.
+  - `RetroModeManager.latchReason()` is null before the first request: no earlier test left the latch set.
+  - `getResource(CLIENT_RESOURCES, STONE)` is null.
+  - `listed(CLIENT_RESOURCES, "minecraft", "textures")` is empty.
+  - `getResource(CLIENT_RESOURCES, STONE)` is null again.
+  - `calls.get()` equals 1.
+  - `generatedFiles()` is false.
+  - `RetroModeManager.latchReason()` is not null.
+- **`anEmptyGenerationHasNoFiles`**: A generator that returns no files.
+  - `getResource(CLIENT_RESOURCES, STONE)` is null.
+  - `generatedFiles()` is false.
+- **`closeLetsTheFilesGoButRemembersThatThereWereSome`**: After a generation, `close()` empties the pack, while `generatedFiles()`, which the injector reads as the reload ends, stays true.
+  - `getResource(CLIENT_RESOURCES, STONE)` is null.
+  - `listed(CLIENT_RESOURCES, "minecraft", "textures")` is empty.
+  - `generatedFiles()` is true.
+- **`aPackClosedBeforeItsFirstRequestNeverGenerates`**: A close before any request means the generator never runs.
+  - `getResource(CLIENT_RESOURCES, STONE)` is null.
+  - `calls.get()` equals 0.
+  - `generatedFiles()` is false.
+- **`theStaticFilesAreServedWithoutGenerating`**: The language manager reads `lang/` on the render thread, which must never generate; the static supplier is read once, and the generated files never include its files.
+  - `read(getResource(CLIENT_RESOURCES, EN_US))` equals `EN_US`'s id as UTF-8 bytes.
+  - `listed(CLIENT_RESOURCES, "minecraft", "lang")` equals `{EN_US, EN_GB}`.
+  - `getResource(CLIENT_RESOURCES, minecraft:lang/de_de.json)` is null.
+  - `listed(CLIENT_RESOURCES, "vetsmod", "lang")` is empty.
+  - The generator's call count equals 0.
+  - The static supplier's call count equals 1: read once.
+  - `generatedFiles()` is false: static files alone do not make the pack live.
+  - `listed(CLIENT_RESOURCES, "minecraft", "textures")` equals `{STONE, STONE_MCMETA}`.
+  - The generator's call count equals 1.
+  - The static supplier's call count is still 1.
+- **`aFailedGenerationTakesTheStaticFilesWithIt`**: A pack whose generator throws stays empty, whatever it served before.
+  - `getResource(CLIENT_RESOURCES, EN_US)` is not null before the generation.
+  - `getResource(CLIENT_RESOURCES, STONE)` is null: the generation fails.
+  - `getResource(CLIENT_RESOURCES, EN_US)` is null.
+  - `listed(CLIENT_RESOURCES, "minecraft", "lang")` is empty.
+  - `RetroModeManager.latchReason()` is not null.
+- **`failedStaticFilesEmptyThePackAndNeverGenerate`**: A static supplier that throws empties the pack before it ever generates, and stops retro for the session.
+  - `getResource(CLIENT_RESOURCES, EN_US)` is null.
+  - `getResource(CLIENT_RESOURCES, STONE)` is null.
+  - `listed(CLIENT_RESOURCES, "minecraft", "textures")` is empty.
+  - The generator's call count equals 0.
+  - `generatedFiles()` is false.
+  - `RetroModeManager.latchReason()` is not null.
+- **`aClosedPackServesNoStaticFiles`**: A close before any request.
+  - `getResource(CLIENT_RESOURCES, EN_US)` is null.
+  - `listed(CLIENT_RESOURCES, "minecraft", "lang")` is empty.
+  - The static supplier's call count equals 0.
+
+## `org.wynnvets.retro.pack.generate`
+
+### `DrawnArtTest`
+
+Test: [`DrawnArtTest.java`](../src/test/java/org/wynnvets/retro/pack/generate/DrawnArtTest.java) · Subject: [`DrawnArt`](../src/client/java/org/wynnvets/retro/pack/generate/DrawnArt.java), [`TextureStep`](../src/client/java/org/wynnvets/retro/pack/generate/TextureStep.java)
+
+With a part off, `TextureStep` asks `DrawnArt` which textures the on parts draw and which the off parts leave as Wynncraft's, so that shared art follows what is on the screen. The suite runs it over rule-file fixtures and `MemoryPack`s, one for vanilla, the only source, and one for Wynncraft above it. `RULES` gives `weapons`, `crafting`, `potions` and `items` their ids, with the catch-all of `items` last.
+
+- **`gen`**: Helper: a generation over `RULES` and more rows, with the given parts on.
+- **`only`**: Helper: just the given parts.
+- **`shipped`**: Helper: a texture vanilla has and Wynncraft ships, so a copy of it is always written.
+- **`model`**: Helper: a model in Wynncraft's item folder, with its JSON.
+- **`vanillaItem`**: Helper: a flat vanilla item: its item definition, its model and that model's one texture.
+- **`file`**: Helper: a written file's bytes.
+- **`withOnlyWeaponsOnTheArtTheirStubsDrawIsStillReplaced`**: `item/iron_shovel` is owned by `items`, off, and a spear's stub draws it.
+  - `item/iron_shovel` is written.
+  - `item/feather` is not.
+  - Its decision equals `Keep(PART_OFF)`.
+  - `PARTS_OFF` is 1.
+  - `skipped` is empty.
+- **`anOffPartsOwnArtStaysWynncraftsThoughItemsIsOn`**: An ingredient model parents `item/gold_nugget`, with `crafting` off.
+  - `item/gold_nugget` is not written.
+  - `item/feather`, which nothing off draws, is.
+- **`anOnPartDrawingTheSameArtReplacesItEverywhere`**: With `weapons` and `items` on, an ingredient off and a spear on both draw `item/iron_shovel`, which is written.
+- **`aModelsOwnTexturesAreFollowedThroughItsParents`**: A model with a namespaced value, a value with no namespace, a `#` reference and the object form of a texture, parenting a vanilla model with one more, whose own parent is `builtin/generated`, with `crafting` off.
+  - `off` equals the four textures, in full.
+  - `on` is empty.
+- **`aModelsSlotHidesTheSameSlotOfItsParent`**: A model over a parent's `top`, `bottom` and `side`, naming its own `top` and pointing `bottom` at it, with `crafting` off: `off` equals its own `top` and the parent's `side`, without the parent's `top` or `bottom`.
+- **`aModelsParticleIsNotArtItDraws`**: One model whose parent has only a `particle`, another with a `layer0` and a `particle`, with only `crafting` on: `on` equals the `layer0`.
+- **`aStubbedModelThatIsOffDrawsItsOwnArtAndOnItsStubs`**: A model an `item_models` row stubs, with its own art.
+  - With `crafting` off, `off` equals its own art.
+  - `on` is empty.
+  - With only `crafting` on, `on` equals the stub's art and not what its own model names.
+  - `off` is empty.
+- **`aStubOfAModelDrawsThatModelsTextures`**: A rune's `{model: 'minecraft:item/music_disc_wait'}` stub gives `on` equal to `item/music_disc_wait`.
+- **`aPotionsStubDrawsTheBottle`**: A `potions` row gives `on` equal to `item/potion`.
+- **`whatGearBoxesDrawByCodeIsTheirsWhileTheyAreOn`**: A `gear_box_icons` row of `minecraft:iron_helmet`.
+  - With only `gear_boxes` on, `on` equals `item/iron_helmet` and `item/enchanted_book`.
+  - With only `items` on, `on` is empty.
+- **`aStackModelsTargetIsItsRowsPartsWhileThatIsOn`**: A `stack_models` row with `part: crafting` and the model `minecraft:nether_star`.
+  - With only `crafting` on, `on` equals `item/nether_star`.
+  - With only `items` on, `on` is empty.
+- **`anItemDrawsEveryModelItsDefinitionCanPick`**: A definition of a `range_dispatch` over two models and a `special` fallback with a `base`: `itemArt` equals all three models' textures.
+- **`anItemThatCannotBeReadDrawsNothing`**:
+  - `itemArt` of an item with no definition is empty.
+  - `itemArt` of an item whose definition is broken is empty.
+  - `skipped` has 1 line: the broken one's.
+- **`everyItemTheCodeDrawsHasArtInTheClientJar`**: Against the client jar, for every `gear_box_icons` item, `stack_models` target and `GLINTING_BOOK`.
+  - `itemArt` is not empty.
+  - `skipped` is empty.
+- **`theClockDrawsAllItsFrames`**: Against the client jar, the clock has no model of its own name: `itemArt` holds `item/clock_00` and `item/clock_63`.
+- **`theShieldDrawsItsRenderersArtAndNotItsModelsParticle`**: Against the client jar.
+  - `itemArt` of `minecraft:shield` equals `entity/shield_base_nopattern`, without `block/dark_oak_planks`.
+  - The jar has that texture.
+- **`whatTheShippedPartsDrawByCodeIsOnWithoutTheirOwners`**: The real rule files against the client jar.
+  - With only `crafting` on, `on` holds `SHIELD_ART`: the shields among the ingredients.
+  - With only `gear_boxes` on, `on` holds `SHIELD_ART` and `item/clock_00`: the Allegiance tome's shield and the bracelet box's clock.
+  - With only `hud` on, `on` is empty.
+- **`aModelThatCannotBeReadAddsNothingAndCostsNoOther`**: An unreadable model, a broken one, one whose parent is gone and a fine one, with `crafting` off.
+  - `off` equals the fine one's art.
+  - `skipped` has 2 lines: the unreadable and the broken; a file that is gone is none.
+- **`aCycleOfParentsEnds`**: `off` equals both models' art, each in a slot of its own, for two models that parent each other.
+- **`withEveryPartOnNothingIsWalkedAndTheRulesDecide`**: Every part on, over an unreadable model.
+  - `skipped` is empty: no model was read.
+  - `out.decisions` equals `decideAll` of the one texture.
+  - `counts` has no `PARTS_OFF`.
+  - The texture is written.
+- **`withAPartOffTheModelsAreWalked`**: The same packs with `tools` off: the first skipped line names the unreadable model.
+
+### `GenerationStepsTest`
+
+Test: [`GenerationStepsTest.java`](../src/test/java/org/wynnvets/retro/pack/generate/GenerationStepsTest.java) · Subject: [`RetroPackGenerator`](../src/client/java/org/wynnvets/retro/pack/generate/RetroPackGenerator.java), [`GeneratedItemWriter`](../src/client/java/org/wynnvets/retro/pack/generate/GeneratedItemWriter.java), [`StubWriter`](../src/client/java/org/wynnvets/retro/pack/generate/StubWriter.java)
+
+Each generation step run alone, or in `RetroPackGenerator.STEPS`' order, over rule-file fixtures and two packs held in memory (`vanilla`, the only source, and `wynncraft`, above it). Images go through Minecraft's own PNG decoder, as in play. The sections are: the order, `TextureStep`, the copies, textures at their live size, generated items, and the stubs. The helpers `run`, `file`, `text`, `image` and `count` run a step over a fixture and read its `PackOutput`.
+
+- **`theStepsRunInTheirStatedOrder`**: `STEPS` is the one statement of the order.
+  - The step classes equal `TextureStep`, `WynncraftCopyStep`, `SourceCopyStep`, `BlankTextureStep`, `WynntilsTextureStep`, `AccessoryTierStep`, `ModelStubStep`, `BlockModelStep`, `EquipmentStep`, `ItemDefinitionStep`, `OutlinedIconStep`, in that order.
+- **`everyStepThatWritesWhatAStubNamesComesBeforeTheStubs`**: A stub resolves what earlier steps wrote.
+  - The texture, copy, blank, Wynntils texture and accessory steps are all before `ModelStubStep`, which is before `BlockModelStep`.
+- **`aStubResolvesTheAccessoryAnEarlierStepWrote`**: An ingredient row that parents a generated accessory is written when the accessory step ran first.
+  - `nose_ring.json` is `{"parent":"vetsmod:item/retro/accessory/ring_iron"}`, and nothing is skipped.
+- **`theSameStubBeforeTheAccessoryIsSkipped`**: The same two steps in the other order skip the stub, which is what the order prevents.
+  - `nose_ring.json` is absent.
+  - `skipped` is the one line that the stub needs `vetsmod:models/item/retro/accessory/ring_iron.json`, which is missing.
+- **`aBlankTextureReplacesTheTextureRulesFile`**: A later step's file wins at the same path.
+  - With `same_name` copying `block/a` and `blank_textures` naming it, a full run of the steps leaves `block/a.png` fully transparent (`get(0, 0)` equals 0).
+- **`aFullGenerationOverEmptyPacksThrowsNothingAndRecordsItsReport`**: `RetroPackGenerator.generate()` over packs holding nothing returns no files and records the report.
+  - The files map equals `Map.of()`.
+  - `RetroModeManager.lastReport()` has Wynncraft pack `wynncraft`, sources `[VANILLA]` and a non-empty `skipped`.
+- **`aSameNameCopyTakesTheSourcesPngAndTheMcmetaBesideIt`**: A `same_name` copy is the source's bytes plus its `.mcmeta`.
+  - `block/a.png` equals the vanilla PNG and `block/a.png.mcmeta` the vanilla `.mcmeta`.
+  - `SAME_NAME` is 1 and `MCMETA` is 1, and the texture has a decision.
+- **`aVanillaCopyOfATextureWynncraftDoesNotShipIsLeftOut`**: Vanilla's texture that Wynncraft does not ship is not copied.
+  - No file is written and `UNCHANGED` is 1.
+- **`anAliasCopiesItsTargetUnderTheTexturesOwnId`**: An alias writes its target's bytes at the aliased texture's file.
+  - `block/a.png` equals the PNG of `block/b` and `ALIASES` is 1.
+- **`aTextureNoRuleReplacesCountsOnlyWhenWynncraftShipsIt`**: `NO_RULE` counts Wynncraft's textures only.
+  - With one vanilla texture and one Wynncraft texture and no rule, `NO_RULE` is 1.
+- **`aFileThatCannotBeReadCostsOnlyItsOwnRow`**: An unreadable source file skips its row and the others still run.
+  - `skipped` is `could not read minecraft:block/a from vanilla (java.io.IOException: cannot read)`.
+  - `block/b.png` is written.
+- **`aTintMultipliesItsSourceAndRecordsItsFactors`**: A `#FF0000` tint of a grey texture gives red, with the source's `.mcmeta`, and the factors are recorded.
+  - Pixel `(0, 0)` equals `0xFF800000`.
+  - The `.mcmeta` equals the source's.
+  - `tintFactors` for the texture equal `[1.0, 0.0, 0.0]` and `TINTS` is 1.
+- **`aLikeTintMakesTheChangeOfTheRowItNames`**: A `like` row applies the named row's factors to its own source.
+  - With `block/a` tinted `#FF0000` and `block/b` `{like: block/a}` over a `0xFF404040` source, `b`'s pixel equals `0xFF400000` and its factors equal `[1.0, 0.0, 0.0]`.
+- **`aTintWhoseSourceIsMissingLeavesWynncraftsAndIsReported`**: A tint no source can start from writes nothing.
+  - No file is written, and `skipped` is `no source has a texture the alias or tint for minecraft:block/a reads`.
+- **`aTintThatCannotBeMeasuredIsReported`**: An `auto` tint of a fully transparent source cannot be measured.
+  - No file is written; one skipped line starts `the tint for minecraft:block/a (`.
+- **`anImageEditPaintsItsSamplesColourAndIsRecorded`**: A fill paints the colour at its sample pixel and is recorded.
+  - Pixel `(0, 0)` equals `0xFF112233`.
+  - `imageEdits` for the texture equals `[Rect(0, 0, 1, 1)]` and `IMAGE_EDITS` is 1.
+- **`anImageEditItsPaletteRefusesLeavesTheCopyAsItIs`**: A fill whose palette the rectangle fails, and one that samples outside the texture, leave the copy alone and say why.
+  - Pixel `(0, 0)` is still the grey, and `imageEdits` has no entry.
+  - `skipped` has the layout-changed line and the `samples a pixel outside the texture` line.
+- **`anImageEditOfAKeptOrMissingTextureIsReported`**: An image edit on a kept texture or on one no pack has is reported.
+  - `skipped` equals `image_edits for minecraft:block/a: it is kept (KEEP_WYNNCRAFT)` and `image_edits for minecraft:block/gone: no pack has it`.
+- **`aWynncraftCopyTakesThePngAndTheMcmetaOfOnePack`**: A `wynncraft_copies` row takes the PNG and the `.mcmeta` of the pack that shows the texture (Wynncraft's), not a lower pack's `.mcmeta`.
+  - `vetsmod:textures/block/retro/a.png` and `.mcmeta` equal Wynncraft's.
+  - `wynncraftCopies` equals `{vetsmod:block/retro/a}`, `WYNNCRAFT_COPIES` is 1.
+  - `skipped` is `Wynncraft has no minecraft:block/gone to copy to vetsmod:block/retro/b`.
+- **`aSourceCopyTakesTheSourcesFilesAsTheyAre`**: A plain `source_copies` row copies the PNG and `.mcmeta` unchanged.
+  - Both files equal vanilla's, `SOURCE_COPIES` is 1.
+  - `skipped` is `no source has minecraft:block/gone to copy to vetsmod:block/retro/b`.
+- **`aSourceCopyWithARecipeIsInItsRowsColour`**: A row naming a recipe writes the art in the row's colour.
+  - With a `scale_from #808080` recipe and the colour `#FF0000`, a `0xFF808080` texture becomes `0xFFFF0000`.
+- **`aBlankTextureIsTransparentAtItsLiveSize`**: A `blank_textures` entry is written fully transparent at the live texture's size.
+  - A 3x5 live texture gives a 3x5 image whose pixel `(2, 4)` equals 0; `BLANK_TEXTURES` is 1.
+  - `skipped` is `no pack has minecraft:block/gone to blank`.
+- **`aWynntilsTextureDrawsItsFramesOneAboveTheOther`**: Two frames are stacked top to bottom at the live size.
+  - A 4x8 live texture gives a 4x8 image; its top-left pixel is the first frame's colour (`0xFF111111`) and `(0, 7)` the second's (`0xFF222222`).
+  - `WYNNTILS_TEXTURES` is 1.
+- **`aWynntilsTextureThatCannotBeDrawnIsReported`**: A texture the frames cannot share, whose source is missing, or that no pack has, writes nothing and says why.
+  - No file is written.
+  - `skipped` is `wynntils:odd is 5 pixels high, which 2 frames cannot share`, `no source has minecraft:gui/gone to draw wynntils:even` and `no pack has wynntils:absent to draw again`.
+- **`eachAccessoryTierAndTheEmptySlotIsAGeneratedItem`**: A type with art gets one generated item per tier plus `_empty`; a type whose art is missing is reported.
+  - `generatedItems` equals `retro/accessory/ring_empty`, `ring_gold` and `ring_iron`; `ACCESSORY_TIERS` is 3.
+  - `ring_empty`'s pixel equals `empty_outline`'s colour, `0xFF123456`.
+  - The gold and iron textures' pixels are the tiers' ramp colours `0xFFFF0000` and `0xFF00FF00`.
+  - `skipped` is `Wynncraft has no minecraft:wynn/gone for its accessories`.
+- **`aGeneratedItemIsATextureAModelOfItAndADefinitionOfThat`**: `GeneratedItemWriter.write` writes three files and records the item.
+  - The files are the texture, the flat model of it and the item definition of that, with the exact JSON texts.
+  - `generatedItems` equals `{vetsmod:retro/a}` and `OUTLINED_ICONS` is 1.
+- **`anOutlinedIconGrowsByItsOutlineAndArtTheSourcesLackIsReported`**: An outlined icon is its art with the outline around it.
+  - A 2x2 grey source with a one-pixel outline gives a 4-wide icon whose `(0, 1)` is the outline colour `0xFF191919` and `(1, 1)` the art's grey.
+  - `generatedItems` equals `{vetsmod:retro/icon/spear}`; `skipped` is `nothing has minecraft:item/gone for an outlined icon`.
+- **`anItemModelStubDrawsItsRowsArtOnItsTintProofParent`**: A texture row's stub names its tint-proof parent and fills `art`.
+  - The model file is `{"parent":"<the stub's parent>","textures":{"art":"minecraft:item/stick"}}`.
+  - `modelIds` is the model, `stubbed` contains it, `ITEM_MODELS` is 1.
+- **`aStubNamingAMissingFileIsReportedAndNotWritten`**: A stub whose art does not resolve is not written.
+  - No file, `stubbed` empty, `modelIds` still lists the model.
+  - `skipped` is `the stub for minecraft:item/wynn/x needs minecraft:textures/item/stick.png, which is missing`.
+- **`anIngredientStubNamesItsItemModelAndAStemWynncraftLacksIsReported`**: An ingredient's stub is `{"parent": <item model>}`; a row for a stem Wynncraft lacks is reported.
+  - `egg.json` is `{"parent":"minecraft:item/egg"}` and `INGREDIENTS` is 1.
+  - `skipped` is `Wynncraft has no ingredient model gone`.
+- **`potionStubsShareOneTintedLiquid`**: The Wynncraft and Avomod models of a family share one pre-tinted liquid texture.
+  - With `SourceCopyStep` run before `ModelStubStep`, as `STEPS` runs them: the liquid's pixel equals `0xFF385DC6`.
+  - Both stubs equal `{"parent":"vetsmod:item/retro/tinted_potion","textures":{"liquid":"vetsmod:item/retro/potion/mana"}}`.
+  - `SOURCE_COPIES` is 1, `POTIONS` is 2 and nothing is skipped.
+- **`aPotionWhoseLiquidIsMissingIsReportedPerStub`**: When no source has the liquid's art, that is reported once and each stub that needs it is skipped.
+  - No file; `skipped` has the one `no source has minecraft:item/potion_overlay to copy to` line then a `needs ..., which is missing` line for each of the two stubs.
+- **`aBlockModelRowThatIsNoIdIsOneSkippedLineAndTheRestStillRun`**: `ManifestYaml.literalId` takes a key with a capital, which only `Identifier` refuses.
+  - `skipped` is `not a model id: minecraft:block/Redstone_torch`, and the next row's `torch.json` is written.
+- **`aBlockModelStubOfOurOwnModelNeedsTheTexturesThatModelNames`**: A `block_models` stub of a vetsmod model is written only once the textures that model names resolve.
+  - Without the texture, no file, and `skipped` is `the stub for minecraft:block/torch needs vetsmod:textures/block/retro/art.png, which is missing`.
+  - With it, `torch.json` is `{"parent":"vetsmod:block/retro/candle"}` and `BLOCK_MODELS` is 1.
+- **`aBlockModelStubOfOurOwnModelReadsASpriteAndNeedsNoParticle`**: A vetsmod model with a slot in the object form and a `particle` no pack has.
+  - Without the sprite's texture, the one line says the stub needs it, and does not name the particle.
+  - With it, `BLOCK_MODELS` is 1.
+- **`aBlockModelStubOfAnUnreadableModelOfOursIsSkipped`**: A vetsmod model that is not JSON is skipped, with two lines.
+  - No file; the first line starts `could not read the textures vetsmod:block/retro/candle names`, the second says the stub needs the model's `.unreadable` marker, which is missing.
+- **`anEquipmentRowTakesVanillasFileForItsAsset`**: A mapped asset is replaced by vanilla's file, byte for byte; `keep` and unmapped assets write nothing.
+  - `pale_iron.json` equals vanilla's `iron.json`; one file in all; `EQUIPMENT` is 1.
+  - `equipmentIds` lists `hidden`, `pale_gold` and `pale_iron`.
+  - `skipped` is `vanilla has no equipment asset minecraft:gold for minecraft:pale_gold`.
+- **`anItemDefinitionIsCopiedUnderOurOwnId`**: A `gear_box_icons` item's vanilla definition is copied byte for byte to `vetsmod:items/retro/<namespace>/<item>.json`.
+  - The copy equals vanilla's `iron_helmet.json`, `copiedItems` is `{minecraft:iron_helmet}` and `ITEM_DEFINITIONS` is 1.
+  - `skipped` is `vanilla has no item definition for minecraft:gone`.
+- **`genWithOff`**: Helper: a generation with one part off, over a `parts` fixture that gives `blocks`, `armour`, `screens`, `hud` and `items` their ids.
+- **`aTextureOfAPartOffStaysWynncraftsCountedAndUnreported`**: `same_name` over a block texture and a GUI one, both shipped, with `blocks` off.
+  - The block texture has no file.
+  - The GUI one is copied.
+  - `PARTS_OFF` is 1.
+  - `SAME_NAME` is 1.
+  - `skipped` is empty.
+- **`anImageEditOfATextureAPartLeftOutIsNoSkippedLineAndPaintsNothing`**: An `image_edits` row on the inventory with `screens` off.
+  - `skipped` is empty.
+  - `imageEdits` is empty, so the hover rule has nothing to make inert.
+  - `PARTS_OFF` is 1.
+- **`aModelOfAPartOffHasNoStubAndIsStillListed`**: An `item_models` row with `items` off.
+  - The model has no file.
+  - `modelIds` lists it.
+  - `stubbed` is empty.
+  - `skipped` is empty.
+- **`aBlockModelOfAPartOffHasNoStub`**: A `block_models` row with `blocks` off.
+  - `files` is empty.
+  - `BLOCK_MODELS` is 0.
+- **`withArmourOffNoEquipmentAssetIsReplacedAndEachIsStillListed`**: An `equipment` row with `armour` off.
+  - `files` is empty.
+  - `equipmentIds` lists `minecraft:pale_iron`.
+- **`aBlankOrWynntilsTextureOfAPartOffIsNotDrawn`**: A `blank_textures` row with `hud` off, and a `wynntils_textures` row with `screens` off.
+  - For each: `files` is empty.
+  - For each: `PARTS_OFF` is 1.
+- **`theSummaryNamesThePartsOffOnlyWhenThereAreAny`**: A generation's report, and a copy of it with `mobs` and `hud` off.
+  - `partsOff()` is empty.
+  - `summary()` does not say `parts off`.
+  - The copy's `summary()` ends `, parts off: mobs, hud`.
+
+### `ModelJsonTest`
+
+Test: [`ModelJsonTest.java`](../src/test/java/org/wynnvets/retro/pack/generate/ModelJsonTest.java) · Subject: [`ModelJson`](../src/client/java/org/wynnvets/retro/pack/generate/ModelJson.java)
+
+`ModelJson` writes the small JSON files the generator emits, and reads what a model's file names. The suite pins each file's exact text, as Minecraft's loaders read it, and what `read` and `drawn` answer.
+
+- **`aParentOnlyModelNamesItsParentAndNothingElse`**: A model that only names a parent.
+  - `parentOnly("minecraft:item/egg")` is `{"parent":"minecraft:item/egg"}`.
+- **`aModelWithATextureFillsItsParentsSlot`**: A model that fills one texture slot of its parent.
+  - `withTexture("vetsmod:item/p", "art", "minecraft:item/stick")` is `{"parent":"vetsmod:item/p","textures":{"art":"minecraft:item/stick"}}`.
+- **`aGeneratedItemIsFlatOverItsLayerZero`**: The model of a generated item parents `minecraft:item/generated` with the art as `layer0`.
+  - `generatedItem("vetsmod:item/a")` is `{"parent":"minecraft:item/generated","textures":{"layer0":"vetsmod:item/a"}}`.
+- **`anItemDefinitionDrawsItsModel`**: An item definition that draws one model.
+  - `itemDefinition("vetsmod:item/a")` is `{"model":{"type":"minecraft:model","model":"vetsmod:item/a"}}`.
+- **`aModelsFileNamesItsSlotsAndItsParent`**: A model with a texture, a `#` reference and the object form of a texture.
+  - `parent()` equals its parent.
+  - `slots()` equals the three slots, the object form as its `sprite`.
+- **`aModelWithNeitherNamesNothing`**: `{}`.
+  - `parent()` is null.
+  - `slots()` is empty.
+- **`whatAModelDrawsFollowsItsReferencesAndLeavesItsParticleOut`**: `drawn`.
+  - A texture, a reference to it and a `particle` give the one texture.
+  - A slot referring to `particle` gives the particle's texture, since it does draw it.
+  - A `particle` alone gives nothing.
+- **`aReferenceThatLeadsNowhereDrawsNothing`**: `drawn`.
+  - A reference to a slot that is not there gives nothing.
+  - Two slots referring to each other give nothing: the loop ends.
+
+### `PackOutputTest`
+
+Test: [`PackOutputTest.java`](../src/test/java/org/wynnvets/retro/pack/generate/PackOutputTest.java) · Subject: [`PackOutput`](../src/client/java/org/wynnvets/retro/pack/generate/PackOutput.java)
+
+`PackOutput` holds what one generation has made so far (its files, counts and skipped lines) and the shape every row of a step shares: check the row's ids, try the row, and turn anything that goes wrong into one skipped line. The suite pins that shape and the writing of a texture.
+
+- **`whatARowThrowsIsOneSkippedLineNamingItsCause`**: `attempt` turns a row's exception into one skipped line and the next row still runs.
+  - After an `IOException("gone")` and an `IllegalStateException("bad")`, `skipped` equals `could not read a (java.io.IOException: gone)` and `could not read b (java.lang.IllegalStateException: bad)`.
+  - A third row that counts `ALIASES` ran: the count is 1.
+- **`anAttemptThatAnswersFallsBackWhenItThrows`**: The answering form returns its value, or its fallback and one skipped line.
+  - A body answering `made` returns `made` and skips nothing.
+  - A body throwing `IOException("gone")` returns `fallback`, with the one skipped line `failed (java.io.IOException: gone)`.
+- **`anErrorIsNotARowFailure`**: Only an `Exception` is a row's failure; an `Error` goes on to `RetroPackResources`.
+  - An `AssertionError` thrown in `attempt` propagates.
+- **`aRowsIdThatIsNoTextureIdIsReportedOnce`**: `textureFile` maps an id, or reports a text that is none.
+  - `textureFile("minecraft:block/a")` is `minecraft:textures/block/a.png` and skips nothing.
+  - `textureFile("Not An Id")` is `null` and skips `not a texture id: Not An Id`.
+- **`aCopysFilesNeedBothIdsAndItsLineNamesBoth`**: `copyFiles(from, to)` needs both ids.
+  - Two valid ids give a `CopyFiles` of the two files and skip nothing.
+  - A bad `from` or a bad `to` gives `null`, with the skipped lines `not a texture id: Not An Id for vetsmod:b` and `not a texture id: minecraft:a for Not An Id`.
+- **`aTextureIsCountedAndItsMcmetaGoesBesideIt`**: `writeTexture` stores the PNG, the `.mcmeta` beside it, and counts both.
+  - The files hold the PNG at `vetsmod:textures/a.png` and the `.mcmeta` at `vetsmod:textures/a.png.mcmeta`.
+  - The counts are `ALIASES` 1 and `MCMETA` 1.
+- **`aTextureWithNoMcmetaWritesOneFile`**: With no `.mcmeta`, one file is written and `MCMETA` is not counted.
+  - `files.size()` equals 1, and the counts have no `MCMETA`.
+
+### `ProgrammerArtSourcesTest`
+
+Test: [`ProgrammerArtSourcesTest.java`](../src/test/java/org/wynnvets/retro/pack/generate/ProgrammerArtSourcesTest.java) · Subject: [`ProgrammerArtSources`](../src/client/java/org/wynnvets/retro/pack/generate/ProgrammerArtSources.java)
+
+`ProgrammerArtSources` is the packs the generator copies art from, one per `RetroSource`. The suite pins it over `MemoryPack`s and a `ListedPack` that stands for the client's pack list.
+
+- **`eachSourceAnswersForItsOwnTextures`**: Each source lists and reads its own pack's textures.
+  - `present()` equals `[PROGRAMMER_ART, VANILLA]`.
+  - `has(VANILLA, "minecraft:block/a")` is true and `has(PROGRAMMER_ART, "minecraft:block/a")` false.
+  - `textureIds()` is both packs' textures.
+  - `read(PROGRAMMER_ART, block/b.png)` returns the bytes and `read(VANILLA, ...)` of it `null`.
+- **`closingClosesOnlyThePackItOpened`**: `close()` closes the `programmer_art` pack and not Minecraft's vanilla pack.
+  - After `close()`, the art pack `closed()` is true and the vanilla pack's is false.
+- **`aMissingOrBrokenProgrammerArtPackLeavesVanillaAlone`**: A `programmer_art` pack that is absent or cannot be opened leaves vanilla as the only source.
+  - `open(null, vanilla).present()` and `open(new ListedPack(null), vanilla).present()` each equal `[VANILLA]`.
+  - Reading `PROGRAMMER_ART` from the absent source gives `null`.
+
+### `RetroPackGeneratorTest`
+
+Test: [`RetroPackGeneratorTest.java`](../src/test/java/org/wynnvets/retro/pack/generate/RetroPackGeneratorTest.java) · Subject: [`RetroPackGenerator`](../src/client/java/org/wynnvets/retro/pack/generate/RetroPackGenerator.java)
+
+`RetroPackGenerator.staticFiles` answers the language files from the rule files alone. The suite pins them; `GenerationStepsTest` covers the generation.
+
+- **`eachLocaleGetsOneLanguageFileHoldingEveryString`**: `langFiles(Lang(["en_us", "en_gb"], {container.inventory: Inventory, menu.game: Game Menu}))`.
+  - The keys equal `[minecraft:lang/en_us.json, minecraft:lang/en_gb.json]`, in the section's order.
+  - For each file: the JSON object's `size()` equals 2.
+  - Its `container.inventory` equals `"Inventory"`.
+  - Its `menu.game` equals `"Game Menu"`.
+- **`noStringsMeansNoFiles`**: An empty file would still be a language file, so none is written.
+  - `langFiles` with locales but no strings is empty.
+  - `langFiles` with strings but no locales is empty.
+- **`theStaticFilesAreTheRealLangSections`**: `staticFiles()` against `RetroManifest.load().assets().lang()`.
+  - The number of files equals the number of locales.
+  - For each locale: the JSON object of `minecraft:lang/<locale>.json` has as many entries as the section has strings.
+- **`theStaticFilesFollowTheScreensPart`**: `staticFiles(lang, screens)` over one locale and one string.
+  - With `screens` on, it has one file.
+  - With it off, it is empty.
+
+### `TintFactorsTest`
+
+Test: [`TintFactorsTest.java`](../src/test/java/org/wynnvets/retro/pack/generate/TintFactorsTest.java) · Subject: [`TintFactors`](../src/client/java/org/wynnvets/retro/pack/generate/TintFactors.java)
+
+`TintFactors` is the edit a `tints` row makes: the factors it multiplies its source's channels by, and the contrast it changes after them. The suite pins the factors for each kind of tint and a strength, the contrast, a like's contrast around the named texture's tinted mean and the tint as a whole, on small hand-built images with known means.
+
+- **`aColoursFactorIsEachChannelOver255`**:
+  - `tintFactors(Colour(0xFF8000), 1, SOURCE, null, null)` equals `[1, 128/255, 0]`.
+- **`matchDividesTheMatchedMeanByTheSources`**: The source takes the matched texture's colour.
+  - `tintFactors(Match("minecraft:block/x"), 1, SOURCE, REFERENCE, LIVE)` equals `[0.5, 2, 0.25]`: (50, 100, 50) over (100, 50, 200).
+- **`relativeToDividesWynncraftsMeanByItsReferences`**: The source changes as Wynncraft's texture changed; its own mean plays no part.
+  - `tintFactors(RelativeTo("minecraft:block/x"), 1, SOURCE, REFERENCE, LIVE)` equals `[0.5, 0.25, 2]`: (25, 25, 100) over (50, 100, 50).
+- **`autoDividesWynncraftsMeanByTheSources`**: The reference plays no part.
+  - `tintFactors(Auto(), 1, SOURCE, REFERENCE, LIVE)` equals `[0.25, 0.5, 0.5]`: (25, 25, 100) over (100, 50, 200).
+- **`strengthMovesEachFactorTowardOne`**: `factor = 1 + strength * (ratio - 1)`, from match's `[0.5, 2, 0.25]`.
+  - At strength 0: `[1, 1, 1]`, none of it.
+  - At strength 0.7: `[0.65, 1.7, 0.475]`.
+  - `tintFactors(Colour(0xFF80FF), 0.5, SOURCE, null, null)` equals `[1, 0.5 + 64/255, 1]`: a colour too.
+- **`aFactorWithNothingToMeasureIsNull`**: Each of these is null (5 assertions): `match` with no reference; `match` with a fully transparent reference; `auto` with no live image; `relative_to` with no reference; `auto` over a source whose red mean is 0 (`0xFF0080FF`), which it would divide by.
+- **`aTintMultipliesBySuchFactorsClampedAndKeepsAlpha`**: `multiply` by match's factors `[0.5, 2, 0.25]` of `0xFF5A3CC8`, `0x806E28C8` and `0x00FFFFFF`.
+  - `argb()` equals `[0xFF2D7832, 0x80375032, 0x0080FF40]`: 90 * 0.5 = 45, 60 * 2 = 120 and 200 * 0.25 = 50; 255 * 0.5 = 127.5 rounds to 128 and 255 * 2 stops at 255; each pixel keeps its alpha.
+- **`anAutoTintOfAStripOfFramesTintsEveryFrameAlikeAndKeepsTheStrip`**: An animated texture is a strip of frames, one under another (the 2013 magma tinted to Wynncraft's molten rock). `strip` is a 1x3 strip, `0xFF643214`, `0xFF6E3C1E`, `0xFF785028` (means 110, 63.3, 30), and `live` the same strip halved, `0xFF32190A`, `0xFF371E0F`, `0xFF3C2814` (means 55, 31.7, 15).
+  - `tintFactors(Auto(), 1, strip, null, live)` equals `[0.5, 0.5, 0.5]` within `1e-9`: the means run over every frame.
+  - After `multiply` by them: `strip.width()` equals 1.
+  - `strip.height()` equals 3: the strip, and the frame count its `.mcmeta` counts on, stay.
+  - `strip.argb()` equals `live.argb()`: every frame takes the same factors.
+- **`aRowWithoutATintMultipliesByOne`**: A contrast-only row keeps the source's colour and needs nothing measured.
+  - `tintFactors(Unchanged(), 1, SOURCE, null, null)` equals `[1, 1, 1]`.
+  - `tintFactors(Unchanged(), 0.5, SOURCE, null, null)` equals `[1, 1, 1]`: whatever the strength.
+- **`aLikeHasNoFactorsOfItsOwn`**: A like takes the factors of the row it names; the generator never asks for its own.
+  - `tintFactors(Like("minecraft:block/x"), 1, SOURCE, REFERENCE, LIVE)` throws `IllegalArgumentException`.
+- **`contrastMovesEachVisibleChannelTowardTheMeanAndKeepsAlpha`**: `0xFF000000`, `0x80C8643C` and a transparent `0x00FFFFFF`; the two visible pixels' means are (100, 50, 30), and the transparent one counts for none.
+  - After `contrast(image, 0.5)`, `argb()` equals `[0xFF32190F, 0x80964B2D, 0x00FFFFFF]`: 100 + 0.5 * (0 - 100) = 50, then 25 and 15; 100 + 0.5 * (200 - 100) = 150, then 75 and 45; each keeps its alpha, and the transparent pixel is left as it is.
+  - `mean(image)` still equals `[100, 50, 30]` within `1e-9`.
+- **`contrastOneKeepsTheImageZeroFlattensItAndAboveOneClamps`**: The contrast's ends.
+  - `contrast(numbered(3, 2), 1)` leaves `argb()` as it was: 1 changes nothing.
+  - `contrast` of `0xFF000000` and `0xFFC8643C` at 0 gives `[0xFF64321E, 0xFF64321E]`: the mean throughout.
+  - The same at 3 gives `[0xFF000000, 0xFFFFC878]`: 100 + 3 * (0 - 100) = -200 stops at 0 and 400 at 255, while 200 and 120 stay.
+  - `contrast(blank(2, 2), 0.5)` leaves it all zero: nothing visible, nothing to move.
+- **`aTintChangesTheContrastAfterTheColourAroundTheTintedMean`**: `0xFF646464` and `0xFFC8C8C8`, red times 1.5 and half the contrast.
+  - After `tint(image, [1.5, 1, 1], 0.5)`, `argb()` equals `[0xFFB07D7D, 0xFFE5AFAF]`: red becomes 150 and 255 (stopped from 300), a mean of 202.5, then 176.25 and 228.75 rounded; green and blue 125 and 175 around 150. The contrast first would give red 188 and 255.
+- **`aTintAtFullContrastIsTheMultiplyAlone`**: `0xFF5A3CC8`, `0x806E28C8` and `0x00FFFFFF`.
+  - `tint(image, [0.5, 2, 0.25], 1)` gives the same `argb()` as `multiply(copy, 0.5, 2, 0.25)`.
+- **`contrastAroundTheImagesOwnMeanMatchesThePlainContrast`**: With factors of 1, the plain contrast pivots on the image's own mean.
+  - `tint(image, {1, 1, 1}, 0.45)` and `tint(copy, {1, 1, 1}, 0.45, <the same image's mean>)` give equal `argb()` arrays.
+- **`theTintedMeanIsTheMeanAfterTheClampedMultiplyAndLeavesTheImage`**: `0xFF5A3CC8`, `0x806E28C8` and `0x00FFFFFF`, by (0.5, 5, 0.25).
+  - `tintedMean(image, [0.5, 5, 0.25])` equals (50, 227.5, 50) within `1e-9`: red 45 and 55; green 300, stopped at 255, and 200; blue 50 twice; the transparent pixel counts for none.
+  - `argb()` is as it was: the image is left alone.
+  - `tintedMean(blank(2, 2), [1, 1, 1])` is null: nothing visible.
+- **`aLikeTintChangesThePixelsItSharesAsTheNamedTextureAndTheRestAroundItsMean`**: The named texture is `0xFF646464` and `0xFFC8C8C8`; the like's image shares those two pixels and adds a black mouth, `0xFF000000`. Both take red times 1.5 and half the contrast, the named texture around its own tinted mean and the like around `pivot`, `tintedMean(named, [1.5, 1, 1])`.
+  - `pivot` equals (202.5, 150, 150) within `1e-9`.
+  - The named texture's `argb()` equals `[0xFFB07D7D, 0xFFE5AFAF]`, as in `aTintChangesTheContrastAfterTheColourAroundTheTintedMean`.
+  - The like's `argb()` equals `[0xFFB07D7D, 0xFFE5AFAF, 0xFF654B4B]`: the shared pixels come out as the named texture's, and the mouth moves halfway to the pivot, 101.25 and 75 rounded.
+  - The same three pixels tinted around their own mean, `tint(own, [1.5, 1, 1], 0.5)`, give `[0xFF8F6464, 0xFFC39696, 0xFF443232]`: the mouth pulls that mean to (135, 100, 100), so the shared pixels come out otherwise, which the like avoids.
+
+## `org.wynnvets.retro.render`
+
+### `IdentityMemoTest`
+
+Test: [`IdentityMemoTest.java`](../src/test/java/org/wynnvets/retro/render/IdentityMemoTest.java) · Subject: [`IdentityMemo`](../src/client/java/org/wynnvets/retro/render/IdentityMemo.java), [`WeakIdentityMemo`](../src/client/java/org/wynnvets/retro/render/WeakIdentityMemo.java)
+
+`IdentityMemo` and `WeakIdentityMemo` are the drawing code's caches: one value worked out from one key, kept until a different key by identity asks. The suite uses two distinct but equal strings as keys so a memo that compared by `equals` would show.
+
+- **`aMemoWorksItsValueOutOncePerKeyByIdentity`**: An `IdentityMemo` keeps the last key's value and compares keys with `==`.
+  - The same key twice makes the value once (1, 1).
+  - An equal but distinct key makes it again (2), and the first key again after that makes it a third time (3): only the last is kept.
+- **`aMemoRemembersANullKeyAndANullValue`**: A `null` key and a `null` value are remembered like any other.
+  - `get(null, ...)` answers `made` twice from one making.
+  - A key whose value is `null` is made once over two asks.
+- **`aWeakMemoWorksItsValueOutOncePerKeyAndPeeksWithoutWorking`**: A `WeakIdentityMemo` keeps the last key's value, and `peek` reads it without making one.
+  - `peek(KEY)` is `null` at first; after `get(KEY, ...)` it is `first`, and a second `get` returns the same instance.
+  - `peek` of an equal key, and of `null`, is `null`: by identity.
+  - `get(EQUAL_KEY, ...)` makes `second`, after which `peek(KEY)` is `null` again.
+- **`aWeakMemoRemembersANullValueAndClears`**: A `null` value is a value, and `clear()` forgets it.
+  - `get(KEY, ...)` answers `null`, and a second ask with a non-null maker still answers `null`.
+  - After `clear()`, `get(KEY, ...)` makes `made`.
+
+### `RetroAccessoriesTest`
+
+Test: [`RetroAccessoriesTest.java`](../src/test/java/org/wynnvets/retro/render/RetroAccessoriesTest.java) · Subject: [`RetroAccessories`](../src/client/java/org/wynnvets/retro/render/RetroAccessories.java)
+
+`RetroAccessories` draws an accessory by its level. The suite pins the pure `itemFor(accessoryTiers, gearType, level)` against the shipped rows; reading a stack's level needs Wynntils and a running client.
+
+- **`eachLevelGetsItsTierAndEachTierStartsAtItsBelow`**: For a ring, levels 1, 19, 20, 39, 40, 59, 60, 79, 80, 99, 100 and 120 give leather, leather, gold, gold, chainmail, chainmail, iron, iron, diamond, diamond, netherite and netherite.
+- **`eachAccessoryTypeHasItsOwnItem`**: At level 50, `RING`, `BRACELET` and `NECKLACE` give `vetsmod:retro/accessory/ring_chainmail`, `bracelet_chainmail` and `necklace_chainmail`.
+- **`anythingElseIsNoAccessory`**: `SPEAR` and `MASTERY_TOME` give `null`.
+
+### `RetroContainerTitlesTest`
+
+Test: [`RetroContainerTitlesTest.java`](../src/test/java/org/wynnvets/retro/render/RetroContainerTitlesTest.java) · Subject: [`RetroContainerTitles`](../src/client/java/org/wynnvets/retro/render/RetroContainerTitles.java)
+
+`RetroContainerTitles` decides the title retro draws on a container: the first matching `container_titles` row, else the readable title, else a `glyph_titles` row, else Wynncraft's label; blanks the player inventory's label on a container that keeps Wynncraft's and on a Wynntils full-screen view; and draws such a container on the live pack's copy of Wynncraft's own texture. The suite pins the package-private `readableTitle(Component)` and `title(rows, glyphRows, containerClass, original)` on real `Component` titles built like Wynncraft's, glyph runs in its `interface` and `space` fonts beside default-font text, `inventoryLabel(drawn, original)` and `background(drawn, texture, liveCopy)`. Drawing the labels and backgrounds needs Wynntils' events and the mixin, and is not tested; the class's static fields start out as an empty weak reference, a null decision, an empty set and a flag, so loading it builds no Minecraft or Wynntils object, and `background` reads `PackFiles.TEXTURES`, a `FileToIdConverter`, which needs no running game. `BANK_GLYPHS` is Wynncraft's account bank title, `\uDAFF\uDFF0\uE00F\uDAFF\uDF68\uF000` (a spacing character, the bank art, a spacing character, the title glyph); `inFont(text, font)` is a literal in the font `minecraft:<font>`; `rows(yaml)` parses a fixture through `ManifestFixtures.parseTextures` and returns its `containerTitles()`.
+
+- **`glyphRunsInOtherFontsAreDropped`**: `BANK_GLYPHS` in `interface`, a spacing character in `space`, then `Returners: Members` in the default font.
+  - `readableTitle(title)` equals `"Returners: Members"`.
+- **`aPlayerTradesTwoNamesKeepTheSpacesBetweenThem`**: `readableTitle` keeps the run of spaces between two words when it is four or more, and collapses the rest.
+  - ` Csabi15              Wenweia ` becomes `Csabi15              Wenweia`.
+  - `Item   Pedestal` (three spaces) becomes `Item Pedestal`; `A    Daily    Reward` (three words) becomes `A Daily Reward`.
+- **`aTitleOfGlyphsAloneHasNothingReadable`**: Glyphs, in their own font or the default one, and punctuation alone are not readable.
+  - `readableTitle(inFont(BANK_GLYPHS, "interface"))` is null.
+  - `readableTitle(Component.literal(BANK_GLYPHS))` is null: private-use and unassigned characters in the default font are glyphs too.
+  - `readableTitle(Component.literal(" - "))` is null.
+- **`glyphsFormattingCodesAndExtraSpacesAreStrippedFromText`**: `"  \uE005 §6Daily\uDAFF\uDFF0   Rewards "` in dark gray.
+  - `readableTitle(title)` equals `"Daily Rewards"`.
+  - `readableTitle(Component.literal("Bank" + (char) 0x0378))` equals `"Bank"`: U+0378 is unassigned inside the BMP, which `PillCodec.isCustomGlyph` would keep; this is the case that discriminates `readable`'s missing `> 0xFFFF` bound.
+- **`theFirstMatchingRowDecidesAndKeepKeepsWynncraftsLabel`**: Rows `AccountBankContainer` (`Account Bank`), `Account.*` (`Not this one`) and `Blacksmith.*` (`keep`).
+  - `title(rows, "AccountBankContainer", inFont(BANK_GLYPHS, "x"))` equals `"Account Bank"`: the first matching row.
+  - `title(rows, "BlacksmithSellContainer", Component.literal("Blacksmith"))` is null: `keep`, even over a readable title.
+- **`withoutARowTheReadableTitleOrNothingIsDrawn`**: One row, `AccountBankContainer` (`Bank`).
+  - `title(rows, "GuildMemberListContainer", "Returners: Members")` equals `"Returners: Members"`.
+  - `title(rows, null, "Loot Chest")` equals `"Loot Chest"`: a screen Wynntils does not name.
+  - `title(rows, null, inFont(BANK_GLYPHS, "interface"))` is null: nothing readable, so Wynncraft's label stays.
+  - `title(rows, "AccountBankContainerX", "Returners: Members")` equals `"Returners: Members"`: rows match the whole class name.
+- **`aTitleOfGlyphsTakesItsGlyphsRowBelowARowAndAReadableTitle`**: Rows `AccountBankContainer: Bank` and `{0xE01B: "Powder Master: Remove"}`.
+  - A nameless title of a space glyph and U+E01B gives `Powder Master: Remove`.
+  - `AccountBankContainer` with U+E01B gives `Bank`: its row comes first.
+  - A nameless literal `Merchant` gives `Merchant`: a readable title comes first.
+  - A nameless U+E006 with no row gives `null`.
+- **`aGlyphCountsInTheInterfaceFontAlone`**: U+E006 gives its row in the `interface` font, and `null` in `offset/store/front`, the store's ribbon.
+- **`theStoreKeepsWynncraftsLabel`**: The real rows give `null` for `StoreContainer` and `StorePageContainer`, even with a glyph that has a row.
+- **`theShippedGlyphRowsAreTheMerchantAndThePowderMaster`**: `glyphTitle` of the real rows: U+E006 `Merchant`, U+E01A to U+E01C the Powder Master's three screens, U+E03E `Party Finder: Join`, U+F044 and U+F048 after U+E053 `Jeweling` and `Woodworking`, U+E003 (Character Info) `null`.
+- **`theInventoryLabelIsDrawnOnlyWhereRetroDrewTheContainers`**: `inventory` is `Component.literal("Inventory")`, `bank` a `Relabelled` for `AccountBankContainer` titled `Account Bank`, with no bounds, not full-screen, and `contentBook` one for `ContentBookContainer` titled `Content Book`, with no bounds, full-screen.
+  - `inventoryLabel(bank, inventory)` is the same object as `inventory`.
+  - `inventoryLabel(null, inventory).getString()` equals `""`: a screen that keeps Wynncraft's label keeps its art there too.
+  - `inventoryLabel(contentBook, inventory).getString()` equals `""`: a full-screen view holds Wynncraft's buttons there, not the inventory.
+- **`aScreenThatKeepsWynncraftsLabelIsDrawnOnTheCopyOfWynncraftsTexture`**: `chest` is `minecraft:textures/gui/container/generic_54.png`; `copies` answers `vetsmod:gui/container/wynncraft/generic_54` for `minecraft:gui/container/generic_54` and nothing for any other texture id; `bank` is the `Relabelled` of the test above.
+  - `background(null, chest, copies)` equals `vetsmod:textures/gui/container/wynncraft/generic_54.png`: the copy's file.
+  - `background(bank, chest, copies)` is the same object as `chest`: retro drew the label, so the vanilla chest the pack copied in stays.
+  - `background(null, dispenser, copies)`, with `dispenser` = `minecraft:textures/gui/container/dispenser.png`, is the same object as `dispenser`: no copy, so the texture as it is.
+
+### `RetroGuardTest`
+
+Test: [`RetroGuardTest.java`](../src/test/java/org/wynnvets/retro/render/RetroGuardTest.java) · Subject: [`RetroGuard`](../src/client/java/org/wynnvets/retro/render/RetroGuard.java)
+
+`RetroGuard` is the failure latch of the drawing code: what it guards throws nothing into the render. The suite pins, with plain code, that a stopping guard runs nothing after its first failure, a retrying one goes on, neither lets a failure out, an error included, and each answers its fallback for a failure. What it logs is not checked.
+
+- **`aStoppingGuardRunsNothingAfterItsFirstFailure`**: A stopping guard runs its body until one fails, then nothing more.
+  - A first run increments the counter to 1 and `stopped()` is false.
+  - After a run that throws, `stopped()` is true; a further run leaves the counter at 1.
+  - `call(() -> "body", "fallback")` then answers `fallback`.
+- **`aRetryingGuardGoesOnAfterAFailure`**: A retrying guard swallows each failure and goes on.
+  - After two failing runs `stopped()` is false.
+  - A third run executes (the counter is 1) and `call(() -> "body", "fallback")` answers `body`.
+- **`aFailingCallAnswersItsFallback`**: A `call` whose body throws answers its fallback.
+  - `call(() -> { throw ...; }, "fallback")` equals `fallback`.
+- **`aLinkageErrorIsCaughtAsAMissingWynntilsClassThrowsIt`**: A `NoClassDefFoundError` is caught like an exception.
+  - After a run that throws `NoClassDefFoundError("com/wynntils/Missing")`, a stopping guard's `stopped()` is true.
+- **`anErrorIsCaughtAsAnExceptionIs`**: Picking a stack's model has no event bus above it to catch what escapes.
+  - A run that throws `StackOverflowError` returns; a `call` that throws `AssertionError` answers `fallback`.
+- **`aCallEvenIfStoppedStillRunsAndItsFailureCounts`**: `callEvenIfStopped` is for what decides how to draw once a guard has stopped.
+  - A failing one answers `fallback` and stops the guard.
+  - It then still answers `body`, while a plain `call` answers `fallback`.
+- **`aBodyMayAnswerNull`**: A body that returns `null` is not a failure.
+  - `call(() -> null, "fallback")` equals `null`.
+
+### `RetroHudTest`
+
+Test: [`RetroHudTest.java`](../src/test/java/org/wynnvets/retro/render/RetroHudTest.java) · Subject: [`RetroHud`](../src/client/java/org/wynnvets/retro/render/RetroHud.java)
+
+`RetroHud` draws vanilla's hearts, food, experience bar and level number from Wynntils' health, mana and combat experience while the retro pack is live on Wynncraft. The suite pins its maths on plain numbers, through the package-private `halves(current, max)` (the halves of a row of ten hearts or shanks a value fills, out of `HALVES`, 20), `fill(icon, halves)` (whether one icon is `Fill.EMPTY`, `HALF` or `FULL`) and `progressWidth(current, max)` (the experience bar's fill in pixels). Drawing, the action bar and the mode need a running client and Wynntils' models, and are not tested; the class's static fields are sprite `Identifier`s and a flag, so loading it builds no Wynntils object.
+
+- **`aFullValueFillsTheRowAndNothingLeftFillsNone`**:
+  - `halves(100, 100)` and `halves(150, 100)` equal `HALVES`: at or above the maximum.
+  - `halves(0, 100)`, `halves(-5, 100)` and `halves(5, 0)` equal 0: nothing left, or no maximum.
+- **`anyLossShowsAndAnythingLeftShowsAHalf`**: Unlike vanilla, which rounds its points up, a row rounds down, but never to nothing while anything is left.
+  - `halves(99, 100)` and `halves(999_999, 1_000_000)` equal 19.
+  - `halves(1, 1_000)` and `halves(9, 100)` equal 1.
+- **`inBetweenARowFillsTheHalvesTheValueCoversInFull`**:
+  - `halves(50, 100)` and `halves(54, 100)` equal 10; `halves(55, 100)` equals 11.
+  - `halves(2_000_000_000, 2_100_000_000)` equals 19: the product does not overflow.
+- **`overhealthFillsARowPerMaximumAndAnyOfItShows`**: `overhealthHalves` counts through the colours.
+  - It is 0 at or below the maximum and with no maximum.
+  - Over a maximum of 200: 300 gives 10, 400 gives 20, 500 gives 30, 800 gives 60, and 5000 stays 60.
+  - `overhealthHalves(17_959, 17_815)` is 1: any of it takes a half. `overhealthHalves(Integer.MAX_VALUE, 1)` is 60: no overflow.
+- **`eachOverhealthColourFillsOverTheOneBeforeIt`**: `overhealthColourHalves`.
+  - With 10 halves: orange 10, yellow 0.
+  - With 30: orange 20, yellow 10, green 0.
+  - With 60: yellow 20, green 20.
+- **`iconsFillFromTheFirstAsVanillasHeartsDo`**:
+  - For each icon 0-9: `fill(icon, HALVES)` is `FULL` and `fill(icon, 0)` is `EMPTY`.
+  - With 7 halves: icon 2 is `FULL`, icon 3 `HALF`, icon 4 `EMPTY`.
+  - `fill(0, 1)` is `HALF`; `fill(1, 2)` is `EMPTY`.
+- **`theExperienceFillIsVanillasProgressTimes183WithinTheBar`**:
+  - `progressWidth(1, 2)` equals 91, `progressWidth(99, 100)` 181 and `progressWidth(1, 183)` 1.
+  - `progressWidth(1, 184)` equals 0: cut to whole pixels.
+  - `progressWidth(1, 1)` and `progressWidth(Integer.MAX_VALUE - 1, Integer.MAX_VALUE)` equal 182: never wider than the bar.
+- **`noProgressOrNoLevelDrawsNoFill`**:
+  - `progressWidth(0, 100)`, `progressWidth(-1, 100)` and `progressWidth(5, 0)` equal 0.
+
+### `RetroInventoryEffectsTest`
+
+Test: [`RetroInventoryEffectsTest.java`](../src/test/java/org/wynnvets/retro/render/RetroInventoryEffectsTest.java) · Subject: [`RetroInventoryEffects`](../src/client/java/org/wynnvets/retro/render/RetroInventoryEffects.java)
+
+`RetroInventoryEffects.isHidden` tests an effect against the shipped `hidden_inventory_effects`: Wynncraft's endless attack-speed effects are left out of the inventory's effect list, and nothing else is. Filtering a live effect list needs a running client and is not tested.
+
+- **`theEndlessAttackSpeedEffectsAreHidden`**:
+  - `isHidden("minecraft:haste", true)` is true.
+  - `isHidden("minecraft:mining_fatigue", true)` is true.
+- **`anEffectThatRunsOutStillShows`**:
+  - `isHidden("minecraft:haste", false)` is false.
+  - `isHidden("minecraft:mining_fatigue", false)` is false.
+- **`otherEffectsStillShowEvenWhenEndless`**:
+  - `isHidden("minecraft:speed", true)` is false.
+  - `isHidden("minecraft:night_vision", true)` is false.
+  - `isHidden("minecraft:haste_extra", true)` is false: the patterns match whole ids.
+
+### `RetroSlotIconsTest`
+
+Test: [`RetroSlotIconsTest.java`](../src/test/java/org/wynnvets/retro/render/RetroSlotIconsTest.java) · Subject: [`RetroSlotIcons`](../src/client/java/org/wynnvets/retro/render/RetroSlotIcons.java)
+
+`RetroSlotIcons` draws a gear box's or a tome's type, and the Ability Tree's glint, over a slot's item. The suite pins its pure parts: where the icon sits on a slot, how big it is drawn, which item the shipped `gear_box_icons` rows draw for a gear type, and on which screen the Ability Tree button glints. Drawing needs Wynntils' item model and a running client and is not tested.
+
+- **`theIconIsThreeQuartersOfTheSlotCentredOnIt`**:
+  - `ICON_SCALE` equals `0.75f`, and `iconOffset(ICON_SCALE)` equals `2f`.
+  - `iconOffset(ICON_SCALE) * 2 + 16 * ICON_SCALE` equals `16f`: the offset, the icon and the offset fill the slot, so as much slot shows on each side.
+- **`anOutlinedIconsTextureIsGrownSoItsArtStaysItsRowsSize`**:
+  - `drawnScale` of a row of outline 3 and scale 0.375 equals `0.515625f`, three pixels of outline each side growing the texture from 16 to 22, and its offset equals `3.875f`.
+  - `drawnScale` with no outline equals the row's scale.
+- **`aTypeWithNoOutlinedRowIsDrawnAtTheIconScale`**: A type with an `outlined_icons` row is drawn at that group's scale; any other, at `ICON_SCALE`.
+  - `iconScale(outlined, "SPEAR")` equals `drawnScale` of the `SPEAR` row, and likewise for `ARMOUR_TOME`.
+  - `iconScale(outlined, "HELMET")` equals `ICON_SCALE`.
+  - So does `GUILD_TOME`: the Allegiance tome's shield is a `gear_box_icons` item, not a smaller tome icon.
+- **`theAbilityTreesGlintIsOnlyOnAScreenRetroRelabelled`**: The Ability Tree button glints on a relabelled screen, and not on the tree screen's Ability Points button, which is the same Wynntils item.
+  - `abilityTreeOverlay(true)` is `SlotOverlay.GLINT`.
+  - `abilityTreeOverlay(false)` is `SlotOverlay.NONE`.
+- **`eachGearTypeWithARowGetsItsItemAndATypeWithNoRowNone`**:
+  - `itemFor("BOOTS")`, `itemFor("RING")` and `itemFor("GUILD_TOME")` equal `minecraft:iron_boots`, `minecraft:gold_nugget` and `minecraft:shield`.
+  - `itemFor("MASTERY_TOME")` is null: not a gear box.
+  - `itemFor("SPEAR")` is null: an outlined icon.
+  - `itemFor("spear")` is null: the enum's own name.
+
+### `RetroSlotValuesTest`
+
+Test: [`RetroSlotValuesTest.java`](../src/test/java/org/wynnvets/retro/render/RetroSlotValuesTest.java) · Subject: [`RetroSlotValues`](../src/client/java/org/wynnvets/retro/render/RetroSlotValues.java)
+
+`RetroSlotValues` reads a value from a button's lore and draws it in the button's slot. The suite pins the row logic: which `slot_values` row an item on a container has (`valueRow`) and what it reads from the lore (`value`). Drawing the value needs a running client and is not tested.
+
+- **`aSlotValueComesFromTheNamedItemsLore`**: The Trade Market's amount, from the real `slot_values` row.
+  - `valueRow(rows, "TradeMarket(Buy|Sell|Order)Container", "Set Amount")` is present.
+  - `valueRow` is `null` for `Set Price` on the Buy view, and for `Set Amount` on `AccountBankContainer`.
+  - `value(row, <the Set Amount dump's six lore lines>)` equals `20`: the lore keeps Wynncraft's section signs, and the pattern is found inside the line.
+  - `value(row, ["\u00A72Current: 1,024"])` equals `1,024`.
+  - `value` is `null` for lore with no such line, and for no lore.
+
+### `RetroSlotsTest`
+
+Test: [`RetroSlotsTest.java`](../src/test/java/org/wynnvets/retro/render/RetroSlotsTest.java) · Subject: [`RetroSlots`](../src/client/java/org/wynnvets/retro/render/RetroSlots.java)
+
+`RetroSlots` marks the slots `slot_fills` picks, glazes them with white glass and makes some inert. The suite pins its row logic on plain numbers: which container rows apply to a container (`applies`), which slots of a chest (nine columns, counted across then down) they pick (`covers`, `containerSlots`), whatever those hold, and which they leave out; what the shipped rows pick on the Trade Market's views and Character Info; which inventory slots the shipped `image_edits` paint over (`paintedOver`); and how a screen's picked slots divide into glass, accessories and inert slots (`panelsOf`). Reading the screen, the player's slots (which come from Wynntils), whether a slot holds an item and the painting need a running client and are not tested.
+
+- **`aRowPicksItsRowsColumnsAndSlots`**: `{container: 'A', rows: [5], cols: [0], slots: [12]}`, with no bounds.
+  - `covers(row, 45, null)` is true: row 5 starts at 45.
+  - `covers(row, 53, null)` is true: and ends at 53.
+  - `covers(row, 44, null)` is false: 44 is row 4, column 8.
+  - `covers(row, 9, null)` is true: column 0.
+  - `covers(row, 12, null)` is true.
+  - `covers(row, 13, null)` is false.
+- **`allPicksEverySlotAndExceptLeavesSlotsOut`**: `sell` is `{container: 'A', slots: all, except: [22, '28-29']}` and `buttons` is `{container: 'A', rows: [5], except: [49]}`.
+  - `covers(sell, 0, null)` and `covers(sell, 53, null)` are true.
+  - `covers(sell, 22, null)` is false: the slot the player fills.
+  - `covers(sell, 29, null)` is false: a range.
+  - `covers(buttons, 45, null)` is true.
+  - `covers(buttons, 49, null)` is false: `except` beats the row's own rows.
+  - `covers(buttons, 44, null)` is false: a row without `all`.
+- **`outsideBoundsPicksEverySlotWynntilsLeavesOutAndNothingWithoutBounds`**: `{container: 'A', slots: outside_bounds}`.
+  - `covers(row, 44, BANK_BOUNDS)` is false.
+  - `covers(row, 45, BANK_BOUNDS)` is true.
+  - `covers(row, 53, BANK_BOUNDS)` is true.
+  - `covers(row, 53, null)` is false: no bounds, nothing outside them.
+- **`aRowAppliesByWholeClassNameOrByTitle`**: A bank row by class and a rewards row by title.
+  - `applies(bank, "AccountBankContainer", "Account Bank")` is true.
+  - `applies(bank, "CharacterBankContainer", "Character Bank")` is true.
+  - `applies(bank, "GuildBankContainer", "Account Bank")` is false.
+  - `applies(bank, null, "Account Bank")` is false: Wynntils does not name it.
+  - `applies(rewards, null, "Daily Rewards")` is true.
+  - `applies(rewards, "DailyRewardContainer", "Daily Rewards")` is true.
+  - `applies(rewards, null, "Rewards")` is false.
+- **`unlessSkipsAContainerByClassOrByTitle`**: `{title: '.*', slots: all, unless: 'GuildBankContainer|Powder Master.*'}`.
+  - `applies` is true for `GuildMemberListContainer` and for a nameless `Merchant`.
+  - `applies` is false for `GuildBankContainer` and for a nameless `Powder Master: Remove`.
+- **`aFallbackRowAppliesOnlyWhereNoEarlierRowDid`**: A `fallback: true` row picks slots only on a container no earlier container row applied to.
+  - With rows `BankContainer` slot 0, title `Merchant` slot 1, a fallback `.*` slot 8 `unless` `ChestContainer`, and title `Merchant` slot 2: the bank gets `{0}`.
+  - The merchant gets `{1, 2}`: a row after the fallback still counts.
+  - `OtherContainer` gets `{8}`: the player row does not count as applying.
+  - `ChestContainer` gets `{}`: the fallback's own `unless` still skips.
+- **`theFallbackRowLeavesEveryScreenWithARowOfItsOwnToThatRow`**: With the shipped rows, no screen with a row of its own, and none whose empty slots take the player's things, is glazed in every slot.
+  - For thirty container classes (the banks, pouches, identifier, blacksmith, crafting station, scrap menu, Mount Feeder, Trade Market views, Character Info and the reward and event containers), `containerSlots(..., 54, BANK_BOUNDS)` is not all of `0-53`.
+  - For the titles `Merchant`, `Item Pedestal`, `Housing Islands`, `Powder Master: Remove`, `Party Finder: Join` and a player trade's, it is not all of `0-53` either.
+- **`aBlankNameIsAFillerAndAnyOtherIsAnItem`**:
+  - `blankName` is true for an empty name, a space, formatting codes round a space, `À` (Wynncraft's space) and glyphs.
+  - `blankName` is false for `Skill Crystal`, with or without a colour, and for `À` before `Page 2`.
+- **`containerSlotsJoinTheRowsThatApplyWithinTheContainer`**: The shipped rows plus a title row `{title: 'Account Bank', slots: [0]}`.
+  - `containerSlots(fills, "TradeMarketContainer", "Trade Market", 54, null)` equals slots 45-53.
+  - `containerSlots(fills, "AccountBankContainer", "Account Bank", 54, BANK_BOUNDS)` equals slots 45-53 and 0: the class row and the title row together.
+  - `containerSlots(fills, "GuildMemberListContainer", "Returners: Members", 45, null)` equals columns 0 and 1 of rows 0-4: a five-row chest has no slot 45.
+  - `containerSlots(fills, null, "Loot Chest", 27, null)` is empty.
+- **`theTradeMarketViewsNeverGreyTheOnesThePlayerSets`**: The shipped rows. By Wynntils' `TradeMarketModel`, the item on sale is at 22 (its sellable slot, an "Empty Item Slot" placeholder until one is picked), the price at 28 (`TM_SELL_PRICE_SLOT`) and, by `TradeMarketBulkSellFeature`'s `AMOUNT_ITEM_SLOT`, the quantity at 31; the buy view's art puts its item, price and quantity in the same places.
+  - For each of `TradeMarketSellContainer` and `TradeMarketBuyContainer`, with bounds `{22}`: `containerSlots` equals slots 0-53 but 22, 28 and 31.
+- **`everyOtherScreenClosesEveryEmptySlot`**: The shipped rows.
+  - `TradeMarketOrderContainer`, `Trade Market: Order`, 54 slots: slots 0-53.
+- **`eachScreenWithWaresOrAChoiceGlazesOnlyItsButtons`**: The shipped rows.
+  - `CharacterInfoContainer`, `Character Info`, 27 slots: all but the skill point books, 11-15.
+  - `TradeMarketContainer`: slots 45-53, the row under the listings.
+  - `TradeMarketRevealItemsContainer`, 9 slots: slot 8, the checkmark.
+  - Each of the two `Blacksmith` and two `ItemIdentifier` screens, 27 slots, with the sell screen's bounds: every slot outside them.
+  - `GuildBankContainer`, 45 slots: columns 0 and 1, its buttons.
+  - `MountFeederContainer`, 45 slots: column 1, between the mount's slots and the food's.
+  - A nameless `Merchant`, 54 slots: the top row and the side columns, not the wares, which run down to the last row.
+  - A nameless `Item Pedestal`, 9 slots: all but its item (3) and sign (5).
+  - A nameless `Housing Islands` and `Powder Master: Remove`, 27 slots: the frame round the middle row's seven.
+  - A nameless `Party Finder: Join`, 54 slots: all but the seven listings on each of rows 1 to 3.
+  - `CraftingStationContainer`, 27 slots: slot 13, the checkmark.
+- **`aPlayerTradeIsGlassOnlyOnItsCentreColumnAndCheckmarks`**: The shipped rows, with the title through `readableTitle`, so its rule and the row's pattern cannot drift apart. `containerSlots` of a 27-slot container titled with two names 4 or 14 spaces apart equals `{4, 5, 13, 21, 22}`; 3 spaces apart it is every slot, through the fallback.
+- **`theScreensThatTakeThePlayersThingsKeepTheirEmptySlotsOpen`**: The shipped rows. `containerSlots` is empty for the ingredient pouch, loot chest and the other containers whose empty slots take the player's things.
+- **`aPlayersAccessorySlotIsPickedButMovableAndOtherPickedSlotsAreGlass`**: `panelsOf` picks the player's accessory slot but leaves it movable; another picked player slot is unmovable.
+  - Over player slots 9 (an accessory) and 7 (the compass) picked, and a third unpicked: `picked()` is `{30, 31}`, `unmovable()` is `{31}` and `inert()` is empty.
+- **`aChestSlotNumberedLikeAnAccessoryIsNoAccessory`**: An accessory is a slot of the player's own inventory; a chest slot with the same number is not one.
+  - With container slot 9 picked and the player's 9 not: `picked()` is `{9}` (the chest's), and so is `unmovable()`.
+- **`aSlotWhollyUnderAnEditIsInertWhetherPickedOrNot`**: A slot whose square lies wholly inside a painted rectangle is inert; one outside it is not.
+  - With the rectangle `[97, 17, 74, 36]` and no slot picked: the slot at (98, 18) is inert, the one at (8, 8) is not, and `picked()` is empty.
+- **`theShippedInventoryEditsPaintOverTheCraftingGridResultAndOffhandAlone`**: The rectangles of `RetroModeManager.manifest().assets().imageEdits().get(INVENTORY_TEXTURE)`, and `InventoryMenu`'s slot positions.
+  - For each of `(154, 28)` (the result), `(98, 18)`, `(116, 18)`, `(98, 36)`, `(116, 36)` (the grid) and `(77, 62)` (the offhand): `paintedOver(painted, x, y)` is true.
+  - For each of `(8, 8)` and `(8, 62)` (armour), `(8, 84)` and `(152, 120)` (the inventory), `(8, 142)` and `(152, 142)` (the hotbar): it is false.
+  - `paintedOver([Rect(97, 17, 74, 36)], 77, 62)` is false: the offhand answers when its own fill was refused.
+  - `paintedOver([Rect(77, 62, 16, 15)], 77, 62)` is false: a slot only partly painted still shows.
+  - `paintedOver([], 154, 28)` is false: nothing painted.
+
+### `RetroStackModelsTest`
+
+Test: [`RetroStackModelsTest.java`](../src/test/java/org/wynnvets/retro/render/RetroStackModelsTest.java) · Subject: [`RetroStackModels`](../src/client/java/org/wynnvets/retro/render/RetroStackModels.java)
+
+`RetroStackModels` draws single stacks as another item. The suite pins the pure `modelFor(rows, name, partsOn)` against the shipped rows; swapping a stack's model needs a running client.
+
+- **`activeBlessesIsTheNetherStarAndAnyOtherSplashPotionItself`**: `Active Blesses` gives `minecraft:nether_star`, and `Splash Potion` `null`.
+- **`theGuildItemIsTheTotemAndAKeyOnTheSameItemIsNot`**: `Returners [Lv. 94]` gives `minecraft:totem_of_undying`, and `Animal Key` `null`.
+- **`theTwoShieldIngredientsAreTheRealShieldWhateverWrapsTheirNames`**: Against the `minecraft:potion` rows, `Butterfly Buckler` in Wynncraft's spacing and `Router Shield` give `minecraft:shield`, and `Mega Fern` `null`.
+- **`modelFor`**: Helper: the lookup with `RetroPart.all()`.
+- **`aRowMatchesTheWholeName`**: `Active Blesses Extra` gives `null`.
+- **`aRowOfAPartThatIsOffIsPassedOver`**: The shields' row is `crafting`'s and a row with no part `items`'.
+  - With `crafting` off, `Router Shield` gives `null`.
+  - With `crafting` off, `Active Blesses` still gives `minecraft:nether_star`.
+  - With `items` off, `Active Blesses` gives `null`.
+
+### `RetroStacksTest`
+
+Test: [`RetroStacksTest.java`](../src/test/java/org/wynnvets/retro/render/RetroStacksTest.java) · Subject: [`RetroStacks`](../src/client/java/org/wynnvets/retro/render/RetroStacks.java)
+
+`RetroStacks` builds the stacks retro draws for itself and parses the ids its rows name. The stacks need the Minecraft bootstrap and are not tested; the suite pins the parsed id.
+
+- **`anIdIsParsedOnce`**: `RetroStacks.id` returns the same parsed id for the same string.
+  - `id("minecraft:paper").toString()` equals `minecraft:paper`.
+  - Two calls return the same instance.
+
+## `org.wynnvets.retro.rules`
+
+### `ModelRulesTest`
+
+Test: [`ModelRulesTest.java`](../src/test/java/org/wynnvets/retro/rules/ModelRulesTest.java) · Subject: [`ModelRules`](../src/client/java/org/wynnvets/retro/rules/ModelRules.java), [`ModelStub`](../src/client/java/org/wynnvets/retro/rules/ModelStub.java)
+
+`ModelRules` decides which stub replaces an item or potion model, which model an ingredient's stub parents and which vanilla equipment asset replaces one of Wynncraft's. The suite uses small parsed fixtures and pins item-model stubs of both kinds and their atlas, potion stubs, the equipment lookup, the ingredient lookup, the model stub that picks among those rules, what each stub tells the report, and the ingredient stem. What the shipped files decide is `ShippedItemModelsTest`'s, `ShippedEquipmentTest`'s and `ShippedPotionsTest`'s.
+
+- **`anItemStubFillsItsRowsGroupsIn`**: The row `'minecraft:item/wynn/(\w+)_x'`, texture `'minecraft:item/$1'`, `handheld`, and `itemStub("minecraft:item/wynn/stick_x")`, which `assertInstanceOf` takes as a `ModelStub.TintProof`.
+  - `art()` equals `"minecraft:item/stick"`.
+  - `parent()` equals `ParentKind.HANDHELD`.
+  - `atlas()` equals `Atlas.ITEMS`.
+  - `parentModel()` equals `"vetsmod:item/retro/tint_proof_handheld_item"`.
+  - `blank()` equals `"vetsmod:item/retro/blank"`.
+- **`aBlockTextureGetsTheBlocksAtlasAndItsParent`**: A row drawing `minecraft:block/poppy`, `generated`; the stub is a `ModelStub.TintProof` (`assertInstanceOf`).
+  - `atlas()` equals `Atlas.BLOCKS`.
+  - `parentModel()` equals `"vetsmod:item/retro/tint_proof_generated_block"`.
+  - `blank()` equals `"vetsmod:block/retro/blank"`.
+- **`theFirstMatchingItemModelRowDecidesEvenWhenItsTextureFitsNoAtlas`**: A stub that mixed atlases would fail to bake, so a row whose texture is in neither atlas gives none, and a later row is not a fallback.
+  - With a `trident` row drawing `minecraft:entity/trident` and a later `\w+` row drawing `minecraft:item/stick`, `itemStub("minecraft:item/wynn/trident")` is empty.
+  - `itemStub("minecraft:item/wynn/spear")` equals `TintProof("minecraft:item/stick", HANDHELD, ITEMS)`.
+  - `itemStub("minecraft:item/other/spear")` is empty: no row matches.
+- **`aRowWithAModelStubsThatModelAndTheFirstMatchingRowDecidesAcrossBothKinds`**: A `model` row stubs that model alone, so the stack's dye tints it as it tints the vanilla item, and the first matching row decides whichever kind it is.
+  - `itemStub("minecraft:item/wynn/armor/pale_leather_helmet")` equals `ItemParent("minecraft:item/leather_helmet")`.
+  - `itemStub("minecraft:item/wynn/armor/leather")` equals `TintProof("minecraft:item/iron_helmet", GENERATED, ITEMS)`: the model row does not match, so the next row decides.
+- **`atlasOfReadsTheTexturesFolder`**:
+  - `Atlas.of(STONE)` equals `Optional.of(Atlas.BLOCKS)`.
+  - `Atlas.of("minecraft:block/variants/stone_0")` equals `Optional.of(Atlas.BLOCKS)`.
+  - `Atlas.of("minecraft:item/stick")` equals `Optional.of(Atlas.ITEMS)`.
+  - `Atlas.of("vetsmod:item/retro/blank")` equals `Optional.of(Atlas.ITEMS)`: any namespace.
+  - For each of `minecraft:entity/trident`, `HEART`, `minecraft:items/stick`, `minecraft:item`, `minecraft:item/`, `item/stick`, `:item/stick` and `null`: `Atlas.of` equals `Optional.empty()`.
+- **`aPotionStubTintsTheVanillaLiquidItsFamilysColour`**: A potion model's stub pre-tints the vanilla liquid with its family's colour, for every fill and for Avomod's model.
+  - `mana_full`'s `liquid()` equals `vetsmod:item/retro/potion/mana`, a copy of `minecraft:item/potion_overlay` in `0x385DC6`, and `mana_empty` gives the same stub.
+  - `agility_half`'s liquid is a copy in `0xFFFFFF`.
+  - `avomod2:item/potion_mana` gives the mana stub; `avomod2:item/potion_rainbow`, which has no row, gives none.
+- **`anEquipmentAssetGoesToItsFirstMatchingRowsVanillaAssetOrStays`**: The rows `'minecraft:hidden': keep`, `'minecraft:(pale_)?(iron|gold)'` → `'minecraft:$2'`, `'minecraft:(pale_)?titanium'` → `'minecraft:netherite'` and a catch-all `'minecraft:\w+'` → `'minecraft:leather'`.
+  - `equipmentAsset("minecraft:pale_iron")` equals `Optional.of("minecraft:iron")`.
+  - `equipmentAsset("minecraft:gold")` equals `Optional.of("minecraft:gold")`.
+  - `equipmentAsset("minecraft:titanium")` equals `Optional.of("minecraft:netherite")`.
+  - `equipmentAsset("minecraft:hidden")` equals `Optional.empty()`: `keep`.
+  - `equipmentAsset("minecraft:tan")` equals `Optional.of("minecraft:leather")`: a later row matches.
+  - `equipmentAsset("wynn:tan")` equals `Optional.empty()`: no row.
+- **`anIngredientsParentIsItsRow`**: The rows `gold_nugget: 'minecraft:item/gold_nugget'` and `ram_horn: keep`.
+  - `ingredientParent("gold_nugget")` equals `Optional.of("minecraft:item/gold_nugget")`.
+  - `ingredientParent("ram_horn")` equals `Optional.empty()`: `keep`.
+  - `ingredientParent("pink_wool")` equals `Optional.empty()`: no row.
+- **`aModelStubComesFromTheStemsRowThenPotionsThenItemModels`**: A `potions` family `mana` (`#385DC6`), one `item_models` row for `(potion|weapon|ingredient)/\w+` (iron shovel, `handheld`), and the ingredient rows `gold_nugget: 'minecraft:item/gold_nugget'` and `ram_horn: keep`.
+  - `modelStub("minecraft:item/wynn/ingredient/gold_nugget")` equals `Ingredient("gold_nugget", "minecraft:item/gold_nugget")`.
+  - `modelStub("minecraft:item/wynn/ingredient/ram_horn")` is empty: `keep`, and no `item_models` row is tried.
+  - `modelStub("minecraft:item/wynn/ingredient/pink_wool")` equals `TintProof("minecraft:item/iron_shovel", HANDHELD, ITEMS)`: no row of its own, so its `item_models` row.
+  - `modelStub("minecraft:item/wynn/potion/mana_empty")` equals `Potion("vetsmod:item/retro/potion/mana")`: potions before `item_models`.
+  - `modelStub("minecraft:item/wynn/potion/agility_empty")` equals the iron shovel `TintProof`: a family with no `potions` row.
+  - `modelStub("minecraft:item/wynn/weapon/spear")` equals the same `TintProof`.
+  - `modelStub("minecraft:item/stick")` is empty: no rule.
+- **`aModelStubNamesItsRuleAndWhatItDraws`**: Each kind of `ModelStub`, built directly.
+  - `Ingredient("egg", "minecraft:item/egg")`: `rule()` equals `"ingredients"`, `art()` equals `"minecraft:item/egg"`.
+  - `Potion("vetsmod:item/retro/potion/mana")`: `rule()` equals `"potions"`, `art()` equals `"vetsmod:item/retro/potion/mana"`.
+  - `TintProof("minecraft:item/bow", BOW, ITEMS)`: `rule()` equals `"item_models (tint-proof)"`, `art()` equals `"minecraft:item/bow"`.
+  - `ItemParent("minecraft:item/leather_boots")`: `rule()` equals `"item_models (model)"`, `art()` equals `"minecraft:item/leather_boots"`.
+- **`anIngredientsStemIsWhatFollowsItsFolder`**: The static `ingredientStem`.
+  - `ingredientStem("minecraft:item/wynn/ingredient/gold_nugget")` equals `"gold_nugget"`.
+  - `ingredientStem("minecraft:item/wynn/potion/mana_full")` is null.
+  - `ingredientStem("avomod2:item/wynn/ingredient/gold_nugget")` is null: Wynncraft's namespace only.
+  - `ingredientStem(null)` is null.
+- **`noLookupThrowsForNull`**: `ModelRules` with an `item_models` catch-all, an `equipment` catch-all and one ingredient row; every lookup of `null` answers empty and throws nothing.
+  - `itemStub(null)`, `potionStub(null)`, `equipmentAsset(null)`, `ingredientParent(null)` and `modelStub(null)` each equal `Optional.empty()`.
+
+### `PartFilterTest`
+
+Test: [`PartFilterTest.java`](../src/test/java/org/wynnvets/retro/rules/PartFilterTest.java) · Subject: [`PartFilter`](../src/client/java/org/wynnvets/retro/rules/PartFilter.java)
+
+`PartFilter` decides, from the `parts` rows and the parts that are on, what a generation leaves out. The suite uses a fixture of `blocks`, `weapons` and a catch-all `items`, and pins the first-row rule, what no row owns, and the `items` exception for shared art.
+
+- **`off`**: Helper: a filter with the given parts off.
+- **`itKnowsWhichPartsAreOnAndWhetherAllAre`**:
+  - With none off, `allOn()` and `on(HUD)` are true.
+  - With `hud` off, `allOn()` and `on(HUD)` are false.
+  - `on(ITEMS)` is true.
+- **`theFirstRowInFileOrderOwnsAModel`**: A weapon and a key.
+  - With `weapons` off, the weapon is off and the key on.
+  - With `items` off, the weapon is on, since the row above the catch-all owns it, and the key off.
+- **`anIdNoRowOwnsCannotBeTurnedOff`**: With every part off: a model no row's models match, a texture and a setting no row names are on.
+- **`aSettingFollowsThePartThatNamesItsFeature`**:
+  - `WeaponFeature` is off with `weapons` off.
+  - It is on with `items` off.
+- **`aTextureFollowsItsOwnerUnlessAnOnPartDrawsIt`**:
+  - `block/stone` is off with `blocks` off.
+  - It is on with `items` off.
+  - It stays off with `blocks` off when `drawnOn` has it: an ingredient's icon of stone does not repaint the world.
+  - `item/stick` is off with `items` off.
+  - It is on with `items` off when `drawnOn` has it.
+- **`aTextureNoModelSharesFollowsItsOwner`**: The one-argument `textureOn`.
+  - `block/stone` with `blocks` off is off.
+  - With `items` off it is on.
+- **`anItemsTextureAnOffPartDrawsStaysOffUnlessAnOnPartDrawsItToo`**: With `crafting` off and `items` on.
+  - `item/stick` in `drawnOff` is off.
+  - In both `drawnOn` and `drawnOff` it is on.
+  - `item/bow`, in neither, is on.
+  - `block/stone` in `drawnOff` is on: the exception is `items`' alone.
+- **`withEveryPartOnNothingIsLeftOut`**: A weapon, its feature, and `item/stick` in `drawnOff` are all on.
+
+### `RetroAssetIdsTest`
+
+Test: [`RetroAssetIdsTest.java`](../src/test/java/org/wynnvets/retro/rules/RetroAssetIdsTest.java) · Subject: [`RetroAssetIds`](../src/client/java/org/wynnvets/retro/rules/RetroAssetIds.java)
+
+`RetroAssetIds` is the one place that spells the ids the retro pack generates. The expected ids are literals, so a change to a template fails here even though every caller shares it.
+
+- **`anItemDefinitionsCopyIsInVetsmodsNamespaceUnderTheItemsOwnId`**: The static `itemDefinitionCopy`, the id the pack copies a `gear_box_icons` item's vanilla definition to.
+  - `itemDefinitionCopy("minecraft:iron_shovel")` equals `"vetsmod:retro/minecraft/iron_shovel"`.
+  - `itemDefinitionCopy("avomod2:potion_mana")` equals `"vetsmod:retro/avomod2/potion_mana"`: any namespace keeps its own folder.
+  - `itemDefinitionCopy("iron_shovel")` is null: no namespace.
+  - `itemDefinitionCopy("minecraft:")` is null: no path.
+  - `itemDefinitionCopy(":iron_shovel")` is null: an empty namespace.
+  - `itemDefinitionCopy(null)` is null.
+- **`theLegacyStyleIsWhatTheRuleFilesCopy`**: The style's sprites are the real `wynncraft_copies`' copies of Wynncraft's unique style.
+  - `LEGACY_TOOLTIP_STYLE` equals `"vetsmod:legacy"`.
+  - For each sprite of the package-private `LEGACY_TOOLTIP_SPRITES`: `RetroManifest.load().assets().wynncraftCopies().get(sprite)` equals the sprite with `vetsmod:` turned to `minecraft:` and `legacy_` to `unique_`.
+- **`anAccessorysItemAndAssetShareOnePath`**: One path names an accessory's item definition, model and texture.
+  - `accessoryPath("RING", "gold")` equals `retro/accessory/ring_gold`.
+  - `accessoryItem("NECKLACE", "iron")` equals `vetsmod:retro/accessory/necklace_iron`.
+  - `generatedAsset(accessoryPath("RING", ACCESSORY_EMPTY))` equals `vetsmod:item/retro/accessory/ring_empty`.
+- **`anOutlinedIconsItemAndAssetShareOnePath`**: The same for an outlined icon.
+  - `outlinedIconPath("WEAPON_TOME")` equals `retro/icon/weapon_tome`.
+  - `outlinedIconItem("SPEAR")` equals `vetsmod:retro/icon/spear`.
+  - `generatedAsset(outlinedIconPath("SPEAR"))` equals `vetsmod:item/retro/icon/spear`.
+- **`anOverhealthHeartsSpriteIsItsTextureInTheGuiAtlas`**: `overhealthSprite("orange", HEART_FULL)` equals `vetsmod:retro/heart/orange_full`; `overhealthTexture("green", HEART_HALF)` equals `vetsmod:gui/sprites/retro/heart/green_half`.
+- **`aTableCopyNamesItsFamilyOrActivity`**: A table's copies live under `material/` and `book/`.
+  - `materialCopy("paper", "oak")` equals `vetsmod:item/retro/material/paper_oak`.
+  - `bookCopy("raid", "locked")` equals `vetsmod:item/retro/book/raid_locked`.
+- **`aStubsParentAndBlankFollowItsKindAndAtlas`**: The tint-proof parent and the blank are named by parent kind and atlas.
+  - `tintProofParent(HANDHELD, ITEMS)` equals `vetsmod:item/retro/tint_proof_handheld_item`; `(GENERATED, BLOCKS)` equals `...tint_proof_generated_block`.
+  - `blank(ITEMS)` equals `vetsmod:item/retro/blank` and `blank(BLOCKS)` equals `vetsmod:block/retro/blank`.
+- **`theIngredientsFilesAccessoryRowsAreGeneratedAccessories`**: Each `retro_ingredients.yml` row that names a `vetsmod:item/retro/accessory/` model names one `accessory_tiers` generates.
+  - The file has at least one such row.
+  - Each such value is among `generatedAsset(accessoryPath(type, tier))` for the shipped types and tiers.
+
+### `RuleUsageTest`
+
+Test: [`RuleUsageTest.java`](../src/test/java/org/wynnvets/retro/rules/RuleUsageTest.java) · Subject: [`RuleUsage`](../src/client/java/org/wynnvets/retro/rules/RuleUsage.java)
+
+`RuleUsage` counts, per row of the rule files, the ids it decided, for the retro report. Its ranking of the sections must mirror `TextureRules.decide` and `ModelRules.modelStub`; the suite pins the counts.
+
+- **`usageCountsWhatEachRowDecidedBelowTheSectionsAboveIt`**: Rules with every section `RuleUsage.of` counts: `sources` rows `'minecraft:entity/.*'`, `'.*'` and `'minecraft:block/.*'` (each `[vanilla]`); `keep_wynncraft` `minecraft:block/tripwire` and `minecraft:block/gone`; a tint `'minecraft:block/(tripwire|purpur_block)'` (`auto`); aliases `'minecraft:block/variants/stone_\d+'` to `minecraft:block/stone` and `'minecraft:block/purpur_block'` to `minecraft:block/oak_planks`; `same_name` `minecraft:block/.*` and `minecraft:item/.*`; the layer group `minecraft:block/variants/.*`; a `potions` family `mana`; `item_models` rows `'minecraft:item/wynn/potion/\w+'` and `'minecraft:item/wynn/\w+/\w+'`; `equipment` rows `'minecraft:(pale_)?iron'` and `'minecraft:tan': keep`; and the ingredient row `gold_nugget`. It is given the textures `minecraft:block/tripwire`, `purpur_block`, `STONE`, `variants/stone_1`, `variants/stone_2` and a null; the models `potion/mana_full`, `weapon/idol`, `ingredient/gold_nugget`, `ingredient/pink_wool` and a null; and the equipment assets `iron`, `pale_iron` and `shaman`.
+  - `usage.rows()` equals, in order: `sources` `minecraft:entity/.*` 0, `.*` 5 and `minecraft:block/.*` 0 (the earlier catch-all decides, and the null is skipped); `keep_wynncraft` `minecraft:block/tripwire` 1 and `minecraft:block/gone` 0; `tints` `minecraft:block/(tripwire|purpur_block)` 1 (the kept tripwire is not offered); `aliases` `minecraft:block/variants/stone_\d+` 2 and `minecraft:block/purpur_block` 0 (the tint took it); `same_name` `minecraft:block/.*` 1 (`STONE` alone reaches it) and `minecraft:item/.*` 0; `layer_groups` `minecraft:block/variants/.*` 2 (over every texture); `potions` `minecraft:item/wynn/potion/mana_(empty|half|full)` 1; `item_models` `minecraft:item/wynn/potion/\w+` 0 (potions took it) and `minecraft:item/wynn/\w+/\w+` 1 (the idol; the ingredients are not offered); `equipment` `minecraft:(pale_)?iron` 2 and `minecraft:tan` 0.
+  - `usage.equipmentWithoutRow()` equals `["minecraft:shaman"]`.
+  - `usage.stemsWithoutRow()` equals `["pink_wool"]`.
+
+### `TextureRulesTest`
+
+Test: [`TextureRulesTest.java`](../src/test/java/org/wynnvets/retro/rules/TextureRulesTest.java) · Subject: [`TextureRules`](../src/client/java/org/wynnvets/retro/rules/TextureRules.java), [`PackFacts`](../src/client/java/org/wynnvets/retro/rules/PackFacts.java)
+
+`TextureRules` decides whether a texture is replaced, how and from which source. The suite uses small parsed fixtures and a `PackFacts` built from sets, and pins the texture precedence (`keep_wynncraft`, then tints, then aliases, then `same_name`, then the automatic keep of a transparent texture), a tint's source, `$n` substitution and gap, an alias's `$n` substitution and its missing-target gap, the source order, the transparency question staying lazy, and layer groups replaced whole or not at all. What the shipped files decide is `ShippedTexturesTest`'s.
+
+- **`theFirstMatchingSourcesRowGivesTheOrder`**: Rows for `entity/.*` `[programmer_art, vanilla]`, then `entity/chest/.*` `[vanilla]`, then `block/.*` `[vanilla, programmer_art]`.
+  - `sourceOrder("minecraft:entity/chest/normal")` equals `[PROGRAMMER_ART, VANILLA]`: the earlier, broader row wins.
+  - `sourceOrder(STONE)` equals `[VANILLA, PROGRAMMER_ART]`.
+  - `sourceOrder("minecraft:item/stick")` equals `List.of()`: no row matches.
+- **`sameNameCopiesFromTheFirstSourceThatHasTheTexture`**: `same_name` `minecraft:block/.*` with chests read from vanilla and `.*` from `[programmer_art, vanilla]`, and Wynncraft shipping `STONE`.
+  - With both sources holding `STONE`, `decide(STONE)` equals `copy(STONE, PROGRAMMER_ART)`.
+  - With only vanilla holding it, it equals `copy(STONE, VANILLA)`: without it the next source answers.
+- **`aSourceTheRowDoesNotListIsNeverRead`**: A chest texture only Programmer Art has is not copied, since chests read vanilla alone.
+  - `decide("minecraft:entity/chest/normal")` equals `keep(NO_RULE)`.
+- **`withNoSourcesRowNothingIsCopied`**: Without a `sources` section `same_name` copies nothing, though every source has the texture.
+  - `decide(STONE)` equals `keep(NO_RULE)`.
+- **`aTextureWynncraftDoesNotShipIsReplacedAllTheSame`**: 2013 art replaces vanilla art Wynncraft leaves alone.
+  - With `same_name` `minecraft:item/.*`, Wynncraft shipping nothing, and Programmer Art and vanilla holding `minecraft:item/stick`: `decide` equals `copy("minecraft:item/stick", PROGRAMMER_ART)`.
+- **`aTransparentHudHeartWithASameNameRuleResolvesToTheSource`**: Wynncraft ships `HEART` blank, and Programmer Art and vanilla have it. The automatic keep loses to an explicit rule.
+  - With `same_name` `minecraft:gui/sprites/hud/heart/.*`, `decide(HEART)` equals `copy(HEART, PROGRAMMER_ART)`.
+  - With `same_name` `minecraft:block/.*` instead, it equals `keep(TRANSPARENT)`.
+- **`keepWynncraftBeatsAnAliasAndSameName`**: `keep_wynncraft`, an alias and `same_name` all cover `minecraft:block/tripwire`, which Wynncraft ships blank and every source has, as it has the alias target.
+  - `decide("minecraft:block/tripwire")` equals `keep(KEEP_WYNNCRAFT)`.
+- **`anAliasBeatsSameName`**: The alias `minecraft:block/variants/stone_\d+` to `minecraft:block/stone` and `same_name` `minecraft:block/.*`; Programmer Art has both the variant and `STONE`.
+  - `decide("minecraft:block/variants/stone_0")` equals `copy(STONE, PROGRAMMER_ART)`.
+- **`anAliasWhoseTargetNoSourceHasIsAGapAndSameNameIsNotTried`**: The alias target `minecraft:block/chain` is nowhere, while Programmer Art has the variant itself and Wynncraft ships it blank.
+  - `decide("minecraft:block/variants/chain")` equals `keep(NO_SOURCE)`.
+  - `packs.transparencyAsked` equals `List.of()`: the automatic keep is not tried either.
+- **`sameNameWithNoSourceFallsThroughToTheAutomaticKeep`**: A Wynncraft-only texture under `same_name`'s folder.
+  - With Wynncraft shipping `minecraft:block/variants/dark_stone` painted, `decide` equals `keep(NO_RULE)`.
+  - With Wynncraft shipping it blank, `decide` equals `keep(TRANSPARENT)`.
+- **`transparencyIsAskedOnlyOfAShippedTextureNoRuleReplaced`**: Wynncraft ships the tripwire (kept by `keep_wynncraft`), `STONE` (copied by `same_name` from Programmer Art) and `dark_stone`, all blank; `minecraft:block/dirt` is not shipped.
+  - After deciding the tripwire, `STONE` and dirt, `transparencyAsked` equals `List.of()`.
+  - After also deciding `dark_stone`, it equals `List.of("minecraft:block/variants/dark_stone")`.
+- **`aTintStartsFromItsSourceOrTheTextureItselfFromTheFirstSourceThatHasIt`**: A `note_block` row `{match: oak_log}` and a `purpur_\w+` row from `oak_log`, `'#808080'` at strength 0.5; Programmer Art and vanilla have the note block and the oak log.
+  - `decide("minecraft:block/note_block")` equals `Tint(note_block, PROGRAMMER_ART, Match(oak_log), 1, 1)`: the texture itself, from the first source that has it, at full strength and contrast.
+  - `decide("minecraft:block/purpur_block")` equals `Tint(oak_log, PROGRAMMER_ART, Colour(0x808080), 0.5, 1)`: a texture no source has, made from another's.
+- **`aTintCarriesItsContrastAndARowWithoutATintKeepsTheSourcesColour`**: A `furnace_side` row `{match: stone_bricks}` at contrast 0.45 and a `furnace_front` row with only `contrast: 0.65`, under `same_name: ['minecraft:block/.*']`; Programmer Art has the two faces and the stone bricks.
+  - `decide(furnace_side)` equals `Tint(furnace_side, PROGRAMMER_ART, Match(stone_bricks), 1, 0.45)`.
+  - `decide(furnace_front)` equals `Tint(furnace_front, PROGRAMMER_ART, Unchanged(), 1, 0.65)`: a contrast-only row beats `same_name`, its source the texture itself.
+- **`aLikeCarriesTheDecisionOfTheRowItNamesWhateverKeepWynncraftSaysOfIt`**: Under `LIKE`, Programmer Art has `dispenser_front` and vanilla has `old_side` and `side_bricks`; the named row's group fills its source and match texture from `furnace_side`.
+  - `decide(dispenser_front)` equals `Tint(dispenser_front, PROGRAMMER_ART, Like(furnace_side), 0.5, 0.45, Tint(old_side, VANILLA, Match(side_bricks), 0.5, 0.45))`: its own source, with the named row's strength, contrast and decision.
+  - `decide(furnace_side)` equals `Keep(KEEP_WYNNCRAFT)`: the named texture itself is kept, and the like still takes its row's change.
+- **`aLikeIsAGapWhenNoSourceHasItsOwnSourceOrWhatTheNamedRowReads`**: Under `LIKE`, each of the three textures read is left out of vanilla in turn.
+  - With vanilla holding `old_side` and `side_bricks` only, `decide(dispenser_front)` equals `Keep(NO_SOURCE)`: its own source.
+  - With vanilla holding `dispenser_front` and `side_bricks` only, the same: the named row's source.
+  - With vanilla holding `dispenser_front` and `old_side` only, the same: the named row's match texture.
+- **`aTintFillsItsGroupsIntoItsSourceAndTheTextureItMeasures`**: A dark-variant row, `'minecraft:block/variants/dark_(\w+?)(_\d+)?'` from `'minecraft:block/$1'` with `{relative_to: 'minecraft:block/$1'}`, and a `'minecraft:block/(\w+)_tinted'` row with `{match: 'minecraft:block/$1'}`; vanilla has `STONE` and `sand_tinted`.
+  - `decide("minecraft:block/variants/dark_stone_1")` equals `Tint(STONE, VANILLA, RelativeTo(STONE), 1, 1)`.
+  - `decide("minecraft:block/sand_tinted")` equals `keep(NO_SOURCE)`: its match, `minecraft:block/sand`, is in no source.
+- **`aTintBeatsAnAliasAndSameNameButNotKeepWynncraft`**: A tint from `STONE` (`auto`), an alias and `same_name` all cover `minecraft:block/purpur_block`, which Wynncraft ships and every source has, as it has `STONE`.
+  - `decide(purpur_block)` equals `Tint(STONE, PROGRAMMER_ART, Auto(), 1, 1)`.
+  - With `keep_wynncraft` `minecraft:block/purpur_\w+` added, it equals `keep(KEEP_WYNNCRAFT)`.
+- **`aTintWhoseSourceNoSourceHasIsAGapAndTheRulesBelowAreNotTried`**: A tint of `minecraft:block/x` from `minecraft:entity/chest/normal`, which only Programmer Art has (a chest's sources are vanilla alone), above an alias and `same_name` that could copy it; Wynncraft ships `x` blank.
+  - `decide("minecraft:block/x")` equals `keep(NO_SOURCE)`.
+  - `packs.transparencyAsked` equals `List.of()`: nor the automatic keep.
+- **`aTintedMemberOfALayerGroupCountsAsReadFromItsSource`**: The wolf's body by `same_name` and its collar by a tint `'#FF0000'`, in the layer group `minecraft:entity/wolf/.*`; Wynncraft ships both.
+  - With Programmer Art holding both, the body equals `copy(body, PROGRAMMER_ART)`.
+  - The collar equals `Tint(collar, PROGRAMMER_ART, Colour(0xFF0000), 1, 1)`: one source, so the group is whole.
+  - With the collar in vanilla only, the body equals `keep(LAYER_GROUP)`.
+  - The collar equals `keep(LAYER_GROUP)` too.
+- **`anAliasFillsItsGroupsIn`**: Three alias rows with groups; vanilla has every target.
+  - `decide("minecraft:block/variants/cobweb_2")` equals `copy("minecraft:block/cobweb", VANILLA)`, by `$1` of `(\w+)_(\d+)`.
+  - `decide("minecraft:item/a_to_b")` equals `copy("minecraft:item/b_a", VANILLA)`, by `$2_$1`: groups in any order.
+  - `decide("minecraft:block/x")` equals `copy("minecraft:block/y", VANILLA)`: an optional group that took no part inserts nothing.
+  - `decide("minecraft:block/x_2")` equals `copy("minecraft:block/y_2", VANILLA)`.
+- **`theFirstMatchingAliasDecides`**: An exact `stone_0` row, to `andesite`, above a `stone_\d+` row, to `stone`.
+  - `decide("minecraft:block/variants/stone_0")` equals `copy("minecraft:block/andesite", VANILLA)`.
+  - `decide("minecraft:block/variants/stone_1")` equals `copy(STONE, VANILLA)`.
+- **`anAliasReadsItsTargetFromTheTargetsSources`**: A block alias to `minecraft:entity/chest/normal`, which Programmer Art and vanilla both have.
+  - `decide("minecraft:block/fake_chest")` equals `copy("minecraft:entity/chest/normal", VANILLA)`: the sources row is about the file read, so a chest target skips Programmer Art.
+- **`aGroupFromOneSourceIsCopiedWhole`**: Wynncraft ships the body and the farmer; Programmer Art has all three members.
+  - `decideAll([VILLAGER, FARMER, PLAINS])` equals the map of each to `copy(<id>, PROGRAMMER_ART)`.
+- **`aGroupWhoseCopiesComeFromDifferentSourcesIsNotCopiedAtAll`**: Programmer Art has the body and `COW`, vanilla has all three, so the farmer alone would come from vanilla.
+  - `decisions.get(VILLAGER)` equals `keep(LAYER_GROUP)`.
+  - `decisions.get(FARMER)` equals `keep(LAYER_GROUP)`.
+  - `decisions.get(COW)` equals `copy(COW, PROGRAMMER_ART)`: a texture outside the group is untouched.
+- **`aMemberWynncraftShipsThatStaysKeepsTheWholeGroup`**: Wynncraft's layer would stay under or over the copied ones.
+  - With Wynncraft shipping both and only vanilla holding the body, `decisions.get(VILLAGER)` equals `keep(LAYER_GROUP)`.
+  - `decisions.get(FARMER)` equals `keep(NO_RULE)`: its own reason stays.
+  - With vanilla holding both and a `keep_wynncraft` row for `FARMER`, `kept.get(VILLAGER)` equals `keep(LAYER_GROUP)`.
+  - `kept.get(FARMER)` equals `keep(KEEP_WYNNCRAFT)`.
+- **`aMemberWynncraftDoesNotShipNeedNotBeCopied`**: Wynncraft ships only the body, which Programmer Art has; `PLAINS` is nowhere.
+  - `decisions.get(VILLAGER)` equals `copy(VILLAGER, PROGRAMMER_ART)`.
+  - `decisions.get(PLAINS)` equals `keep(NO_RULE)`.
+- **`decideAloneLeavesLayerGroupsToDecideAll`**: The body in Programmer Art and the farmer in vanilla only, which `decideAll` would keep.
+  - `decide(VILLAGER)` equals `copy(VILLAGER, PROGRAMMER_ART)`.
+- **`decideAllKeepsTheInputOrderAndCannotBeModified`**:
+  - The keys of `decideAll([FARMER, COW, VILLAGER])` are `[FARMER, COW, VILLAGER]`, in that order.
+  - `decisions.remove(COW)` throws `UnsupportedOperationException`.
+- **`noLookupThrowsForNull`**: Texture rules with a tint, `same_name` and `layer_groups` rows, and vanilla holding `STONE`.
+  - `sourceOrder(null)` equals `List.of()`.
+  - `decide(null, packs)` equals `keep(NO_RULE)`.
+  - `decideAll([STONE, null], packs)` equals `{STONE: copy(STONE, VANILLA)}`: the null id is skipped.
+  - `firstSourceWith(null, packs)` is null.
 
 ## `org.wynnvets.util`
 

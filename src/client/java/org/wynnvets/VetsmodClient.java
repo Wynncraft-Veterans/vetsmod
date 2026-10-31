@@ -42,6 +42,8 @@ import org.wynnvets.mwe.anni.zone.AnniZoneLineRenderer;
 import org.wynnvets.queue.QueueDetector;
 import org.wynnvets.queue.QueueStatusReporter;
 import org.wynnvets.rendering.territory.TerritoryLineRenderer;
+import org.wynnvets.retro.WynntilsConfigOverrides;
+import org.wynnvets.retro.render.RetroHud;
 
 /**
  * Client-side entry point for the VetsMod Fabric mod. Fabric creates it and calls
@@ -66,8 +68,11 @@ import org.wynnvets.rendering.territory.TerritoryLineRenderer;
  * {@code GuildStateManager.loadPersistedState()} each read what the one before set up;
  * {@code AnniAggressiveTicker} registers before the {@code END_CLIENT_TICK} listeners that read
  * its flag; and the socket listeners register here, before any server join can open a socket,
- * so they are in place before the first handshake completes. The rest is today's order, kept as
- * it is.</p>
+ * so they are in place before the first handshake completes. {@code VetsConfig.load()} must also
+ * stay in this phase: Fabric calls this method inside Minecraft's constructor, before the game's
+ * first resource reload, and that reload's retro pack
+ * ({@link org.wynnvets.retro.pack.RetroPackInjector RetroPackInjector}) reads
+ * {@link VetsConfigKeys#RETRO_TEXTURES}. The rest is today's order, kept as it is.</p>
  */
 public class VetsmodClient implements ClientModInitializer {
 
@@ -116,6 +121,9 @@ public class VetsmodClient implements ClientModInitializer {
         LaurelPoller.start();
         ServerConnectionListener.register();
         TerritoryLineRenderer.register();
+        // Retro's HUD replaces vanilla's HUD elements, which Fabric takes before the client has
+        // started. The replacements reach Wynntils only while drawing.
+        RetroHud.register();
         DebugKeyHandler.register();
 
         // Register the /wv command tree (and standalone /motd alias)
@@ -183,6 +191,9 @@ public class VetsmodClient implements ClientModInitializer {
         // window-open mid-static-party does not go silent.
         org.wynnvets.mwe.anni.AnniPartyReporter.register();
         QueueStatusReporter.register();
+        // Retro's Wynntils settings: its tick reaches Managers, so it registers here. It waits
+        // for Wynntils to load its features, at the end of the first resource reload.
+        WynntilsConfigOverrides.register();
     }
 
     /**

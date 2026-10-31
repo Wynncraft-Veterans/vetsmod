@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/grass_block",
+  "textures": {
+    "top": "vetsmod:block/retro/green/grass_block_top",
+    "overlay": "vetsmod:block/retro/green/grass_block_side_overlay"
+  }
+}

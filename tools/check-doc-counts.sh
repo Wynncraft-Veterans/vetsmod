@@ -54,11 +54,18 @@
 # contain an apostrophe. It terminates the string and the script dies at the
 # next paren.
 #
-#   tools/check-doc-counts.sh            # check the manifest
+# TEST DOC: the run also compares the @Test, @ParameterizedTest and @RepeatedTest methods under
+# src/test/java with the entries of .claude/vetsmod_tests.md, in both directions: every test has
+# an entry under its class, every entry is a test or a helper the class declares, every class
+# heading has a test file and an index line, and every 'Test:' link resolves. --tests runs
+# that comparison alone.
+#
+#   tools/check-doc-counts.sh            # check the manifest and the test doc
+#   tools/check-doc-counts.sh --tests    # check the test doc alone
 #   tools/check-doc-counts.sh --list     # find count claims a human should read
 #   tools/check-doc-counts.sh --count 'Json.optString'
 #
-# Exit 1 if any manifest entry disagrees with the tree.
+# Exit 1 if any manifest entry disagrees with the tree, or the test doc with the tests.
 
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 2
@@ -70,7 +77,7 @@ Json.optString|28|no prose states it - pinned with Json.optInt so the 40-of-76 s
 Json.optInt|8|no prose states it - see the Json.optString row
 Json.stringOrNull|26|Json.java: "twenty-six with LeaderboardFetcher s username"
 Json.stringOrEmpty|14|Json.java: "fourteen call sites"
-ColorMath.interpolateRgb|4|vetsmod_rendering.md + ColorMath.java, stated 3x
+ColorMath.interpolateRgb|5|vetsmod_rendering.md: four float callers and Recolours.ramp
 ConfigValueText.booleanLine|6|ConfigValueTextTest
 ConfigValueText.intLine|3|ConfigValueTextTest
 ConfigValueText.stringLine|4|ConfigValueTextTest
@@ -91,6 +98,7 @@ AnniModeManager.preferredMode|2|AnniModeManager: "Consulted by exactly two calle
 AnniZone.isCold|1|AnniZone: one caller, the DebugCommands zone dump
 DebugCommands.buildCommandTree|1|DebugCommands class doc: CommandRegistry is the single integration point
 AnniDebugCommands.buildCommandTree|1|AnniDebugCommands#buildCommandTree: caller is DebugCommands
+RetroDebugCommands.buildCommandTree|1|RetroDebugCommands#buildCommandTree: caller is DebugCommands
 DebugConfigManager.isDebugConfigKey|2|DebugConfigManager#isDebugConfigKey: the two /wv debug set handlers
 AnimatedGradientSequence.beginAnimation|1|vetsmod_rendering.md: the one real caller, LocalChatDispatch.dispatchAnimatedChat
 GuildStateManager.isStaffOfAnyGuild|2|vetsmod_distribute.md sec 1: the .requires in DistributeCommands and the /wv distribute row in HelpCommands.help
@@ -136,7 +144,56 @@ count_calls() {
     | grep -cv "static .*${1##*.}(" 
 }
 
+# Compare the test methods with .claude/vetsmod_tests.md. Prints each difference; returns 1 if any.
+check_test_doc() {
+  local doc=.claude/vetsmod_tests.md work bad=0 line cls name file
+  work=$(mktemp -d) || return 2
+  find src/test/java -name '*Test.java' | sort | while read -r file; do
+    tr -d '' < "$file" | awk -v cls="$(basename "$file" .java)" '
+      /^[ 	]*@(Test|ParameterizedTest|RepeatedTest)([ 	(]|$)/ { want = 1; next }
+      want && /^[ 	]*@/ { next }
+      want {
+        if (match($0, /void[ 	]+[A-Za-z0-9_]+[ 	]*\(/)) {
+          name = substr($0, RSTART, RLENGTH); sub(/^void[ 	]+/, "", name); sub(/[ 	]*\($/, "", name)
+          print cls "	" name
+        }
+        want = 0
+      }'
+  done | sort -u > "$work/code"
+  tr -d '' < "$doc" | awk '
+    /^### `/ { match($0, /`[^`]+`/); cls = substr($0, RSTART + 1, RLENGTH - 2); print "H	" cls; next }
+    /^## / { cls = ""; next }
+    cls != "" && /^- \*\*`/ { match($0, /`[^`]+`/); print "E	" cls "	" substr($0, RSTART + 1, RLENGTH - 2) }
+    cls != "" && /^Test: \[`/ { match($0, /\]\([^)]*\)/); print "L	" cls "	" substr($0, RSTART + 2, RLENGTH - 3) }' > "$work/docraw"
+  awk -F'	' '$1 == "E" { print $2 "	" $3 }' "$work/docraw" | sort -u > "$work/doc"
+  while IFS=$'	' read -r cls name; do
+    echo "!! test without an entry in $doc: $cls.$name"; bad=1
+  done < <(comm -23 "$work/code" "$work/doc")
+  while IFS=$'	' read -r cls name; do
+    file=$(find src/test/java -name "$cls.java" | head -1)
+    if [ -z "$file" ]; then echo "!! entry for a class with no test file: $cls.$name"; bad=1
+    elif ! grep -qE "[^A-Za-z0-9_]$name[ ]*\(" "$file"; then echo "!! entry for a method $cls does not declare: $name"; bad=1; fi
+  done < <(comm -13 "$work/code" "$work/doc")
+  while IFS=$'	' read -r kind cls link; do
+    case "$kind" in
+      L) [ -f ".claude/$link" ] || { echo "!! the Test: link of $cls does not resolve: $link"; bad=1; } ;;
+    esac
+  done < "$work/docraw"
+  awk -F'	' '$1 == "H" { print $2 }' "$work/docraw" | sort > "$work/headings"
+  find src/test/java -name '*Test.java' -exec basename {} .java \; | sort > "$work/classes"
+  awk '/^## Packages/ { on = 1; next } /^## `/ { on = 0 } on' "$doc" | grep -o '\[`[A-Za-z0-9_]*Test`\]' | tr -d '[]`' | sort > "$work/index"
+  for pair in "headings:classes:a class heading with no test file" "classes:headings:a test class with no heading"               "headings:index:a class heading with no index line" "index:headings:an index line with no heading"; do
+    IFS=: read -r a b what <<< "$pair"
+    while read -r name; do echo "!! $what: $name"; bad=1; done < <(comm -23 "$work/$a" "$work/$b")
+  done
+  rm -rf "$work"
+  return "$bad"
+}
+
 case "${1:-}" in
+  --tests)
+    if check_test_doc; then echo "Every test has its entry in .claude/vetsmod_tests.md, and every entry its test."; exit 0; fi
+    exit 1 ;;
   --count)
     [ $# -eq 2 ] || { echo "usage: $0 --count 'Class.method'" >&2; exit 2; }
     echo "$(count_calls "$2")  $2"; exit 0 ;;
@@ -170,10 +227,11 @@ while IFS='|' read -r file pat want note; do
 done <<< "$PATTERNS"
 
 echo
+check_test_doc || fail=1
 if [ "$fail" -eq 0 ]; then
-  echo "All manifest counts match the tree."
+  echo "All manifest counts match the tree, and the test doc matches the tests."
 else
-  echo "MISMATCH -- a count above is stale. Fix the prose, or the manifest if the"
-  echo "code legitimately changed. Both are one-line edits; leaving it is not."
+  echo "MISMATCH -- a count or a test entry above is stale. Fix the prose, or the manifest"
+  echo "if the code legitimately changed. Both are one-line edits; leaving it is not."
 fi
 exit "$fail"

@@ -32,7 +32,7 @@ vetsmod visually highlights old-format Wynncraft items ("legacy items") with a g
 - [LegacyItemStyle](../src/client/java/org/wynnvets/config/LegacyItemStyle.java) — resolves gradient/sprite from config
 - [NamedColor](../src/client/java/org/wynnvets/config/NamedColor.java) — colour-name → RGB + alpha packing
 
-**Mixins (3 legacy-item-specific out of 15 registered):**
+**Mixins (3 legacy-item-specific out of 21 registered):**
 - [LegacyHighlightMixin](../src/client/java/org/wynnvets/mixin/client/legacy/LegacyHighlightMixin.java) — `AbstractContainerScreen#renderSlot` + `renderTooltip` (captures hover context)
 - [LegacyHotbarMixin](../src/client/java/org/wynnvets/mixin/client/legacy/LegacyHotbarMixin.java) — `Gui#renderSlot` (hands the hotbar slot to `LegacyHighlightPainter`; its whole body is that one call)
 - [LegacyItemTooltipMixin](../src/client/java/org/wynnvets/mixin/client/legacy/LegacyItemTooltipMixin.java) — `GuiGraphics#setTooltipForNextFrame` (rewrites tooltip + gold border)
@@ -163,6 +163,8 @@ Drawing sequence:
 1. `guiGraphics.fillGradient(x, y, x+16, y+16, topColor, bottomColor)` — top/bottom colours from `LegacyItemStyle.getBackgroundGradientTopColor()` / `…BottomColor()` with per-colour opacity packed into ARGB alpha
 2. `RenderUtils.drawSprite(guiGraphics, LegacyItemStyle.getForegroundTexture(), CustomColor.fromARGBInt(LegacyItemStyle.getForegroundColor()), x - 10, y - 10, 36, 36)` — Wynntils' own sprite renderer, 36×36 at offset −10, taking a `com.wynntils.utils.render.Texture` enum value from `LegacyItemStyle`'s `HIGHLIGHT_*` table (fallback `Texture.HIGHLIGHT_WYNN`). There is no `blit` call and no raw texture path anywhere in the repo
 
+While the retro pack is live, step 1 is skipped and step 2 draws `HIGHLIGHT_CIRCLE_OUTLINE_LARGE` whatever the configured sprite; the saved settings are untouched (see [vetsmod_retro.md](vetsmod_retro.md) §7).
+
 `LegacyHighlightMixin` itself **does not draw** — it only captures hover state (`currentItemHasFoil`, `currentItemStack` for the tooltip pipeline, `currentHoveredSlot` for the item-dump tool) in its `renderTooltip` head and, via a server-compat patch in its `renderSlot` head, sets `newTooltipStylesAvailable` if it sees a `tooltip_style` component.
 
 Sprites (`LEGACY_ITEM_FOREGROUND_SPRITE`): `wynn`, `tag`, `circle_transparent`, `circle_opaque`, `circle_outline_large`, `circle_outline_small`, `box_transparent`, `box_opaque`, `box_gradient_1`, `box_gradient_2`.
@@ -219,6 +221,8 @@ Registered in `VetsConfigSchema.USER_CONFIG_KEYS`. Validation goes through `Lega
 - **Block Bank (housing edit mode)**: the `Block Bank` (an `ender_chest` named "Block Bank", lore "A portable version of the block bank") is the housing editing tool and is carried in the inventory while in edit mode. If one is in the player's inventory, nothing is legacy, in the inventory or in any open container: `isDetectionSuppressed()` returns true for every item. This is the dependable signal for housing edit mode because Wynntils' `isInEditMode()` is set from a chat line ("You are now in housing edit mode") and stays false when edit mode was entered without that line reaching it (the likeliest reason a Block of Quartz was highlighted in a reported edit-mode screenshot, whose inventory shows a Block Bank). The inventory scan needs live `ItemStack`s and cannot run under test; the name match (`ItemDefinitions.isInventorySuppressor`) is tested.
 - **Blocked screens**: housing edit mode (`Models.Housing.isInEditMode()`) is checked first, then the screen title against `definitions.yml`'s `blocked_screen_titles` (9 patterns — Island Settings/Rules/Weather, Background Song, Select a Song, Permission Groups, `Permissions for …`, `Available … Locations`, `Move here!`). These menus abuse enchant glint as UI selectors, so the whole system bails on them.
 - **Old-server compat**: `newTooltipStylesAvailable` starts false; set true as soon as any item with `tooltip_style` or new-format font is seen. Gold tooltip border is suppressed until then to avoid garish fallback colours on pre-update servers. Reset on disconnect.
+- **Retro textures**: while the retro pack is live it aliases every Wynncraft tooltip style, `unique` included, to vanilla's frame, so `minecraft:unique` would draw vanilla's. The pack keeps Wynncraft's unique sprites as `vetsmod:gui/sprites/tooltip/legacy_background` and `legacy_frame` (the style `vetsmod:legacy`), and the gold border is the accessor `LegacyItemHandler.legacyBorder()`: `vetsmod:legacy` while `LivePack.isLegacyTooltipStyle()` (the pack is live and its generation wrote both sprites), `minecraft:unique` otherwise. `LegacyItemTooltipMixin` passes it to the tooltip and the screenshot alike, and `TooltipCapture` records it ([vetsmod_retro.md](vetsmod_retro.md) §6).
+- **Two slot painters**: with retro live, two things paint a slot's background. `RetroSlotListener` (`SlotRenderEvent.Pre`, `HIGHEST`) draws retro's white glass first; `LegacyHighlightEventListener` (`LOWEST`) draws `LegacyHighlightPainter`'s highlight after it, so a legacy item in a glazed slot still shows its highlight, over the glass. Neither knows of the other.
 - **Wynntils percentage suffix** (`[61.7%]`): detected via `\s*(\[\d+\.?\d*%\])$`, extracted before rewriting, re-appended after.
 
 ## 9. Related config that isn't legacy-specific

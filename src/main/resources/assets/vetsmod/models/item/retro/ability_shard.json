@@ -1,0 +1,9 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "vetsmod:item/retro/blank",
+    "layer1": "vetsmod:item/retro/ability_shard_liquid",
+    "layer2": "minecraft:item/lingering_potion",
+    "particle": "vetsmod:item/retro/ability_shard_liquid"
+  }
+}

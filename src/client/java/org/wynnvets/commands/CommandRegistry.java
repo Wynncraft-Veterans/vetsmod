@@ -27,6 +27,7 @@ import org.wynnvets.mwe.anni.command.AnniRsvpCommand;
 import org.wynnvets.mwe.anni.mode.AnniMode;
 import org.wynnvets.mwe.anni.mode.AnniModeManager;
 import org.wynnvets.rendering.territory.TerritoryLineManager;
+import org.wynnvets.retro.RetroCommands;
 
 /**
  * Builds and registers the {@code /wv} client command tree and its handlers.
@@ -101,6 +102,9 @@ public final class CommandRegistry {
                                         .then(
                                                 ClientCommandManager.literal("line")
                                                         .executes(HelpCommands::helpLine))
+                                        .then(
+                                                ClientCommandManager.literal("retro")
+                                                        .executes(HelpCommands::helpRetro))
                                         .then(
                                                 ClientCommandManager.literal("debug")
                                                         .executes(HelpCommands::helpDebug)
@@ -283,7 +287,10 @@ public final class CommandRegistry {
                         .then(DistributeCommands.buildCommandTree())
 
                         // /wv laurels — full sub-tree built by LaurelCommands
-                        .then(LaurelCommands.buildCommandTree()));
+                        .then(LaurelCommands.buildCommandTree())
+
+                        // /wv retro — full sub-tree built by RetroCommands
+                        .then(RetroCommands.buildCommandTree()));
     }
 
     // ── Permission predicates ───────────────────────────────────────────

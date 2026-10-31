@@ -14,9 +14,15 @@
 		"QueueTitleMixin",
 		"BossHealthOverlayMixin",
 		"accessors.BossHealthOverlayAccessor",
+		"accessors.GuiAccessor",
 		"EntityGlowingMixin",
 		"EntityOutlineColorMixin",
-		"command.UnlockCommandMixin"
+		"command.UnlockCommandMixin",
+		"retro.RetroResourceReloadMixin",
+		"retro.RetroHoveredSlotMixin",
+		"retro.RetroEffectsInInventoryMixin",
+		"retro.RetroContainerBackgroundMixin",
+		"retro.RetroItemModelResolverMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

@@ -1,0 +1,52 @@
+# Ingredient icons for the retro (2013) pack. RetroManifest reads this file and
+# retro_textures.yml each time the retro pack is generated; ModelRules applies this one.
+#
+# Format:
+# - One section, ingredients: a mapping from an ingredient's model stem (the file name under
+#   models/item/wynn/ingredient/, without .json) to the item model its icon becomes, vanilla's or
+#   vetsmod's generated accessory, written in full ('minecraft:item/egg'), or 'keep' to leave
+#   Wynncraft's model.
+# - The retro pack overrides the ingredient's model with a stub that parents that item model,
+#   never a texture, so an icon drawn from block textures (poppy, vine) still uses one atlas.
+#   Ingredient stacks carry a white tint, so the model shows as it is.
+# - A stem with no row falls to potions and then item_models in retro_textures.yml, and with no
+#   row there keeps Wynncraft's model too. Almost all of those already parent a vanilla item or
+#   block model, whose textures the retro pack replaces by name (same_name). The rows below cover
+#   the stems whose model parents neither. 'keep' leaves Wynncraft's model: the two shields,
+#   which stack_models draws.
+# - Each stem appears once (a repeat fails the build). Quote every value, and a stem YAML could
+#   read as a number.
+# - Where the 2013 icon differs from the item Wynncraft uses today, the row names the 2013 one:
+#   the vanilla item the ingredient showed before Wynncraft's custom models, which Wynncraft's
+#   item database listed as a 'legacy' icon (a 1.12 item id and damage value).
+ingredients:
+  # Spawn eggs (legacy 383). Wynncraft's models parent item/spawn_egg, which neither 1.21.11 nor
+  # Wynncraft's pack has. The damage value is the 1.12 entity id: 58 enderman, 55 slime,
+  # 120 villager, 5 wither skeleton; 0 named no mob, an all-white egg.
+  aspect_of_the_void: 'minecraft:item/enderman_spawn_egg'
+  cystic_lard: 'minecraft:item/slime_spawn_egg'
+  mountains_heart: 'minecraft:item/villager_spawn_egg'
+  parasitic_abscission: 'minecraft:item/wither_skeleton_spawn_egg'
+  penguin_egg: 'minecraft:item/egg'
+  # Wynncraft's water powder art; the legacy icon is light blue dye (351:12).
+  rocky_spirit: 'minecraft:item/light_blue_dye'
+  # Wynncraft's armour models. item_models already stubs those; the rows keep the icon from
+  # depending on it.
+  gilded_regalia: 'minecraft:item/golden_chestplate'
+  winged_helmet: 'minecraft:item/iron_helmet'
+  # Wynncraft's wings on a head model: the elytra.
+  cursed_wings: 'minecraft:item/elytra'
+  # The accessories' legacy icons (259:n, 278:n) were damage values that only selected Wynncraft's
+  # custom texture, so they name no 2013 icon. These are accessory_tiers' models instead, which the
+  # pack writes before it stubs them.
+  burial_talisman: 'vetsmod:item/retro/accessory/necklace_netherite'
+  cherished_heirloom: 'vetsmod:item/retro/accessory/necklace_diamond'
+  lunar_charm: 'vetsmod:item/retro/accessory/necklace_gold'
+  nose_ring: 'vetsmod:item/retro/accessory/ring_iron'
+  regretless_talisman: 'vetsmod:item/retro/accessory/necklace_chainmail'
+  voidtossed_memory: 'vetsmod:item/retro/accessory/necklace_iron'
+  # A shield's item model draws nothing: a special renderer does. stack_models draws the real one.
+  butterfly_buckler: keep
+  router_shield: keep
+  fox_coat: 'minecraft:item/rabbit_hide'
+  warm_parka: 'minecraft:item/chainmail_chestplate'

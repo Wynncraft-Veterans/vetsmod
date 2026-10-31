@@ -1,0 +1,13 @@
+{
+  "parent": "minecraft:item/generated",
+  "gui_light": "front",
+  "display": {
+    "gui": {
+      "scale": [2, 2, 1],
+      "translation": [0, 0, -40]
+    }
+  },
+  "textures": {
+    "layer0": "vetsmod:item/retro/tier_tag"
+  }
+}

@@ -79,7 +79,7 @@ public class LegacyItemTooltipMixin {
                 Identifier border =
                         LegacyItemHandler.lastProcessedWasLegacy
                                         && LegacyItemHandler.newTooltipStylesAvailable
-                                ? LegacyItemHandler.LEGACY_BORDER
+                                ? LegacyItemHandler.legacyBorder()
                                 : background;
                 // END PATCH(old-server-compat)
                 TooltipCapture.record(

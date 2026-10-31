@@ -2,9 +2,12 @@ package org.wynnvets.items;
 
 import com.wynntils.utils.colors.CustomColor;
 import com.wynntils.utils.render.RenderUtils;
+import com.wynntils.utils.render.Texture;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.world.item.ItemStack;
 import org.wynnvets.config.LegacyItemStyle;
+import org.wynnvets.retro.RetroModeManager;
+import org.wynnvets.retro.manifest.RetroPart;
 
 /**
  * The legacy-item slot highlight: a configurable background gradient with a sprite drawn over
@@ -23,6 +26,11 @@ import org.wynnvets.config.LegacyItemStyle;
  * {@link LegacyItemHandler#isLegacyItem} also covers the config check (it opens on
  * {@code LEGACY_ITEM_HIGHLIGHTING}), and the empty-stack check runs first as the cheaper of
  * the two.</p>
+ *
+ * <p>While the retro pack is live with its {@code highlights} part on
+ * ({@link RetroModeManager#isPartLive}) the highlight is only an
+ * outlined circle, in the configured foreground colour: no gradient, and
+ * the player's saved style is left alone.</p>
  *
  * <p>There is no unit test, and none is possible: both draw statements need a live
  * {@link GuiGraphics}; one of them also needs Wynntils' {@link RenderUtils} and
@@ -48,16 +56,21 @@ public final class LegacyHighlightPainter {
         if (stack.isEmpty()) return;
         if (!LegacyItemHandler.isLegacyItem(stack)) return;
 
-        guiGraphics.fillGradient(
-                x,
-                y,
-                x + 16,
-                y + 16,
-                LegacyItemStyle.getBackgroundGradientTopColor(),
-                LegacyItemStyle.getBackgroundGradientBottomColor());
+        boolean retro = RetroModeManager.isPartLive(RetroPart.HIGHLIGHTS);
+        if (!retro) {
+            guiGraphics.fillGradient(
+                    x,
+                    y,
+                    x + 16,
+                    y + 16,
+                    LegacyItemStyle.getBackgroundGradientTopColor(),
+                    LegacyItemStyle.getBackgroundGradientBottomColor());
+        }
         RenderUtils.drawSprite(
                 guiGraphics,
-                LegacyItemStyle.getForegroundTexture(),
+                retro
+                        ? Texture.HIGHLIGHT_CIRCLE_OUTLINE_LARGE
+                        : LegacyItemStyle.getForegroundTexture(),
                 CustomColor.fromARGBInt(LegacyItemStyle.getForegroundColor()),
                 x - 10,
                 y - 10,

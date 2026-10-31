@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "vetsmod:block/retro/blank",
+    "layer1": "#art",
+    "particle": "#art"
+  }
+}

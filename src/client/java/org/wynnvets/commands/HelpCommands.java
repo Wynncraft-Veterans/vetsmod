@@ -26,7 +26,7 @@ final class HelpCommands {
 
     // ----- page primitives -----
     //
-    // A page is a title or opening row, then rows, then — on eleven of the thirteen
+    // A page is a title or opening row, then rows, then — on twelve of the fourteen
     // — the Requires: footer. A row is a head — YELLOW, plus a GOLD run for its
     // arguments if it takes any — followed by an ordered list of description
     // fragments: not a (command, description) pair, because the
@@ -176,7 +176,7 @@ final class HelpCommands {
         return GuildStateManager.areFeaturesEnabled();
     }
 
-    /** The {@code Requires:} footer that closes eleven of the thirteen pages. */
+    /** The {@code Requires:} footer that closes twelve of the fourteen pages. */
     private static void requires(MutableComponent msg, Access access, String requirementLabel) {
         msg.append(Component.literal("Requires: ").withStyle(ChatFormatting.GRAY));
         msg.append(Component.literal(requirementLabel).withStyle(access.colour));
@@ -237,6 +237,10 @@ final class HelpCommands {
                                 : " - Show anni timer\n"));
         row(msg, "/wv config [<key> [<value>]]", gray(" - View or change mod settings\n"));
         row(msg, "/wv motd", gray(" - Show the message of the day\n"));
+        row(
+                msg,
+                "/wv retro [on|off|parts|only]",
+                gray(" - Show Wynncraft in 2013 Minecraft art\n"));
         if (unlocked) {
             row(msg, "/wv list", gray(" - Show online guild members\n"));
             row(
@@ -333,7 +337,7 @@ final class HelpCommands {
      *
      * <p>The trailing newlines stay in {@code usage} and {@code prose} rather
      * than being supplied here. They are what separates one line from the next,
-     * they are not uniform across the thirteen pages, and a template that owned
+     * they are not uniform across the fourteen pages, and a template that owned
      * them would quietly be a different template for any page that needed
      * otherwise.</p>
      */
@@ -514,6 +518,45 @@ final class HelpCommands {
                 "Returners guild member");
     }
 
+    static int helpRetro(CommandContext<FabricClientCommandSource> ctx) {
+        ChatUtils.sendLocalMessageNewBlock(buildHelpRetro());
+        return 1;
+    }
+
+    /**
+     * The {@code /wv retro} page: its six commands. They have no gate, so the footer stays
+     * public. The {@code dim} line says where the art comes from.
+     */
+    static MutableComponent buildHelpRetro() {
+        MutableComponent msg = Component.empty();
+        row(
+                msg,
+                "/wv retro on\n",
+                gray(
+                        "Draw Wynncraft in 2013 Minecraft art: blocks, items and mobs get their"
+                                + " old look, and each weapon class, armour piece and tool shows"
+                                + " as a vanilla item.\n"),
+                dim(
+                        "Built from your own game files whenever resources reload. Also switches"
+                                + " some Wynntils settings.\n"));
+        row(
+                msg,
+                "/wv retro off\n",
+                gray("Go back to Wynncraft's own textures and your Wynntils settings.\n"));
+        row(
+                msg,
+                "/wv retro\n",
+                gray("Show whether retro textures are on, and the parts that are off.\n"));
+        row(msg, "/wv retro parts\n", gray("List the parts of retro, each on or off.\n"));
+        row(
+                msg,
+                "/wv retro parts <part|all> <on|off>\n",
+                gray("Turn one part, or all of them, on or off. A part off stays Wynncraft's.\n"));
+        row(msg, "/wv retro only <part>\n", gray("Turn one part on and every other off.\n"));
+        requires(msg, Access.PUBLIC, "None (public)");
+        return msg;
+    }
+
     static int helpDebug(CommandContext<FabricClientCommandSource> ctx) {
         ChatUtils.sendLocalMessageNewBlock(buildHelpDebug());
         return 1;
@@ -529,7 +572,7 @@ final class HelpCommands {
         row(
                 msg,
                 "/wv debug tree <subsystem>",
-                gray(" - Open a subsystem-specific debug tree (e.g. anni)\n\n"));
+                gray(" - Open a subsystem-specific debug tree (anni or retro)\n\n"));
         line(msg, ChatFormatting.DARK_GRAY, "Use /wv help debug <set|trigger> for details.\n");
         requires(msg, Access.PUBLIC, "None (public)");
         return msg;
@@ -622,6 +665,12 @@ final class HelpCommands {
                 gray("  Log the RSVP client's state.\n"),
                 dim("  To the log, not chat: auth, queue depth, the\n"),
                 dim("  last attempt and ack, and the rsvp block.\n"));
+        row(
+                msg,
+                "/wv debug trigger retroDump\n",
+                gray("  Dump retro textures' state to chat.\n"),
+                dim("  Whether drawn, why stopped, the last build's\n"),
+                dim("  counts, parts off, Wynntils settings switched.\n"));
         requires(msg, Access.PUBLIC, "None (public)");
         return msg;
     }

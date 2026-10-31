@@ -41,6 +41,11 @@ public final class VetsConfigDefaults {
         stringConfig.put(VetsConfigKeys.VETS_AUTH_TIER, "");
         longConfig.put(VetsConfigKeys.VETS_AUTH_VERIFIED_AT, 0L);
 
+        // Retro textures: off until /wv retro on, with no Wynntils setting changed and no part off.
+        config.put(VetsConfigKeys.RETRO_TEXTURES, false);
+        stringConfig.put(VetsConfigKeys.RETRO_WYNNTILS_SNAPSHOT, "");
+        stringConfig.put(VetsConfigKeys.RETRO_PARTS_OFF, "");
+
         // User-facing BOOLEAN defaults — all true except colorBlindMode.
         // (moreReliableGuildCheck is true, despite what this comment used to say.)
         // This block holds 21 of the 30 USER_CONFIG_KEYS. The other nine default

@@ -1,21 +1,37 @@
 package org.wynnvets.debug.dump;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import com.wynntils.core.components.Models;
 import com.wynntils.utils.mc.McUtils;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.renderer.item.ItemModel;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.packs.resources.Resource;
+import net.minecraft.server.packs.resources.ResourceManager;
+import net.minecraft.util.Util;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.CustomModelData;
 import org.wynnvets.items.LegacyItemHandler;
+import org.wynnvets.retro.RetroModeManager;
+import org.wynnvets.retro.pack.PackFiles;
+import org.wynnvets.retro.rules.ModelRules;
+import org.wynnvets.retro.rules.ModelStub;
 import org.wynnvets.util.ContainerScreens;
 
 /**
  * Reads the live client state behind an item dump: the slot under the cursor, a tooltip built fresh
- * for the stack, and the last tooltip {@link TooltipCapture} recorded at render time.
+ * for the stack, the last tooltip {@link TooltipCapture} recorded at render time, and what the
+ * retro textures make of the stack.
  */
 final class HoverDumps {
 
@@ -138,5 +154,99 @@ final class HoverDumps {
         // says whether the mixin rewrote the list.
         obj.add("outputLines", ComponentDumps.dumpComponentLines(output));
         return obj;
+    }
+
+    // ── Retro textures ───────────────────────────────────────────────
+
+    /**
+     * What the retro textures make of the stack: whether the retro pack is drawn now, the stack's
+     * {@code item_model} and first custom-model-data float, Wynntils' item type, and the models
+     * its live item definition draws for it in an inventory
+     * ({@link LiveItemModels}), each with the pack that provides
+     * that model now ({@code vetsmod/retro} once a stub replaced it) and the retro rule that stubs
+     * it (its section, or {@code none}, and the texture or model the stub draws). The definition,
+     * which can be megabytes long, is parsed on a background worker; the rest is read now, and the
+     * walk runs on the render thread once the definition is in. The Wynntils type and the models
+     * are each guarded, so one that cannot be read leaves an {@code error} in its place and the
+     * rest of the block stands; the models are left out when the definition cannot be read.
+     * Render thread.
+     *
+     * @param stack the stack; the walk reads a copy of it as it is now
+     * @return the block, completed on the render thread, never exceptionally
+     */
+    static CompletableFuture<JsonObject> buildRetroDump(ItemStack stack) {
+        JsonObject obj = new JsonObject();
+        obj.addProperty("packLive", RetroModeManager.isPackLive());
+        Identifier itemModel = stack.get(DataComponents.ITEM_MODEL);
+        obj.addProperty("itemModel", itemModel != null ? itemModel.toString() : null);
+        CustomModelData customModelData = stack.get(DataComponents.CUSTOM_MODEL_DATA);
+        obj.addProperty(
+                "customModelDataFloat0",
+                customModelData != null ? customModelData.getFloat(0) : null);
+        try {
+            obj.addProperty(
+                    "wynntilsItemType",
+                    Models.Item.getWynnItem(stack)
+                            .map(item -> item.getClass().getSimpleName())
+                            .orElse(null));
+        } catch (Throwable t) {
+            obj.addProperty("wynntilsItemTypeError", t.toString());
+        }
+        if (itemModel == null) return CompletableFuture.completedFuture(obj);
+        try {
+            ItemStack copy = stack.copy();
+            Minecraft mc = McUtils.mc();
+            ResourceManager resources = mc.getResourceManager();
+            return CompletableFuture.supplyAsync(
+                            () -> LiveItemModels.definition(resources, itemModel),
+                            Util.backgroundExecutor())
+                    .thenApplyAsync(
+                            definition -> {
+                                definition.ifPresent(
+                                        model ->
+                                                obj.add(
+                                                        "models",
+                                                        modelsDump(resources, model, copy)));
+                                return obj;
+                            },
+                            mc)
+                    .exceptionallyAsync(t -> modelsError(obj, t), mc);
+        } catch (Throwable t) {
+            return CompletableFuture.completedFuture(modelsError(obj, t));
+        }
+    }
+
+    /** {@code obj} with the failure that left its models out, unwrapped from the future's. */
+    private static JsonObject modelsError(JsonObject obj, Throwable t) {
+        Throwable cause =
+                t instanceof CompletionException && t.getCause() != null ? t.getCause() : t;
+        obj.addProperty("modelsError", cause.toString());
+        return obj;
+    }
+
+    /**
+     * Each model {@code definition} draws for {@code stack}, with the pack that provides it now and
+     * the retro rule that stubs it. Render thread, where the walk belongs.
+     */
+    private static JsonArray modelsDump(
+            ResourceManager resources, ItemModel.Unbaked definition, ItemStack stack) {
+        Minecraft mc = McUtils.mc();
+        ModelRules rules = new ModelRules(RetroModeManager.manifest().models());
+        JsonArray array = new JsonArray();
+        for (String model : LiveItemModels.models(definition, stack, mc.level, mc.player)) {
+            JsonObject entry = new JsonObject();
+            entry.addProperty("model", model);
+            Identifier file = PackFiles.modelFile(model);
+            entry.addProperty(
+                    "pack",
+                    file == null
+                            ? null
+                            : resources.getResource(file).map(Resource::sourcePackId).orElse(null));
+            Optional<ModelStub> stub = rules.modelStub(model);
+            entry.addProperty("rule", stub.map(ModelStub::rule).orElse("none"));
+            stub.ifPresent(s -> entry.addProperty("art", s.art()));
+            array.add(entry);
+        }
+        return array;
     }
 }

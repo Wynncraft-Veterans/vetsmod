@@ -1,12 +1,12 @@
 ---
 name: vetsmod Mixins Reference
-description: All 15 registered entries (14 mixins + 1 accessor) across two configs — target, inject point, purpose, rationale. Organized by subpackage (chat, command, legacy, accessors) and the top-level mixins.
+description: All 21 registered entries (19 mixins + 2 accessors) across two configs — target, inject point, purpose, rationale. Organized by subpackage (chat, command, legacy, retro, accessors) and the top-level mixins.
 type: project
 originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 ---
 # vetsmod Mixins Reference
 
-15 registered entries — 14 mixins plus one accessor interface — all client-side (under `src/client/java/org/wynnvets/mixin/client/`), in two configs: 14 in [vetsmod.client.mixins.json](../src/client/resources/vetsmod.client.mixins.json) and `LaurelBarMixin` alone in the non-required [vetsmod.laurels.mixins.json](../src/client/resources/vetsmod.laurels.mixins.json). Grouped by subpackage below.
+21 registered entries — 19 mixins plus two accessor interfaces — all client-side (under `src/client/java/org/wynnvets/mixin/client/`), in two configs: 20 in [vetsmod.client.mixins.json](../src/client/resources/vetsmod.client.mixins.json) and `LaurelBarMixin` alone in the non-required [vetsmod.laurels.mixins.json](../src/client/resources/vetsmod.laurels.mixins.json). Grouped by subpackage below.
 
 ## Chat (3)
 
@@ -65,6 +65,48 @@ originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 - **Purpose:** Calls `LegacyItemHandler.processTooltip()`, a one-line delegate to `LegacyTooltipRenderer.processTooltip()` (11-branch cascade; `LegacyTooltipRenderer` is package-private, so the mixin cannot call it directly). If modified, cancels vanilla and re-invokes with mutable copy + optional gold border
 - **Why:** Tooltip is the last render stage, after Wynntils events; reentry guard prevents loops
 
+## Retro (5)
+
+Retro's HUD is not a mixin: `RetroHud` replaces vanilla's HUD elements through Fabric's `HudElementRegistry`, and reads which bar vanilla draws above the hotbar through `accessors.GuiAccessor` below.
+
+The hovered-slot, container-background, effects and item-model mixins run on every server, where Wynntils' events do not reach, so each gates on `RetroModeManager.isLiveOnWynncraft()` (the pack is live and the game is on Wynncraft), not on `isPackLive()` alone. The reload mixin gates on nothing: the injector decides.
+
+### RetroItemModelResolverMixin
+[RetroItemModelResolverMixin](../src/client/java/org/wynnvets/mixin/client/retro/RetroItemModelResolverMixin.java)
+- **Target:** `@Mixin(ItemModelResolver.class)`
+- **Methods:** `appendItemLayers`: MixinExtras `@ModifyExpressionValue` on its `ItemStack.get(DataComponentType)` call, with the stack by `@Local(argsOnly = true)`.
+- **Purpose:** Hands the item model about to be drawn to `RetroStackModels.model`, which answers with a `stack_models` row's item while the retro pack is live.
+- **Why:** A model stub changes every stack of a model; these are single stacks of a vanilla potion and of a model the keys share. The stack keeps its component, so Wynntils and the rest of the game see it unchanged, and nothing does more than a map lookup while no row's item is drawn.
+
+### RetroResourceReloadMixin
+[RetroResourceReloadMixin](../src/client/java/org/wynnvets/mixin/client/retro/RetroResourceReloadMixin.java)
+- **Target:** `@Mixin(ReloadableResourceManager.class)`
+- **Methods:** `createReload` twice: `@ModifyVariable(at = @At("HEAD"), argsOnly = true)` on its one `List<PackResources>` argument, and `@Inject(at = @At("RETURN"))` taking only the `CallbackInfoReturnable<ReloadInstance>`.
+- **Purpose:** The first hands each reload's pack list to `RetroPackInjector.inject`, which may insert the retro pack directly above the highest Wynncraft pack; the second hands the new reload to `RetroPackInjector.watch`, which marks the pack live when the reload finishes, or stops retro for the session when a reload with a non-empty retro pack fails. Both are one call into code that never throws.
+- **Why:** `createReload` is where a pack list becomes the resource manager, the only place a pack can go above a server pack, which Minecraft fixes at the top of the list the player sees. Both of Minecraft's reloads (start-up and `reloadResourcePacks`) pass through it, and Fabric's resource loader does not hook it (it only re-sorts listeners in `SimpleReloadInstance.create`). It runs on the render thread, so the injector does no work there; [vetsmod_retro.md](vetsmod_retro.md) owns the threading and the no-throw rules.
+
+
+### RetroHoveredSlotMixin
+[RetroHoveredSlotMixin](../src/client/java/org/wynnvets/mixin/client/retro/RetroHoveredSlotMixin.java)
+- **Target:** `@Mixin(AbstractContainerScreen.class)`
+- **Method:** the private `getHoveredSlot(double, double)`, with MixinExtras' `@ModifyReturnValue` at `@At("RETURN")`: one call to `RetroSlots.hovered(screen, slot)`.
+- **Purpose:** While the retro pack is live, returns `null` for an inventory slot that a rectangle the live pack's `image_edits` painted covers whole (the crafting grid, result and offhand, each only when its fill passed its palette guard: `LivePack.imageEdits`, `RetroSlots.paintedOver`), and for an empty `slot_fills` glass slot that never takes an item (button rows; the compass, content book and pouch slots). Accessory slots stay hoverable, so an accessory can still be put on by click or drag.
+- **Why:** `getHoveredSlot` is the one lookup behind the hover highlight, the tooltip, clicks, drags and the number keys, so a slot it does not return is inert everywhere, and a click on it lands on the glass (`slot == null` inside the screen does nothing). Vanilla's bookkeeping is untouched; this filters what comes out.
+
+### RetroEffectsInInventoryMixin
+[RetroEffectsInInventoryMixin](../src/client/java/org/wynnvets/mixin/client/retro/RetroEffectsInInventoryMixin.java)
+- **Target:** `@Mixin(EffectsInInventory.class)`
+- **Method:** `render(GuiGraphics, int, int)`, with MixinExtras' `@ModifyExpressionValue` on its `LocalPlayer.getActiveEffects()` call (`Lnet/minecraft/client/player/LocalPlayer;getActiveEffects()Ljava/util/Collection;`): one call to `RetroInventoryEffects.visibleEffects(effects)`.
+- **Purpose:** While the retro pack is live, leaves the `hidden_inventory_effects` effects (Wynncraft's endless haste and mining fatigue, its "Attack Speed") out of the list beside the inventory, but only while they last forever.
+- **Why:** The same render-side filtering as `BossHealthOverlayMixin`'s: the player's effects stay as the server sent them, and only what this list draws changes. `render` reads the collection once and sizes the list from it, so filtering the read covers the drawing and the spacing.
+
+### RetroContainerBackgroundMixin
+[RetroContainerBackgroundMixin](../src/client/java/org/wynnvets/mixin/client/retro/RetroContainerBackgroundMixin.java)
+- **Target:** `@Mixin({ContainerScreen.class, HopperScreen.class, AbstractMountInventoryScreen.class})`, the screens of the container textures Wynncraft repaints (the chest's `generic_54`, `hopper`, `horse`).
+- **Method:** `renderBg(GuiGraphics, float, int, int)`, with Mixin's `@ModifyArg(index = 1)` on the texture `Identifier` of its `GuiGraphics.blit(RenderPipeline, Identifier, int, int, float, float, int, int, int, int)` calls (the chest draws two, the others one): one call to `RetroContainerTitles.background(screen, texture)`.
+- **Purpose:** While the retro pack is live, a screen that keeps Wynncraft's label (a `keep` row, or a title with nothing readable) is drawn on the pack's copy of Wynncraft's own container texture (`wynncraft_copies`, `LivePack.wynncraftCopy`) instead of the vanilla one `same_name` copied over it, so Wynncraft's glyph art sits on the texture it was made for; a screen retro relabels keeps the vanilla texture.
+- **Why:** The argument is the narrowest point: the blit's other arguments, and every other draw, stay as they are, and one handler serves all three screens, whose textures come from a static field (chest, hopper) or a getter (`getBackgroundTextureLocation`, mounts). `renderBg` runs before `renderLabels`, so the screen's title decision is made here first, from the screen's title, the same decision the label then reuses ([vetsmod_retro.md](vetsmod_retro.md) §7).
+
 ## Top-level (7)
 
 These seven live directly under `mixin/client/` rather than a subpackage. They're declared in `vetsmod.client.mixins.json` (the first six) and `vetsmod.laurels.mixins.json` (`LaurelBarMixin`) without a subpackage prefix.
@@ -122,7 +164,7 @@ These seven live directly under `mixin/client/` rather than a subpackage. They'r
 - **Purpose:** The first wrap appends the player's vets laurels to the list Wynntils lays out (`LaurelBadges.withLaurels`). The second recognises one of ours by its negative `uOffset` and substitutes vetsmod's sheet, offset and size before the original draw call.
 - **Why:** The laurels then inherit Wynntils' layout, rotation, sneak dimming and config gates unchanged. The encoding, the two failure modes and the bump-time check are in [vetsmod_laurels.md](vetsmod_laurels.md).
 
-## Accessors (1)
+## Accessors (2)
 
 ### accessors.BossHealthOverlayAccessor
 [BossHealthOverlayAccessor](../src/client/java/org/wynnvets/mixin/client/accessors/BossHealthOverlayAccessor.java)
@@ -130,6 +172,13 @@ These seven live directly under `mixin/client/` rather than a subpackage. They'r
 - **Field:** `@Accessor("events") Map<UUID, LerpingBossEvent> getEvents()`
 - **Purpose:** Lets `VetsBossBarManager` insert and remove its synthetic `LerpingBossEvent` directly in the overlay's tracked map without going through the vanilla packet pipeline. That pipeline is deliberately left intact — `BossHealthOverlayMixin` above records the 2026-06-16 crash that cancelling it caused, and filters on the render side instead.
 - **Why:** Wynntils already replaces the `events` field with a `ConcurrentHashMap` in its own mixin's `<init>` injector, though none of the access is concurrent: our tick-driver writes, vanilla's render-path reads (including the `events.values()` iteration that `BossHealthOverlayMixin`'s `@Redirect` filters), and vanilla's packet-handler writes all run on the client game thread.
+
+### accessors.GuiAccessor
+[GuiAccessor](../src/client/java/org/wynnvets/mixin/client/accessors/GuiAccessor.java)
+- **Target:** `@Mixin(Gui.class)` (interface)
+- **Field:** `@Accessor("contextualInfoBar") Pair<?, ContextualBarRenderer> vetsmod$getContextualInfoBar()` (`org.apache.commons.lang3.tuple.Pair`; its key is the private `Gui.ContextualInfo`, hence the wildcard)
+- **Purpose:** Tells retro's HUD (`RetroHud`'s `INFO_BAR` replacement) whether vanilla draws the experience bar this frame: it does exactly when the pair's renderer is an `ExperienceBarRenderer`. Then retro draws Wynncraft's combat experience on it; the locator and a mount's jump bar stay vanilla's ([vetsmod_retro.md](vetsmod_retro.md) §7).
+- **Why:** `renderHotbarAndDecorations` picks the bar (`nextContextualInfoState`) from conditions that are partly private (how recently the experience or the jump changed) and stores it in this field before it draws the bar, which is when Fabric calls the `INFO_BAR` element; reading vanilla's own choice beats re-deriving it. The `vetsmod$` prefix keeps the method clear of other mods' accessors on `Gui` (Fabric's own uses `fabric$`).
 
 ## Items (beyond legacy)
 
@@ -155,7 +204,7 @@ No non-legacy item mixins. All item behaviour lives in:
 
 ⚠️ **The two priority systems in this repo run in opposite senses, and nothing else says so.** Mixin: ascending application order, so a numerically *lower* number is applied first and runs first at `HEAD`. NeoForge `EventPriority`: `HIGHEST` runs *first*, `LOWEST` last. A sentence that is true of one is false of the other, and the two appear in adjacent paragraphs here — which may be how this file came to state the Mixin direction backwards before the check above. Check which system a claim is about before trusting its direction.
 
-For event-based integrations, vetsmod uses `@SubscribeEvent(priority=EventPriority.LOWEST)` on `LegacyHighlightEventListener` so it runs AFTER Wynntils' `ItemHighlightFeature` (registered at HIGH). Drawing at LOWEST effectively overwrites Wynntils' rarity highlight.
+For event-based integrations, vetsmod uses `@SubscribeEvent(priority=EventPriority.LOWEST)` on `LegacyHighlightEventListener` so it runs AFTER Wynntils' `ItemHighlightFeature` (registered at HIGH). Drawing at LOWEST effectively overwrites Wynntils' rarity highlight. `RetroSlotListener` subscribes to the same `SlotRenderEvent.Pre` at `HIGHEST` with `receiveCanceled = true`, so its panel fill goes under both highlights and is painted even on a slot another `HIGHEST` listener cancels.
 
 ## Adding new mixins
 
@@ -167,6 +216,6 @@ Common gotchas:
 - Check the Mojang mappings (`loom.officialMojangMappings()` in `build.gradle`; the `yarn_mappings` property in `gradle.properties` is read by nothing) — several intrinsic names changed in 1.21.11 (e.g. `submitNameTag`)
 - For hot paths keep logic tight — `renderSlot` runs per slot every frame, and `addMessage` once per chat message
 - **A mixin into another mod's class goes in a non-required config with `require = 0`.** `vetsmod.client.mixins.json` is `required: true` with `defaultRequire: 1`, so a Wynntils refactor of a target there crashes the game at load, and users update Wynntils on their own. `vetsmod.laurels.mixins.json` is `required: false` with `defaultRequire: 0` instead: a handler that does not match is a WARN and the class loads untransformed, which also drops any other mod's mixins into that class. Its price is that mistakes become log lines, so check `latest.log` for `LaurelBarMixin` and "orphaned mixins" on the production jar (see [vetsmod_laurels.md](vetsmod_laurels.md)).
-- **Mixin disallows non-private statics on a mixin class** — both methods and fields. `vetsmod$resetLoggedNametags` crashed mod load with `InvalidMixinException` ("contains non-private static method"); `MixinPreProcessorStandard.validateField` throws the same exception class for a non-private, non-`@Shadow`, non-synthetic static *field*. If you need a public static helper, put it in a sibling helper class. This is plain SpongePowered Mixin, not MixinSquared — vetsmod's only mixin-helper dependency is MixinExtras (`@WrapOperation` in `NametagMixin` and `LaurelBarMixin`); MixinSquared appears only in archived runtime mod-list dumps, shipped by some other installed mod.
-- **Prefer render-side / read-side filtering to packet-side / write-side mutation.** Three working precedents in this file: `BossHealthOverlayMixin` (`@Redirect` on `events.values()`), `EntityOutlineColorMixin` and `NametagMixin` (both TAIL on `extractRenderState`). A fourth, `EntityGlowingMixin` (HEAD-cancellable on `isCurrentlyGlowing`), is read-side in shape, but whether it is still load-bearing in 1.21.11 is unconfirmed — see its entry above. Cancelling has burned us twice, in two directions — cancelling vanilla's `BossHealthOverlay#update` crashed the client, and *being* cancelled by Wynntils short-circuited the nametag override. Keep vanilla bookkeeping intact; intercept what comes out, not what goes in.
+- **Mixin disallows non-private statics on a mixin class** — both methods and fields. `vetsmod$resetLoggedNametags` crashed mod load with `InvalidMixinException` ("contains non-private static method"); `MixinPreProcessorStandard.validateField` throws the same exception class for a non-private, non-`@Shadow`, non-synthetic static *field*. If you need a public static helper, put it in a sibling helper class. This is plain SpongePowered Mixin, not MixinSquared — vetsmod's only mixin-helper dependency is MixinExtras (`@WrapOperation` in `NametagMixin` and `LaurelBarMixin`, `@ModifyReturnValue` in `RetroHoveredSlotMixin`, `@ModifyExpressionValue` in `RetroEffectsInInventoryMixin`); MixinSquared appears only in archived runtime mod-list dumps, shipped by some other installed mod.
+- **Prefer render-side / read-side filtering to packet-side / write-side mutation.** Five working precedents in this file: `BossHealthOverlayMixin` (`@Redirect` on `events.values()`), `RetroEffectsInInventoryMixin` (`@ModifyExpressionValue` on `getActiveEffects()`), `RetroHoveredSlotMixin` (`@ModifyReturnValue` on `getHoveredSlot`), `EntityOutlineColorMixin` and `NametagMixin` (both TAIL on `extractRenderState`). A sixth, `EntityGlowingMixin` (HEAD-cancellable on `isCurrentlyGlowing`), is read-side in shape, but whether it is still load-bearing in 1.21.11 is unconfirmed — see its entry above. Cancelling has burned us twice, in two directions — cancelling vanilla's `BossHealthOverlay#update` crashed the client, and *being* cancelled by Wynntils short-circuited the nametag override. Keep vanilla bookkeeping intact; intercept what comes out, not what goes in.
 - **Don't trust `state.<field>` to mean what you think** — vanilla often wraps or coerces right before assignment. `state.outlineColor = ARGB.opaque(getTeamColor())` turns a `0` from the getter into opaque black, not transparent (see `EntityOutlineColorMixin` above). Check the assignment site, not just the source value.

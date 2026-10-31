@@ -41,6 +41,9 @@ class VetsConfigKeysTest {
         EXPECTED.put("VETS_AUTH_KEY", "vetsAuthKey");
         EXPECTED.put("VETS_AUTH_TIER", "vetsAuthTier");
         EXPECTED.put("VETS_AUTH_VERIFIED_AT", "vetsAuthVerifiedAt");
+        EXPECTED.put("RETRO_TEXTURES", "retroTextures");
+        EXPECTED.put("RETRO_WYNNTILS_SNAPSHOT", "retroWynntilsSnapshot");
+        EXPECTED.put("RETRO_PARTS_OFF", "retroPartsOff");
         EXPECTED.put("LEGACY_ITEM_HIGHLIGHTING", "legacyItemHighlighting");
         EXPECTED.put("LEGACY_ITEM_SHOW_ENCHANTMENTS", "legacyItemShowEnchantments");
         EXPECTED.put("LEGACY_ITEM_UNDERROLLING", "legacyItemUnderrolling");

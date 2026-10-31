@@ -12,7 +12,7 @@ import net.minecraft.network.chat.MutableComponent;
 import org.junit.jupiter.api.Test;
 
 /**
- * Golden pins for the thirteen {@code /wv help} pages.
+ * Golden pins for the fourteen {@code /wv help} pages.
  *
  * <p>These exist to make the consolidation that follows reviewable. Each page is
  * pinned as a <em>tree</em> — sibling count, each sibling's exact string, each
@@ -114,6 +114,7 @@ class HelpCommandsTest {
         rows.add("/wv anni");
         rows.add("/wv config [<key> [<value>]]");
         rows.add("/wv motd");
+        rows.add("/wv retro [on|off|parts|only]");
         if (unlocked) {
             rows.add("/wv list");
             rows.add("/wv list <xp|graids>");
@@ -169,7 +170,7 @@ class HelpCommandsTest {
 
     /** Every gate true — the widest the page ever gets. */
     @Test
-    void helpPage_withEveryGateTrue_pinsItsThirtySixSiblings() {
+    void helpPage_withEveryGateTrue_pinsItsThirtyNineSiblings() {
         assertPage(
                 HelpCommands.buildHelp(true, true, true, true, true, true),
                 boldSib(ChatFormatting.GOLD, "Commands\n"),
@@ -185,6 +186,9 @@ class HelpCommandsTest {
                 sib(ChatFormatting.GRAY, " - View or change mod settings\n"),
                 sib(ChatFormatting.YELLOW, "/wv motd"),
                 sib(ChatFormatting.GRAY, " - Show the message of the day\n"),
+                sib(ChatFormatting.YELLOW, "/wv retro "),
+                sib(ChatFormatting.GOLD, "[on|off|parts|only]"),
+                sib(ChatFormatting.GRAY, " - Show Wynncraft in 2013 Minecraft art\n"),
                 sib(ChatFormatting.YELLOW, "/wv list"),
                 sib(ChatFormatting.GRAY, " - Show online guild members\n"),
                 sib(ChatFormatting.YELLOW, "/wv list "),
@@ -212,9 +216,9 @@ class HelpCommandsTest {
                 sib(ChatFormatting.GRAY, " - Diagnostics & debug tools"));
     }
 
-    /** Every gate false — only the five unconditional rows survive. */
+    /** Every gate false — only the six unconditional rows survive. */
     @Test
-    void helpPage_withNoGate_pinsItsThirteenSiblings() {
+    void helpPage_withNoGate_pinsItsSixteenSiblings() {
         assertPage(
                 HelpCommands.buildHelp(false, false, false, false, false, false),
                 boldSib(ChatFormatting.GOLD, "Commands\n"),
@@ -230,13 +234,16 @@ class HelpCommandsTest {
                 sib(ChatFormatting.GRAY, " - View or change mod settings\n"),
                 sib(ChatFormatting.YELLOW, "/wv motd"),
                 sib(ChatFormatting.GRAY, " - Show the message of the day\n"),
+                sib(ChatFormatting.YELLOW, "/wv retro "),
+                sib(ChatFormatting.GOLD, "[on|off|parts|only]"),
+                sib(ChatFormatting.GRAY, " - Show Wynncraft in 2013 Minecraft art\n"),
                 sib(ChatFormatting.YELLOW, "/wv debug"),
                 sib(ChatFormatting.GRAY, " - Diagnostics & debug tools"));
     }
 
     /**
      * All sixty-four gate combinations, each against its exact ordered row set.
-     * Row order is gate-interleaved — four unconditional rows, then the gated
+     * Row order is gate-interleaved — five unconditional rows, then the gated
      * ones, then {@code /wv debug}; {@code /wv list world} sits between the
      * unlocked list rows and {@code /wv staff} — so grouping a table by gate
      * would reorder the page and fail here rather than in review. {@code anniTools} changes only a row's text,
@@ -303,7 +310,7 @@ class HelpCommandsTest {
         }
     }
 
-    // ----- the twelve remaining pages -----
+    // ----- the thirteen remaining pages -----
 
     /**
      * The second index page. Its last row is three siblings, not two — a YELLOW
@@ -510,6 +517,43 @@ class HelpCommandsTest {
                 sib(ChatFormatting.AQUA, "Returners guild member"));
     }
 
+    /** The {@code on} row ends on a DARK_GRAY clarification; the page is public. */
+    @Test
+    void helpRetroPage_pinsItsSeventeenSiblings() {
+        assertPage(
+                HelpCommands.buildHelpRetro(),
+                sib(ChatFormatting.YELLOW, "/wv retro on\n"),
+                sib(
+                        ChatFormatting.GRAY,
+                        "Draw Wynncraft in 2013 Minecraft art: blocks, items and mobs get their"
+                                + " old look, and each weapon class, armour piece and tool shows"
+                                + " as a vanilla item.\n"),
+                sib(
+                        ChatFormatting.DARK_GRAY,
+                        "Built from your own game files whenever resources reload. Also switches"
+                                + " some Wynntils settings.\n"),
+                sib(ChatFormatting.YELLOW, "/wv retro off\n"),
+                sib(
+                        ChatFormatting.GRAY,
+                        "Go back to Wynncraft's own textures and your Wynntils settings.\n"),
+                sib(ChatFormatting.YELLOW, "/wv retro\n"),
+                sib(
+                        ChatFormatting.GRAY,
+                        "Show whether retro textures are on, and the parts that are off.\n"),
+                sib(ChatFormatting.YELLOW, "/wv retro parts\n"),
+                sib(ChatFormatting.GRAY, "List the parts of retro, each on or off.\n"),
+                sib(ChatFormatting.YELLOW, "/wv retro parts "),
+                sib(ChatFormatting.GOLD, "<part|all> <on|off>\n"),
+                sib(
+                        ChatFormatting.GRAY,
+                        "Turn one part, or all of them, on or off. A part off stays Wynncraft's.\n"),
+                sib(ChatFormatting.YELLOW, "/wv retro only "),
+                sib(ChatFormatting.GOLD, "<part>\n"),
+                sib(ChatFormatting.GRAY, "Turn one part on and every other off.\n"),
+                sib(ChatFormatting.GRAY, "Requires: "),
+                sib(ChatFormatting.WHITE, "None (public)"));
+    }
+
     /**
      * Carries a lone DARK_GRAY line that belongs to no row.
      */
@@ -531,7 +575,9 @@ class HelpCommandsTest {
                 sib(ChatFormatting.GRAY, " - Run a one-shot debug action\n"),
                 sib(ChatFormatting.YELLOW, "/wv debug tree "),
                 sib(ChatFormatting.GOLD, "<subsystem>"),
-                sib(ChatFormatting.GRAY, " - Open a subsystem-specific debug tree (e.g. anni)\n\n"),
+                sib(
+                        ChatFormatting.GRAY,
+                        " - Open a subsystem-specific debug tree (anni or retro)\n\n"),
                 sib(ChatFormatting.DARK_GRAY, "Use /wv help debug <set|trigger> for details.\n"),
                 sib(ChatFormatting.GRAY, "Requires: "),
                 sib(ChatFormatting.WHITE, "None (public)"));
@@ -575,7 +621,7 @@ class HelpCommandsTest {
      * announcing.
      */
     @Test
-    void helpDebugTriggerPage_pinsItsFortySiblings() {
+    void helpDebugTriggerPage_pinsItsFortyFourSiblings() {
         assertPage(
                 HelpCommands.buildHelpDebugTrigger(),
                 sib(ChatFormatting.YELLOW, "/wv debug trigger "),
@@ -616,6 +662,10 @@ class HelpCommandsTest {
                 sib(ChatFormatting.GRAY, "  Log the RSVP client's state.\n"),
                 sib(ChatFormatting.DARK_GRAY, "  To the log, not chat: auth, queue depth, the\n"),
                 sib(ChatFormatting.DARK_GRAY, "  last attempt and ack, and the rsvp block.\n"),
+                sib(ChatFormatting.YELLOW, "/wv debug trigger retroDump\n"),
+                sib(ChatFormatting.GRAY, "  Dump retro textures' state to chat.\n"),
+                sib(ChatFormatting.DARK_GRAY, "  Whether drawn, why stopped, the last build's\n"),
+                sib(ChatFormatting.DARK_GRAY, "  counts, parts off, Wynntils settings switched.\n"),
                 sib(ChatFormatting.GRAY, "Requires: "),
                 sib(ChatFormatting.WHITE, "None (public)"));
     }
@@ -689,12 +739,12 @@ class HelpCommandsTest {
     }
 
     /**
-     * The five ungated pages keep WHITE, and that is a third state rather than an
+     * The six ungated pages keep WHITE, and that is a third state rather than an
      * oversight: there is no permission to hold or lack, so a GREEN here would be
      * claiming one was granted.
      */
     @Test
-    void requiresFooter_staysWhiteOnTheFivePagesWithNoGate() {
+    void requiresFooter_staysWhiteOnTheSixPagesWithNoGate() {
         assertEquals(
                 ChatFormatting.WHITE,
                 ACCESS_COLOURS.getOrDefault(HelpCommands.Access.PUBLIC, ChatFormatting.WHITE),
@@ -708,6 +758,8 @@ class HelpCommandsTest {
                 ChatFormatting.WHITE,
                 "None (public)",
                 "anni, authenticated");
+        assertRequirement(
+                HelpCommands.buildHelpRetro(), ChatFormatting.WHITE, "None (public)", "retro");
         assertRequirement(
                 HelpCommands.buildHelpDebug(), ChatFormatting.WHITE, "None (public)", "debug");
         assertRequirement(

@@ -29,6 +29,7 @@ import org.wynnvets.guild.GuildLifecycle;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.queue.QueueStateManager;
+import org.wynnvets.retro.RetroModeManager;
 
 /**
  * Subscribes to Wynntils events for world state, guild changes, and guild
@@ -69,9 +70,14 @@ public final class WynntilsEventListener {
 
     /**
      * Registers this listener, {@link LegacyTooltipEventListener} and
-     * {@link LegacyHighlightEventListener} with the Wynntils event bus, then
-     * marks Wynntils ready ({@link GuildStateManager#setWynntilsReady()
-     * GuildStateManager.setWynntilsReady()}). Call it once, from
+     * {@link LegacyHighlightEventListener} with the Wynntils event bus, marks Wynntils ready
+     * ({@link GuildStateManager#setWynntilsReady() GuildStateManager.setWynntilsReady()}), then
+     * registers {@link RetroContainerTitleListener}, {@link RetroSlotListener},
+     * {@link RetroSlotIconListener} and {@link RetroActionBarListener}. The bus reflects over a
+     * listener's event classes, which a Wynntils older than the one vetsmod builds against may
+     * lack, so a failure there costs retro alone, on or off: it stops for the session
+     * ({@link RetroModeManager#latch}), as a retro with some of its listeners would draw half its
+     * screens. Call it once, from
      * {@link org.wynnvets.VetsmodClient#onClientStarted() VetsmodClient.onClientStarted()}, the
      * {@code CLIENT_STARTED} phase, not from {@code onInitializeClient}'s body:
      * {@code WynntilsMod.registerEventListener} needs the event bus that
@@ -82,6 +88,14 @@ public final class WynntilsEventListener {
         LegacyTooltipEventListener.register();
         LegacyHighlightEventListener.register();
         GuildStateManager.setWynntilsReady();
+        try {
+            RetroContainerTitleListener.register();
+            RetroSlotListener.register();
+            RetroSlotIconListener.register();
+            RetroActionBarListener.register();
+        } catch (RuntimeException | LinkageError e) {
+            RetroModeManager.latch("its Wynntils listeners failed to register", e);
+        }
         VetsLogger.debug("Registered Wynntils event listeners");
     }
 

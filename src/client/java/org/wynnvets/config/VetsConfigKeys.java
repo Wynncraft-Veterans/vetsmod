@@ -58,6 +58,35 @@ public final class VetsConfigKeys {
      *  warning gates on it. */
     public static final String VETS_AUTH_VERIFIED_AT = "vetsAuthVerifiedAt";
 
+    // ── Retro textures ───────────────────────────────────────────────────
+
+    /** Whether the retro pack, which draws Wynncraft in 2013 Minecraft art, is on. Off by
+     *  default. Written only by
+     *  {@link org.wynnvets.retro.RetroModeManager#setEnabled(boolean)
+     *  RetroModeManager#setEnabled}, for {@code /wv retro on|off}, because a change shows only
+     *  after the resource reload that method starts; read through
+     *  {@link org.wynnvets.retro.RetroModeManager#isEnabled() RetroModeManager#isEnabled()}.
+     *  Absent from {@link VetsConfigSchema#USER_CONFIG_KEYS}, like {@link #VETS_ANNI_MODE}, so
+     *  {@code /wv config} cannot change it without that reload. */
+    public static final String RETRO_TEXTURES = "retroTextures";
+
+    /** The Wynntils settings retro has changed, with the player's values before: a JSON array
+     *  written by {@link org.wynnvets.retro.WynntilsConfigOverrides WynntilsConfigOverrides}
+     *  before it changes a setting, and emptied once it has put them back. Empty (the default)
+     *  while retro has changed nothing. Kept on disk so a crash with retro on cannot lose the
+     *  player's values. Internal. */
+    public static final String RETRO_WYNNTILS_SNAPSHOT = "retroWynntilsSnapshot";
+
+    /** The parts of retro turned off, the names of
+     *  {@link org.wynnvets.retro.manifest.RetroPart RetroPart} separated by commas. Empty (the
+     *  default) while every part is on, and a name this client does not know is ignored. Written
+     *  only by
+     *  {@link org.wynnvets.retro.RetroModeManager#setPartsOff RetroModeManager#setPartsOff}, for
+     *  {@code /wv retro parts} and {@code /wv retro only}, because a change shows only after the
+     *  resource reload that method starts. Absent from {@link VetsConfigSchema#USER_CONFIG_KEYS},
+     *  like {@link #RETRO_TEXTURES}. */
+    public static final String RETRO_PARTS_OFF = "retroPartsOff";
+
     // ── User-facing configuration keys (toggled via /wv config) ─────────────
     // Not every key declared below is user-facing: USER_CONFIG_KEYS is the
     // list /wv config reaches.

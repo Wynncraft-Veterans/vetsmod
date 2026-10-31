@@ -16,6 +16,8 @@ import org.junit.jupiter.api.Test;
  * shipped {@code config.yml} and {@code /wv config <key> default} restore. The user-facing
  * defaults are a frozen literal, not read from the class. The per-kind guard reads
  * {@code VetsConfigSchema.USER_CONFIG_KEYS}, so a new user key without a default fails here.
+ * Three internal defaults are pinned too: {@code retroTextures} starts off, and
+ * {@code retroWynntilsSnapshot} and {@code retroPartsOff} start empty.
  *
  * <p>NOTE: {@link VetsConfigDefaults} has no static state, and the one other class it loads,
  * {@code DebugConfigManager}, holds only strings and an immutable map, so nothing here needs a
@@ -81,6 +83,24 @@ class VetsConfigDefaultsTest {
                 assertInstanceOf(Boolean.class, values.get(key), key);
             }
         }
+    }
+
+    @Test
+    void retroTextures_isOffOnAFirstRun() {
+        // Installing vetsmod must not change how Wynncraft looks until /wv retro on.
+        assertEquals(false, VetsConfigDefaults.firstRunValues().get("retroTextures"));
+    }
+
+    @Test
+    void retroWynntilsSnapshot_isEmptyOnAFirstRun() {
+        // Empty means retro has changed no Wynntils setting, so there is nothing to put back.
+        assertEquals("", VetsConfigDefaults.firstRunValues().get("retroWynntilsSnapshot"));
+    }
+
+    @Test
+    void retroPartsOff_isEmptyOnAFirstRun() {
+        // Empty means every part of retro is on.
+        assertEquals("", VetsConfigDefaults.firstRunValues().get("retroPartsOff"));
     }
 
     @Test

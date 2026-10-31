@@ -19,15 +19,19 @@ Where another doc owns the detail, the entry links it rather than restating it.
 ### Registration
 
 [`CommandRegistry.register`](../src/client/java/org/wynnvets/commands/CommandRegistry.java) registers the
-roots `/motd` and `/wv` on the dispatcher it is given. `/wv`'s `debug`, `distribute` and `laurels` subtrees
-are built elsewhere and mounted with `.then(…)`: `/wv debug` by
+roots `/motd` and `/wv` on the dispatcher it is given. `/wv`'s `debug`, `distribute`, `laurels` and `retro`
+subtrees are built elsewhere and mounted with `.then(…)`: `/wv debug` by
 [`DebugCommands.buildCommandTree`](../src/client/java/org/wynnvets/debug/DebugCommands.java), whose `tree`
 literal mounts
-[`AnniDebugCommands.buildCommandTree`](../src/client/java/org/wynnvets/debug/anni/AnniDebugCommands.java),
+[`AnniDebugCommands.buildCommandTree`](../src/client/java/org/wynnvets/debug/anni/AnniDebugCommands.java)
+and
+[`RetroDebugCommands.buildCommandTree`](../src/client/java/org/wynnvets/debug/retro/RetroDebugCommands.java),
 `/wv distribute` by
 [`DistributeCommands.buildCommandTree`](../src/client/java/org/wynnvets/distribute/DistributeCommands.java),
-and `/wv laurels` by
-[`LaurelCommands.buildCommandTree`](../src/client/java/org/wynnvets/laurels/LaurelCommands.java).
+`/wv laurels` by
+[`LaurelCommands.buildCommandTree`](../src/client/java/org/wynnvets/laurels/LaurelCommands.java),
+and `/wv retro` by
+[`RetroCommands.buildCommandTree`](../src/client/java/org/wynnvets/retro/RetroCommands.java).
 Those classes are the only builders. The classes their nodes call into, such as `HelpCommands`,
 `ConfigCommands`, `AnniRsvpCommand`, `AnniScrollspotCommand`, `AnniSnapshotDebugCommands`,
 `AnniHighlightDebugCommands` and `AnniDebugSuggestions`, register nothing.
@@ -38,7 +42,7 @@ registers `CommandCompletionSync`'s tick listener, which keeps tab completion in
 gates (see Gates).
 
 A node with children but no command of its own goes to the server when typed bare, which answers
-"Invalid command". `/wv distribute`, `/wv laurels` and the anni debug harness give each such node
+"Invalid command". `/wv distribute`, `/wv laurels`, the anni debug harness and `/wv debug tree retro` give each such node
 [`CommandUsage.usage`](../src/client/java/org/wynnvets/commands/CommandUsage.java) as its command, a red
 "Usage: …" line instead. The rest of the tree does not: a bare `/wv line` or `/wv anni rsvp` still goes
 to the server.
@@ -98,8 +102,8 @@ What each gate checks:
 
 | Command | Parse gate | Runtime gate | Handler | What it does | Side effects | Bugs |
 |---|---|---|---|---|---|---|
-| `/wv help` | none | none | `HelpCommands.help` → `buildHelp` | The index page. `/wv help`, `/wv anni`, `/wv config`, `/wv motd` and `/wv debug` always; `/wv list`, `/wv list <xp|graids>` and `/wv staff` when `isUnlocked()`; `/wv list world` when `isStaff()`; `/wv distribute` when `isStaffOfAnyGuild()`, its node's gate (the row adds "(Chief/Owner)", which running it needs); `/wv return` and `/wv line` when `areFeaturesEnabled()`; `/wv check` and `/wv laurels <update|return>` when `isConfirmedStaff()` (the laurels row has no suffix: running either needs no more than seeing it, bar `update`'s Returners check). The `/wv anni` row points at `/wv help anni` for the modes and RSVP when the player is a vet (`isEligibleForEnrichment()`) or authenticated, and is the plain timer row otherwise. `/wv invite-force` is deliberately not listed | chat only | none |
-| `/wv help config`, `check`, `laurels`, `return`, `staff`, `list`, `motd`, `anni`, `line`, `debug`, `debug set`, `debug trigger` | none | none | `HelpCommands.helpX` → `buildHelpX` | One detail page each. Five (check, return, staff, motd, line) are a usage line, a line of prose and a `Requires:` footer; the list page adds the `<xp|graids>` rankings row and the laurels page lists its three commands above the footer; the config page lists its keys with no footer, the anni page adds the three modes and, when `isAuthenticatedThisSession()`, `rsvp hard`/`soft`/`revoke` under the timer line, and the debug pages list their subcommands, keys or actions above the footer | chat only | none |
+| `/wv help` | none | none | `HelpCommands.help` → `buildHelp` | The index page. `/wv help`, `/wv anni`, `/wv config`, `/wv motd`, `/wv retro [on|off|parts|only]` and `/wv debug` always; `/wv list`, `/wv list <xp|graids>` and `/wv staff` when `isUnlocked()`; `/wv list world` when `isStaff()`; `/wv distribute` when `isStaffOfAnyGuild()`, its node's gate (the row adds "(Chief/Owner)", which running it needs); `/wv return` and `/wv line` when `areFeaturesEnabled()`; `/wv check` and `/wv laurels <update|return>` when `isConfirmedStaff()` (the laurels row has no suffix: running either needs no more than seeing it, bar `update`'s Returners check). The `/wv anni` row points at `/wv help anni` for the modes and RSVP when the player is a vet (`isEligibleForEnrichment()`) or authenticated, and is the plain timer row otherwise. `/wv invite-force` is deliberately not listed | chat only | none |
+| `/wv help config`, `check`, `laurels`, `return`, `staff`, `list`, `motd`, `anni`, `line`, `retro`, `debug`, `debug set`, `debug trigger` | none | none | `HelpCommands.helpX` → `buildHelpX` | One detail page each. Five (check, return, staff, motd, line) are a usage line, a line of prose and a `Requires:` footer; the list page adds the `<xp|graids>` rankings row, and the laurels and retro pages each list their three commands above the footer; the config page lists its keys with no footer, the anni page adds the three modes and, when `isAuthenticatedThisSession()`, `rsvp hard`/`soft`/`revoke` under the timer line, and the debug pages list their subcommands, keys or actions above the footer | chat only | none |
 
 Every page is a `buildX` returning the page plus a `helpX` that sends it, so a page is a value a
 test can compare: `HelpCommandsTest` pins each one as a tree. The pages are assembled from `HelpCommands`'
@@ -117,13 +121,13 @@ site that wrote it:
   literal subcommand rather than an argument, is one.
 - **`gray` describes and `dim` clarifies.** The GRAY → DARK_GRAY change marks a change of thought, not a
   line wrap: a description too long for one chat line wraps into a second GRAY fragment rather than
-  spilling into the DARK_GRAY run mid-sentence. Only the list, debug set and debug trigger pages use `dim`.
+  spilling into the DARK_GRAY run mid-sentence. Only the list, retro, debug set and debug trigger pages use `dim`.
 - **The `Requires:` footer colours the *viewer*, not the command.** Every page but the index and the config
   page carries one. `HelpCommands.Access` has the states `DENIED` RED, `GRANTED` GREEN, `CONFIRMED`
   AQUA and `PUBLIC` WHITE. The gated detail pages take an `Access` resolved by
   `access(met, confirmed)`, in which `confirmed` wins outright so a stale local cache cannot report
   DENIED on a permission the server has granted. `access` never returns `PUBLIC`; the motd, anni,
-  debug, debug set and debug trigger pages pass it as a constant. GREEN means *this should work*; AQUA means
+  retro, debug, debug set and debug trigger pages pass it as a constant. GREEN means *this should work*; AQUA means
   *the server agrees*. Four of the six gated pages take `sessionBacked(met)`, whose confirmation is
   `met && isAuthenticatedThisSession()` (so an authenticated viewer who fails the local gate still sees
   DENIED). `/wv check` and `/wv laurels` are the exceptions: their gate is `isConfirmedStaff()`, the
@@ -233,8 +237,8 @@ The aliases map to territories in `TerritoryLineManager.LINE_ALIASES`:
 
 Built by [`DebugCommands.buildCommandTree`](../src/client/java/org/wynnvets/debug/DebugCommands.java). No
 node has a parse gate, and only the `tree anni` subtree has a runtime gate; the other refusals check an
-argument, or that the state a dump reads (Wynntils, the tab list, the level, the boss-bar overlay) is
-there.
+argument, or that the state a dump reads (Wynntils, the tab list, the level, the boss-bar overlay, the
+retro pack drawn now) is there.
 
 | Command | Parse gate | Runtime gate | Handler | What it does | Side effects | Bugs |
 |---|---|---|---|---|---|---|
@@ -244,6 +248,7 @@ there.
 | `/wv debug set <key> [<value>]` | none | none | `DebugCommands.debugConfigGet`, `debugConfigSet` | Prints or sets a debug key. Refuses an unknown key, and a value other than `true` or `false` | the set form persists the config | none |
 | `/wv debug trigger <name>` | none | none | `DebugCommands` (see below) | One of the diagnostic dumps below | chat or log; `forceChecks` also queues `/gu rank` and `/gu stats` and, when Wynntils reports a guild, can send a WebSocket `register` frame and re-run the stamp print, which can send an `anni_query` and GET `VetsApi.STAMP` (below) | none |
 | `/wv debug tree anni …` | none | `requireDebug` on every leaf; `requireStaffOrOrganiser` on the `scrollspot` leaves | `AnniDebugCommands`, `AnniSnapshotDebugCommands`, `AnniHighlightDebugCommands` | The anni debug harness (below) | see below | none |
+| `/wv debug tree retro report [ingredients]` | none | none | `RetroDebugCommands.report` → `RetroAudit.run` | The retro report (below). A bare `/wv debug tree retro` prints a red usage line | writes a file under `vetsmod/dumps/retro/` | none |
 
 `/wv debug true` records the time in `vetsDebugEnabledAt`, and `false` clears it. `VetsmodClient` reads that
 timestamp only at startup, restoring the flag if it was set less than three days earlier and clearing an
@@ -275,6 +280,10 @@ The trigger leaves:
 - `rsvpDump` — `isAuthenticatedThisSession()`, the in-flight queue depth, `lastAttemptedNotice`, `lastAck`
   and the current snapshot's `rsvp` block, all read by `AnniRsvpClient.debugDump()`. Writes to the log, not
   chat. The diagnostic for "why did my `/wv anni rsvp` not land".
+- `retroDump` — `RetroDebugCommands.dump`: the retro setting, whether the retro pack is drawn now (or that it
+  waits for Wynncraft's pack), the reason it stopped if it did, the last generation's one-line summary (or "Not
+  built this session."), a gray "Parts off: <part>, …" line while any is off, and, while retro has switched any,
+  a gray "Wynntils settings switched: <feature> <setting> <value>, …" line read from `retroWynntilsSnapshot`.
 
 **The anni debug harness** under `/wv debug tree anni` has 11 literals (`snapshot`, `guess`, `external`,
 `time`, `zone`, `flash`, `mode`, `scrollspot`, `alert`, `rsvp` and `registry`) and 24 executable leaves,
@@ -287,6 +296,16 @@ file under `vetsmod/dumps/anni/`), `snapshot refresh` and `guess` (`anni_query`)
 and `clear` (`anni_scrollspot_set`), `rsvp hard`, `soft` and `revoke` (the same as `/wv anni rsvp`), and
 `mode set` (writes `vetsAnniMode`, bypassing the `/stream` mutex). Each leaf is described in
 [vetsmod_mwe_anni.md](vetsmod_mwe_anni.md) §Debug harness.
+
+**The retro report** under `/wv debug tree retro` has two leaves, pinned by `RetroDebugCommandsTest`:
+`report` and `report ingredients`. Each refuses in red unless the retro pack is drawn now ("The retro
+report is about the retro pack drawn now, and none is; /wv debug trigger retroDump says why."), and in yellow
+while another report is being written. Otherwise it prints a gray "Writing the retro report…", builds
+the report on a thread of its own and writes it to a new `report-<yyyyMMdd-HHmmss>.txt` (or
+`report-ingredients-…`) under `vetsmod/dumps/retro/`, then prints a green "Retro report written to
+<path>" with its counts in gray, or a red "Could not write the retro report: …". `ingredients` lists every
+ingredient stem with the Wynntils ingredients it draws, read from `Models.Ingredient` on the render
+thread. What the report holds is [vetsmod_retro.md](vetsmod_retro.md) §9's.
 
 ### `/wv laurels`
 
@@ -304,6 +323,20 @@ The places are literal children (`1`, `2`, `3`), so completion offers them, and 
 `StringArgumentType.string()` like `/wv check`'s. Each node short of a finished command prints a red usage
 line (`/wv laurels <update|return>`, then the `return` forms). The gate is `isConfirmedStaff()` on both
 sides because the frame is refused from any session the server does not treat as staff.
+
+### `/wv retro`
+
+Tree built in [`RetroCommands.buildCommandTree()`](../src/client/java/org/wynnvets/retro/RetroCommands.java),
+pinned by `RetroCommandsTest`. It switches the retro (2013) textures; [vetsmod_retro.md](vetsmod_retro.md) owns
+the behaviour.
+
+| Command | Parse gate | Runtime gate | Handler | What it does | Side effects | Bugs |
+|---|---|---|---|---|---|---|
+| `/wv retro on`, `/wv retro off` | none | none | `RetroCommands.toggle` → `RetroModeManager.setEnabled` | Stores the choice and prints one line by outcome: green "Retro textures on/off. Reloading resources…" when the loaded packs no longer match it, green "Retro textures are on/off." when they already do, green "…They show once Wynncraft's resource pack has loaded." when on with no Wynncraft pack yet, red "Retro textures are on, but stopped until the game restarts: <reason>." after a failure this session | writes `retroTextures`; switches the `wynntils_config` settings (`on`) or puts them back (`off`) through `WynntilsConfigOverrides`, writing `retroWynntilsSnapshot` and saving Wynntils' config; queues `Minecraft.reloadResourcePacks` on the render thread when the packs must change | none |
+| `/wv retro` | none | none | `RetroCommands.state` | Prints green "Retro textures are on/off.", or the red stopped line of `on` after a failure this session, then a gray "Parts off: <part>, …" line while any is off. `/wv debug trigger retroDump` has the rest | chat only | none |
+| `/wv retro parts` | none | none | `RetroCommands.parts` | Lists every part of retro in file order: its name, on or off, and what it covers (`about` in the `parts` section), saying so if retro itself is off, and, while any part is off, ending on a gray "/wv retro parts all on turns them all on." | chat only | none |
+| `/wv retro parts <part\|all> <on\|off>` | none | none | `RetroCommands.setPart` → `RetroModeManager.setPartsOff` | Suggests the parts and `all`, and takes either in any case. Turns the part, or every part, on or off and prints one line by outcome: green "Retro part <part> on/off. Reloading resources…" (or "Every retro part on/off…") when a retro pack is loaded and this changes the parts, the same green line ending at its full stop when none is or nothing changed, green "…It shows once Wynncraft's resource pack has loaded." with retro on and no Wynncraft pack yet, red "Retro textures are on, but stopped until the game restarts: <reason>." after a failure this session. With retro off, the green line ends "Retro itself is off: /wv retro on shows it." An unknown part answers one red line | writes `retroPartsOff`; while retro is active, switches the `wynntils_config` settings of the parts now on and puts back those of the parts now off; queues `Minecraft.reloadResourcePacks` when the parts change and a retro pack is loaded | none |
+| `/wv retro only <part>` | none | none | `RetroCommands.only` → `RetroModeManager.setPartsOff` | Suggests the parts, and takes one in any case. Turns that part on and every other off, and answers as above ("Only retro part <part> on…"). An unknown part answers one red line | as above | none |
 
 ### `/wv distribute <name|@selector> <aspects|tomes|emeralds> <count>`
 
@@ -532,7 +565,7 @@ size and level, and decides, in this order:
 
 | Input | Gate | Handler | What happens |
 |---|---|---|---|
-| Numpad `+` | the `itemDump` debug key (`/wv debug set itemDump true`), a focused window, the key's rising edge | `DebugKeyHandler` → `ItemDumpHandler.dump` | Writes the hovered item to a new JSON file under `vetsmod/dumps/items/`, or prints a yellow "No item under cursor. Hover over an item in an inventory." `DebugKeyHandler` polls the key each client tick and returns first while `itemDump` is off |
+| Numpad `+` | the `itemDump` debug key (`/wv debug set itemDump true`), a focused window, the key's rising edge | `DebugKeyHandler` → `ItemDumpHandler.dump` | Writes the hovered item to a new JSON file under `vetsmod/dumps/items/` (format `DUMP_FORMAT_VERSION` 4, whose `vetsmodAnalysis.retro` is [vetsmod_retro.md](vetsmod_retro.md) §9's; written a moment after the key, once the item definition is parsed off the render thread), or prints a yellow "No item under cursor. Hover over an item in an inventory." `DebugKeyHandler` polls the key each client tick and returns first while `itemDump` is off |
 | Wynntils' screenshot keybind, in an inventory | none | `LegacyTooltipEventListener` → `LegacyItemHandler.notifyScreenshotKeyPressed` | Tells the legacy-item code the screenshot key was pressed over a legacy item; see [project_legacy_items.md](project_legacy_items.md) |
 | Typing in the chat box while in a world queue | none | `CommandSuggestionsMixin` | Suppresses the chat box's usage hint and its red parse error; see [vetsmod_mixins.md](vetsmod_mixins.md) |
 
@@ -585,7 +618,7 @@ A key `/wv config` does not accept, such as a hand-typed `vetsAnniMode`, falls t
 
 ## 4. Things to know when adding commands
 
-- Register a new `/wv` subcommand in `CommandRegistry.register()` with Brigadier's literal and argument builders, or give a whole subtree its own `buildCommandTree()` and mount it with `.then(…)`, as `/wv debug`, `/wv distribute` and `/wv laurels` are.
+- Register a new `/wv` subcommand in `CommandRegistry.register()` with Brigadier's literal and argument builders, or give a whole subtree its own `buildCommandTree()` and mount it with `.then(…)`, as `/wv debug`, `/wv distribute`, `/wv laurels` and `/wv retro` are.
 - Gate with a real predicate. `CommandRegistry`'s own `userIsCaptain`/`userIsVet` are all-true stubs; the gated commands call one of the gates in §1's table directly. A `.requires` is a parse gate, so a handler that re-tests it refuses only if the gate's state changes between parse and run: a refusal that should explain itself belongs in the handler.
 - Keep a `.requires` predicate under `/wv` cheap and free of side effects: `CommandCompletionSync` tests every one of them each client tick. A gate whose state changes needs nothing more for tab completion to follow it.
 - Give a node that needs an argument after it `.executes(CommandUsage.usage("/wv …"))`, so typing it bare prints a usage line instead of going to the server.

@@ -24,6 +24,8 @@ import net.minecraft.world.item.component.ItemLore;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.retro.LivePack;
+import org.wynnvets.retro.rules.RetroAssetIds;
 
 /**
  * Legacy-item detection, and the state the legacy-item hooks share.
@@ -73,17 +75,35 @@ public final class LegacyItemHandler {
     // END PATCH(old-server-compat)
 
     /**
-     * Gold tooltip border identifier — Wynncraft's resource-pack
-     * {@code minecraft:unique} tooltip style (vanilla ships only the default
-     * tooltip sprites).
+     * Wynncraft's resource-pack {@code minecraft:unique} tooltip style, the gold border
+     * (vanilla ships only the default tooltip sprites).
      */
-    public static final Identifier LEGACY_BORDER = Identifier.parse("unique");
+    private static final Identifier UNIQUE_BORDER = Identifier.parse("unique");
+
+    /**
+     * The retro pack's copy of {@link #UNIQUE_BORDER}: while the pack is live it turns every
+     * Wynncraft tooltip style, {@code unique} included, into vanilla's frame, and keeps
+     * Wynncraft's unique sprites under this style.
+     */
+    private static final Identifier RETRO_LEGACY_BORDER =
+            Identifier.parse(RetroAssetIds.LEGACY_TOOLTIP_STYLE);
 
     /** The font Wynncraft draws an item's lore ribbon (such as VINTAGE) in. */
     private static final FontDescription BANNER_RIBBON_FONT =
             new FontDescription.Resource(Identifier.parse("banner/ribbon"));
 
     private LegacyItemHandler() {}
+
+    /**
+     * The gold tooltip border a legacy item is drawn with: Wynncraft's unique style, or, while
+     * the retro pack is live with its copy of that style, the copy
+     * ({@link LivePack#isLegacyTooltipStyle()}).
+     *
+     * @return the tooltip style's identifier
+     */
+    public static Identifier legacyBorder() {
+        return LivePack.isLegacyTooltipStyle() ? RETRO_LEGACY_BORDER : UNIQUE_BORDER;
+    }
 
     /**
      * Records {@code stack} as the hovered item: sets {@link #currentItemStack}, and

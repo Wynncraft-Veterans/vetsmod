@@ -23,7 +23,6 @@ This mod runs on fabric, depends on [Wynntils](https://modrinth.com/mod/wynntils
 > Unimplemented, planned, features include:
 >
 > - Legacy item highlighting
-> - (Optional, cosmetic) Legacy textures
 
 ## For staff of community guilds in general
 
@@ -69,7 +68,6 @@ Currently, it includes the return board, a motd, and a bridge. That's it!
 >   - A showcase of the community's art.
 >   - Some fun models/cosmetics/highlights.
 > - Legacy item highlighting
-> - (optional) legacy textures
 
 ## Credits
 

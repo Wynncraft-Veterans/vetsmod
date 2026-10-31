@@ -160,7 +160,7 @@ public final class TooltipCapture {
 
     /**
      * The tooltip-style identifier carried by the last stored record:
-     * {@link org.wynnvets.items.LegacyItemHandler#LEGACY_BORDER LEGACY_BORDER}
+     * {@link org.wynnvets.items.LegacyItemHandler#legacyBorder() legacyBorder()}
      * when the list was rewritten, the item was flagged legacy and new tooltip
      * styles are available; otherwise the call's own background identifier,
      * which may be {@code null}. {@code null} before the first record.

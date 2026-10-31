@@ -7,11 +7,11 @@ import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.wynntils.utils.mc.McUtils;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.ModContainer;
 import net.minecraft.ChatFormatting;
@@ -34,10 +34,8 @@ import org.wynnvets.logging.VetsLogger;
 
 /**
  * Dumps the full component tree of an {@link ItemStack} to a JSON file
- * under {@code vetsmod/dumps/items/}. Each invocation creates a new file
+ * under {@code vetsmod/dumps/items/} ({@link DumpFiles}). Each invocation creates a new file
  * so multiple states of the same item can be compared side-by-side.
- * Sibling of {@code vetsmod/dumps/anni/} — every dump artifact lives
- * under {@code vetsmod/dumps/} organised per-type.
  *
  * <p>This is a <b>debug-only</b> utility — not part of normal mod
  * functionality.  Activated via {@code /wv debug set itemDump true}
@@ -55,34 +53,31 @@ public final class ItemDumpHandler {
      *       {@code freshTooltip}, {@code capturedTooltip}, {@code newFormatProbes}</li>
      *   <li><b>3</b> — adds {@code hoveredSlot} (menu/container indices, grid
      *       row/column, screen title) for guild-bank macro debugging</li>
+     *   <li><b>4</b> — adds {@code vetsmodAnalysis.retro} (the item model, the first
+     *       custom-model-data float, the Wynntils item type, and the models the live item
+     *       definition draws with each one's pack and retro rule;
+     *       {@link HoverDumps#buildRetroDump})</li>
      * </ul>
      */
-    public static final int DUMP_FORMAT_VERSION = 3;
+    public static final int DUMP_FORMAT_VERSION = 4;
 
     private static final Gson GSON =
             new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
     private static final DateTimeFormatter FILE_TS =
             DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss_SSS");
-    private static final Path DUMP_DIR =
-            FabricLoader.getInstance().getGameDir().resolve("vetsmod/dumps/items");
 
     private ItemDumpHandler() {}
 
     /**
      * Dumps the given item stack to a uniquely-named JSON file and notifies
-     * the player in chat.
+     * the player in chat. Everything is read now, on the render thread; the file is
+     * written there a moment later, once {@link HoverDumps#buildRetroDump}'s retro block
+     * is in (it parses the stack's item definition on a background worker).
      */
     public static void dump(ItemStack stack) {
         if (stack == null || stack.isEmpty()) {
             ChatUtils.sendLocalMessage(
                     Component.literal("No item to dump.").withStyle(ChatFormatting.RED));
-            return;
-        }
-
-        try {
-            Files.createDirectories(DUMP_DIR);
-        } catch (IOException e) {
-            VetsLogger.error("Failed to create dump directory: {}", e.getMessage());
             return;
         }
 
@@ -251,6 +246,8 @@ public final class ItemDumpHandler {
         analysis.addProperty("tooltipStyleRarity", LegacyItemHandler.getTooltipStyleRarity(stack));
         analysis.addProperty("isCraftedItem", LegacyItemHandler.isCraftedItem(stack));
         analysis.addProperty("isLegacyItem_result", LegacyItemHandler.isLegacyItem(stack));
+        // The analysis' last field, "retro", is added when the file is written (below).
+        CompletableFuture<JsonObject> retro = HoverDumps.buildRetroDump(stack);
         root.add("vetsmodAnalysis", analysis);
 
         // Codepoints for name and lore (helps debug PUA issues)
@@ -336,17 +333,26 @@ public final class ItemDumpHandler {
                 plainName != null ? plainName.replaceAll("[^a-zA-Z0-9_]", "_") : "Unknown";
         if (safeName.length() > 40) safeName = safeName.substring(0, 40);
         String fileName = safeName + "_" + now.format(FILE_TS) + "_" + System.nanoTime() + ".json";
-        Path outFile = DUMP_DIR.resolve(fileName);
 
+        // The retro block completes on the render thread, never exceptionally.
+        retro.thenAccept(
+                block -> {
+                    analysis.add("retro", block);
+                    write(root, fileName);
+                });
+    }
+
+    /** Writes the dump and says in chat where it went. Render thread. */
+    private static void write(JsonObject root, String fileName) {
         try {
-            Files.writeString(outFile, GSON.toJson(root));
+            Path outFile = DumpFiles.write("items", fileName, GSON.toJson(root));
             MutableComponent msg =
                     Component.literal("Item dumped to ")
                             .withStyle(ChatFormatting.GREEN)
                             .append(Component.literal(fileName).withStyle(ChatFormatting.YELLOW));
             ChatUtils.sendLocalMessage(msg);
             VetsLogger.info("Item dumped to {}", outFile);
-        } catch (IOException e) {
+        } catch (IOException | RuntimeException e) {
             VetsLogger.error("Failed to write item dump: {}", e.getMessage());
             ChatUtils.sendLocalMessage(
                     Component.literal("Failed to dump item: " + e.getMessage())

@@ -18,10 +18,10 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.debug.dump.DumpFiles;
 import org.wynnvets.fetcher.polling.AnniSnapshotPoller;
 import org.wynnvets.mwe.anni.network.AnniQueryClient;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
@@ -65,14 +65,15 @@ final class AnniSnapshotDebugCommands {
     private static final Gson GSON =
             new GsonBuilder().setPrettyPrinting().serializeNulls().create();
 
-    /** Directory under the game dir where {@code snapshot dump} writes
-     *  fixtures and {@code snapshot inject file} reads them. Created on
-     *  first dump. Sibling of {@code vetsmod/dumps/items/} —
-     *  {@code vetsmod/dumps/} is the shared root for every dump
-     *  artifact regardless of producer, organised per-type. */
+    /** The kind of dump the snapshots are, which names their folder. */
+    private static final String SNAPSHOTS_KIND = "anni";
+
+    /** The dump folder ({@code vetsmod/dumps/anni},
+     *  {@link org.wynnvets.debug.dump.DumpFiles DumpFiles}) where
+     *  {@code snapshot dump} writes fixtures and {@code snapshot inject file}
+     *  reads them. Created on first dump. */
     // Package-private for SUGGEST_DUMP_FILES, which lists it for tab completion.
-    static final Path SNAPSHOTS_DIR =
-            FabricLoader.getInstance().getGameDir().resolve("vetsmod/dumps/anni");
+    static final Path SNAPSHOTS_DIR = DumpFiles.folder(SNAPSHOTS_KIND);
 
     private static final DateTimeFormatter DUMP_TS =
             DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss").withZone(ZoneOffset.UTC);
@@ -345,18 +346,10 @@ final class AnniSnapshotDebugCommands {
                             .withStyle(ChatFormatting.YELLOW));
             return 0;
         }
-        try {
-            Files.createDirectories(SNAPSHOTS_DIR);
-        } catch (IOException e) {
-            ChatUtils.sendLocalMessage(
-                    Component.literal("anni snapshot dump: mkdir failed: " + e.getMessage())
-                            .withStyle(ChatFormatting.RED));
-            return 0;
-        }
         String name = "snapshot-" + DUMP_TS.format(Instant.now()) + ".json";
-        Path target = SNAPSHOTS_DIR.resolve(name);
+        Path target;
         try {
-            Files.writeString(target, GSON.toJson(snapshot));
+            target = DumpFiles.write(SNAPSHOTS_KIND, name, GSON.toJson(snapshot));
         } catch (IOException e) {
             ChatUtils.sendLocalMessage(
                     Component.literal("anni snapshot dump: write failed: " + e.getMessage())

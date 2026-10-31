@@ -21,6 +21,7 @@ import org.wynnvets.debug.anni.AnniDebugCommands;
 import org.wynnvets.debug.diagnostics.DiagnosticsHandler;
 import org.wynnvets.debug.diagnostics.GuildDiagnostics;
 import org.wynnvets.debug.dump.TabDumpHandler;
+import org.wynnvets.debug.retro.RetroDebugCommands;
 import org.wynnvets.util.ConfigValueText;
 import org.wynnvets.util.ConfigValueText.Form;
 import org.wynnvets.util.ConfigValueText.Verb;
@@ -32,9 +33,10 @@ import org.wynnvets.util.ConfigValueText.Verb;
  * {@code /wv} registration in
  * {@link org.wynnvets.commands.CommandRegistry CommandRegistry} needs a
  * single integration point: {@link #buildCommandTree()}. It does not
- * build every node itself: the {@code anni} subtree under {@code tree}
- * comes from
- * {@link org.wynnvets.debug.anni.AnniDebugCommands AnniDebugCommands},
+ * build every node itself: the {@code anni} and {@code retro} subtrees under
+ * {@code tree} come from
+ * {@link org.wynnvets.debug.anni.AnniDebugCommands AnniDebugCommands} and
+ * {@link org.wynnvets.debug.retro.RetroDebugCommands RetroDebugCommands},
  * and several handlers delegate to other classes (for example, the
  * diagnostics dump and the debug toggle go to {@link DiagnosticsHandler}).</p>
  *
@@ -42,7 +44,7 @@ import org.wynnvets.util.ConfigValueText.Verb;
  * The top level is intentionally generic — only the universally-applicable
  * verbs ({@code set} for toggles, {@code trigger} for one-shots, plus the
  * diagnostics-dump default) live there. Feature-specific subsystem trees
- * (e.g. the MWE/anni harness) nest under {@code /wv debug tree …} so they
+ * (the MWE/anni harness, the retro report) nest under {@code /wv debug tree …} so they
  * stay discoverable as siblings but don't crowd the top level.
  *
  * <h3>Subcommands</h3>
@@ -77,7 +79,11 @@ import org.wynnvets.util.ConfigValueText.Verb;
  *       depth + last attempt/ack + the snapshot's current rsvp block (delegated to
  *       {@link org.wynnvets.mwe.anni.network.AnniRsvpClient#debugDump()
  *       AnniRsvpClient#debugDump})</li>
+ *   <li>{@code /wv debug trigger retroDump} — print retro's state to chat (delegated to
+ *       {@link org.wynnvets.debug.retro.RetroDebugCommands#dump() RetroDebugCommands#dump})</li>
  *   <li>{@code /wv debug tree anni …} — MWE/anni subsystem debug tree</li>
+ *   <li>{@code /wv debug tree retro report [ingredients]} — the retro report on the retro pack
+ *       drawn now</li>
  * </ul>
  */
 public final class DebugCommands {
@@ -185,13 +191,17 @@ public final class DebugCommands {
                                                             org.wynnvets.mwe.anni.network
                                                                     .AnniRsvpClient.debugDump();
                                                             return 1;
-                                                        })))
+                                                        }))
+                                .then(
+                                        ClientCommandManager.literal("retroDump")
+                                                .executes(ctx -> RetroDebugCommands.dump())))
                 // Subsystem trees nest under `tree` — they're neither toggles
                 // nor triggers, so they don't belong at the top level alongside
                 // `set` / `trigger`.
                 .then(
                         ClientCommandManager.literal("tree")
-                                .then(AnniDebugCommands.buildCommandTree()));
+                                .then(AnniDebugCommands.buildCommandTree())
+                                .then(RetroDebugCommands.buildCommandTree()));
     }
 
     // ── /wv debug set handlers ──────────────────────────────────────

@@ -1,0 +1,7 @@
+{
+  "parent": "vetsmod:item/retro/template_retro_chest",
+  "textures": {
+    "chest": "vetsmod:block/retro/chest",
+    "particle": "vetsmod:block/retro/chest"
+  }
+}

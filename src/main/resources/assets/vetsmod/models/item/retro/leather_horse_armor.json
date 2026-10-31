@@ -1,0 +1,9 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "vetsmod:item/retro/blank",
+    "layer1": "vetsmod:item/retro/leather_horse_armor_dyed",
+    "layer2": "minecraft:item/leather_horse_armor_overlay",
+    "particle": "vetsmod:item/retro/leather_horse_armor_dyed"
+  }
+}

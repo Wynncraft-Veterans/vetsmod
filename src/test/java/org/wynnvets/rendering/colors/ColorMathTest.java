@@ -5,30 +5,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tests for {@link ColorMath#interpolateRgb} — the one surviving RGB lerp.
+ * Tests for {@link ColorMath}: its channel helpers, luma, strongest channel and interpolation.
  *
- * <p>It replaces the two now-deleted {@code ColorLerpTest} classes, which between them pinned
- * three copies: {@code rendering.colors}' (eight tests over {@code GradientTextBuilder} and
- * {@code AnimatedGradientSequence}, two of them cross-copy equivalence loops) and
- * {@code rendering.nametag}'s (six over {@code NametagAnimator}, a strict subset). The six kept
- * here are the {@code colors} superset; the equivalence loops are not carried over, because
- * with one copy left there is nothing to compare it to.</p>
+ * <p>The interpolation's literals are the point of the class. <b>{@code interpolateRgb} does not
+ * clamp {@code t}</b>: outside {@code [0, 1]} each channel rounds past {@code 0..255} and the
+ * shift-and-or recombination bleeds it into the neighbouring channel or the sign bit. The
+ * out-of-range tests make adding a clamp a loud change.
  *
- * <p>The literals below are the point of the class. <b>{@code interpolateRgb} does not clamp
- * {@code t}</b>: outside {@code [0, 1]} each channel rounds past {@code 0..255} and the
- * shift-and-or recombination bleeds it into the neighbouring channel or the sign bit. That
- * quirk was shared by all three original copies, so a unification that helpfully added a clamp
- * would be a silent behaviour change. The two out-of-range tests are what make it a loud
- * one.</p>
- *
- * <p>NOTE, and it is a harness improvement worth recording: {@link ColorMath} has no
- * supertypes, no static fields and no Minecraft imports, so <b>this class loads zero
- * Minecraft</b>. Neither predecessor could say that. The {@code colors} one dragged in
- * {@code FormattedCharSequence} — {@code AnimatedGradientSequence} implements it, and the JVM
- * loads superinterfaces with the class — and worked only because {@code build.gradle} puts the
- * client runtime classpath on the test source set. (The {@code nametag} one did already
- * load none: {@code NametagAnimator} has no supertypes and its static state is {@code int} and
- * {@code float} constants.)</p>
+ * <p>{@link ColorMath} has no supertypes, no static fields and no Minecraft imports, so this class
+ * loads zero Minecraft.
  */
 class ColorMathTest {
 
@@ -84,5 +69,63 @@ class ColorMathTest {
         // 255 * -0.5 = -127.5 → -127. A negative channel is all-ones in its
         // high bits, so the or-together collapses the whole word.
         assertEquals(0xFFFFFF81, ColorMath.interpolateRgb(BLACK, WHITE, -0.5f));
+    }
+
+    // ----- Double precision -----
+
+    @Test
+    void theDoubleOverloadRoundsLikeTheFloatOneInRange() {
+        assertEquals(0x808080, ColorMath.interpolateRgb(BLACK, WHITE, 0.5));
+        assertEquals(0x283848, ColorMath.interpolateRgb(0x102030, 0x405060, 0.5));
+        assertEquals(WHITE, ColorMath.interpolateRgb(BLACK, WHITE, 1.0));
+    }
+
+    @Test
+    void theDoubleOverloadDoesNotClampEither() {
+        assertEquals(0x017F7F7F, ColorMath.interpolateRgb(BLACK, WHITE, 1.5));
+        assertEquals(0xFFFFFF81, ColorMath.interpolateRgb(BLACK, WHITE, -0.5));
+    }
+
+    @Test
+    void theDoubleOverloadDropsAnAlphaByte() {
+        assertEquals(0x123456, ColorMath.interpolateRgb(0xFF123456, 0xFF123456, 0.25));
+    }
+
+    // ----- Channels -----
+
+    @Test
+    void channelsReadTheirOwnEightBits() {
+        assertEquals(0x80, ColorMath.alpha(0x80123456));
+        assertEquals(0xFF, ColorMath.alpha(0xFF123456), "the sign bit does not spread");
+        assertEquals(0x12, ColorMath.red(0xFF123456));
+        assertEquals(0x34, ColorMath.green(0xFF123456));
+        assertEquals(0x56, ColorMath.blue(0xFF123456));
+        assertEquals(0x34, ColorMath.channel(0xFF123456, 8));
+    }
+
+    @Test
+    void rgbPacksTheChannels() {
+        assertEquals(0x123456, ColorMath.rgb(0x12, 0x34, 0x56));
+    }
+
+    @Test
+    void lumaWeighsTheChannelsAndIgnoresAlpha() {
+        assertEquals(255, ColorMath.luma(0xFFFFFF), 1e-9);
+        assertEquals(0.299 * 255, ColorMath.luma(0xFF0000), 1e-9);
+        assertEquals(0.587 * 255, ColorMath.luma(0x00FF00), 1e-9);
+        assertEquals(0.114 * 255, ColorMath.luma(0x0000FF), 1e-9);
+        assertEquals(ColorMath.luma(0x123456), ColorMath.luma(0x80123456));
+    }
+
+    @Test
+    void theStrongestChannelIsItsShiftOrMinusOneOnATie() {
+        assertEquals(16, ColorMath.strongestChannel(0x804020));
+        assertEquals(8, ColorMath.strongestChannel(0x408020));
+        assertEquals(0, ColorMath.strongestChannel(0x204080));
+        assertEquals(-1, ColorMath.strongestChannel(0x808080), "a grey");
+        assertEquals(-1, ColorMath.strongestChannel(0x808000), "red and green tie");
+        assertEquals(-1, ColorMath.strongestChannel(0x800080), "red and blue tie");
+        assertEquals(-1, ColorMath.strongestChannel(0x008080), "green and blue tie");
+        assertEquals(16, ColorMath.strongestChannel(0xFF800000), "alpha is ignored");
     }
 }

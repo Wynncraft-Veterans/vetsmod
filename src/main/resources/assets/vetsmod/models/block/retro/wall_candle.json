@@ -1,0 +1,7 @@
+{
+  "parent": "vetsmod:block/retro/template_wall_candle",
+  "textures": {
+    "all": "minecraft:block/candle",
+    "particle": "minecraft:block/candle"
+  }
+}

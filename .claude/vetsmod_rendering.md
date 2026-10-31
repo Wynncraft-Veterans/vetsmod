@@ -1,12 +1,12 @@
 ---
 name: vetsmod Rendering System
-description: Non-legacy rendering — territory lines, nametag animator, animated gradient sequence, gradient text builder, shader color palette, and the transferable render-pipeline lessons
+description: Non-legacy rendering — territory lines, nametag animator, animated gradient sequence, gradient text builder, shader color palette, vanilla GUI colours, and the transferable render-pipeline lessons
 type: project
 originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 ---
 # vetsmod Rendering System
 
-Package: [org.wynnvets.rendering](../src/client/java/org/wynnvets/rendering/). 7 files across three sub-packages.
+Package: [org.wynnvets.rendering](../src/client/java/org/wynnvets/rendering/). 8 files across three sub-packages.
 
 ## 1. Territory subpackage
 
@@ -100,25 +100,34 @@ Static utility for static (non-animated) gradient text components.
 ### ColorMath
 [ColorMath](../src/client/java/org/wynnvets/rendering/colors/ColorMath.java)
 
-The mod's one RGB lerp. `public static int interpolateRgb(int startRgb, int endRgb, float t)` —
+Arithmetic on one colour: `channel`, `alpha`, `red`, `green`, `blue`, `rgb`, `luma`, `strongestChannel`, and the mod's one RGB lerp. `public static int interpolateRgb(int startRgb, int endRgb, float t)` —
 each of the three channels interpolated independently, `Math.round` (so the midpoint of
-black→white is `0x808080`, not `0x7F7F7F`), an alpha byte on either input discarded.
+black→white is `0x808080`, not `0x7F7F7F`), an alpha byte on either input discarded. A `double` overload exists for a fraction that is already a double: same contract, different rounding of some values, so neither stands in for the other.
 
-Four call sites: `AnimatedGradientSequence` ×1, `GradientTextBuilder` ×2, `NametagAnimator` ×1.
-It was those three classes' own package-private copies, identical apart from local variable names and how many declarations share a line — `AnimatedGradientSequence` and `NametagAnimator` both packed `int r1 = …, g1 = …, b1 = …;` onto one line where `GradientTextBuilder`, and now `ColorMath`, write three statements.
+Five call sites: `AnimatedGradientSequence` ×1, `GradientTextBuilder` ×2, `NametagAnimator` ×1 on the float overload, `Recolours.ramp` on the double one.
 
 **`t` is not clamped, and that is the contract.** Outside `[0, 1]` a channel rounds past
 `0..255` and the shift-and-or recombination bleeds it into the neighbouring channel or the sign
 bit — `t = 1.5` on black→white gives `0x017F7F7F`, `t = 2` gives `0x01FFFFFE`, `t = -0.5` gives
-`0xFFFFFF81`. All three copies did this; `ColorMathTest` pins the literals so a clamp has to be
+`0xFFFFFF81`. `ColorMathTest` pins the literals so a clamp has to be
 argued rather than tidied in. Every current caller feeds a normalised `t`, so none of it is
 reachable today — which is a property of the callers, not of the method.
 
 **Not a resident:** `NametagAnimator`'s `mixToward`, the `darken` built on it, and the standalone `lighten` — only `darken` delegates; `lighten` unpacks the channels itself and blends toward the literal (255, 225, 255).
 Same weighted average, then a clamp per channel. Folding them in would silently clamp
-`ColorMath`'s four call sites or silently unclamp their four.
+`ColorMath`'s callers or silently unclamp theirs.
 
 No static fields, no supertypes — so no `<clinit>`, and `ColorMathTest` loads zero Minecraft.
+
+### Recolours
+[Recolours](../src/client/java/org/wynnvets/rendering/colors/Recolours.java)
+
+The mod's whole-image recolouring: static factories returning an `IntUnaryOperator` on one `0xAARRGGBB` pixel, which `Pixels.apply` runs over an image. Each keeps alpha and clamps. `multiply`, `tint`, `scale`, `hueOnly` (refuses a `from` with no one strongest channel), `ramp`, `contrast`, and `withOutline(inner, rule)`, whose rule is `Outline.greyBelow(luma)` (any dark pixel turns the grey of its luma) or `Outline.keepNeutralBelow(luma)` (a near-grey dark stays as it is; `outlineCutoff(main)` gives the luma for art of that main colour). No static fields and no Minecraft imports.
+
+### rendering/image
+[Pixels](../src/client/java/org/wynnvets/rendering/image/Pixels.java), [Rect](../src/client/java/org/wynnvets/rendering/image/Rect.java), [PixelDrawing](../src/client/java/org/wynnvets/rendering/image/PixelDrawing.java), [PngCodec](../src/client/java/org/wynnvets/rendering/image/PngCodec.java)
+
+Plain `int` ARGB images, tested without a client. `PixelDrawing` holds the guarded fill, edge, outline, nine-slice and stack; `PngCodec` is the only class that touches `NativeImage` (`decode`), and writes PNGs in plain Java. Nothing here imports `retro`.
 
 ### ShaderColorPalette
 [ShaderColorPalette](../src/client/java/org/wynnvets/rendering/colors/ShaderColorPalette.java)
@@ -136,6 +145,11 @@ Resource-pack shader sentinels (GPU-animated by server pack shader):
 - `BLINK = 0x00F00C` — #e63232 (Wynntils describes the other phase as transparent)
 - `GRADIENT_2 = 0x00F010` — #560505 → #8a0303
 - `SHINE = 0x00F014` — #a3cc52 → #ffffd2
+
+### VanillaGuiColors
+[VanillaGuiColors](../src/client/java/org/wynnvets/rendering/colors/VanillaGuiColors.java)
+
+The vanilla container colours the mod draws in, as opaque ARGB for `GuiGraphics`, read off 1.21.11's `gui/container/inventory.png`: `SLOT_HIGHLIGHT = 0xFFFFFFFF`, a slot's bottom and right edge. A constant has alpha `0xFF`, because `fill` and `drawString` skip a colour whose alpha is 0, so an RGB value where they take ARGB draws nothing; `VanillaGuiColorsTest` pins the alpha. Not `ShaderColorPalette`'s (RGB text colours), and nothing here needs `ColorMath`. Its one user is retro's `RetroSlots`, which draws the accessory slots' edge in it. Constants only, so no `<clinit>`.
 
 ## 4. Marker-colour handoff pattern
 
@@ -164,7 +178,7 @@ The `mwe/anni/` render components — `AnniZoneLineRenderer` (a Gizmos peer of `
 
 Collected while building the `mwe/anni/` render stack; they apply to any new render mixin or per-tick render component, not just to anni. Mixin-authoring constraints and per-mixin injection points live in [vetsmod_mixins.md](vetsmod_mixins.md); Wynntils-side API behaviour lives in [project_wynntils.md](project_wynntils.md).
 
-1. **Wynncraft's resource pack overrides specific vanilla sprites.** `boss_bar/pink_background.png` is fully transparent (so PINK/PROGRESS bars render as text-only HUD strips). Other vanilla GUI sprites *may* be similarly overridden; if a vanilla render component goes unexpectedly invisible, blame the resource pack first. Stick to `{PURPLE, RED, GREEN, YELLOW, BLUE, WHITE}` for any new boss-bar colour and don't assume vanilla sprite paths are intact. Only four of those are exercised today — `VetsBossBarContentBuilder.colorFor` never emits BLUE or WHITE, so treat that pair as untested against the pack and PINK as known-suppressed.
+1. **Wynncraft's resource pack overrides specific vanilla sprites.** `boss_bar/pink_background.png` is fully transparent (so PINK/PROGRESS bars render as text-only HUD strips). Other vanilla GUI sprites *may* be similarly overridden; if a vanilla render component goes unexpectedly invisible, blame the resource pack first. Stick to `{PURPLE, RED, GREEN, YELLOW, BLUE, WHITE}` for any new boss-bar colour and don't assume vanilla sprite paths are intact. Only four of those are exercised today — `VetsBossBarContentBuilder.colorFor` never emits BLUE or WHITE, so treat that pair as untested against the pack and PINK as known-suppressed. Wynncraft blanks most of the HUD's sprites too (hearts, food, armour, air, the experience and jump bars); retro's pack restores the ones its HUD draws, but only while it is live ([vetsmod_retro.md](vetsmod_retro.md) §6).
 
 2. **`isOutlineSuppressionActive()` / `isAggressiveActive()` are the cheap public flags** for "are we doing the anni-active rendering thing right now". Each is a `volatile boolean` — safe to query from render-thread mixins without extra locking. Their freshness differs, and **the difference is a failure mode, not just a write pattern**. `AnniAggressiveTicker.tick` recomputes unconditionally and **fails closed** — its catch assigns `aggressiveActive = false`. `AnniOutlineTicker.tick`'s catch assigns nothing, so on an exception `suppressionActive` **keeps its previous value**: it fails *stale*, not closed, and a tick that throws while the gate is open leaves the mixins believing anni rendering is still on. `tickInner` writes the flag on three paths — the player/level-null branch clears it, a false gate clears it, a true gate sets it — and on none of the other two: an exception, and the `mc == null` early return, which precedes the clearing branch. (The earlier wording here said it writes "only on the paths that reach the gate evaluation", which the player/level-null branch already contradicts.) Expose a parallel flag from any new ticker with its own gate semantics, and decide deliberately which of the two failure modes it should have.
 

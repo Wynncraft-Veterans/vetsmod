@@ -6,7 +6,7 @@ Fabric client mod for the Wynncraft "Returners" veterans guild community. Requir
 
 - **Mod ID:** `vetsmod` | **Version:** see `gradle.properties` (`mod_version`) | **MC:** 1.21.11 | **Java:** 21
 - **Wynntils dependency:** `v4.1.17-fabric` via Modrinth Maven (`modCompileOnly`). `fabric.mod.json` separately declares a runtime floor of `>=4.1.4` — a different number on purpose; don't sync them.
-- Most client code lives under `src/client/`. `src/main/` holds a tiny server stub plus `org.wynnvets.logging.VetsLogger` (shared by both sides), and the client assets, which sit there so they resolve from the main source set: the mod icon and the laurel sheet.
+- Most client code lives under `src/client/`. `src/main/` holds a tiny server stub plus `org.wynnvets.logging.VetsLogger` (shared by both sides), and the client assets, which sit there so they resolve from the main source set: the mod icon, the laurel sheet, and the retro pack's own models and textures under `models/{item,block}/retro` and `textures/{item,block}/retro`.
 - JUnit 5 harness under `src/test/java/`. Run via `./gradlew test` (also runs with `./gradlew build`). This bullet is the single owner of how the harness works — no other doc restates it, and none of them carries a file count. The rules:
   - **Not gated on imports.** `build.gradle` deliberately puts the client compile classpath on the test source set, so tests build real `Component`/`Style`/`HoverEvent` objects. There is no rule against a subject importing `net.minecraft`.
   - **Cannot boot Minecraft**, and Wynntils is `modCompileOnly` so it is absent at test runtime. A class is testable exactly as far as its *exercised path* stays out of both.
@@ -79,19 +79,36 @@ VetsmodClient (entry point)
   │                           the send slot. Visible to staff, executable by chief+
   │                           (17 files, 5 sub-packages)
   ├── rendering/              Territory lines, nametag animator, gradient/colour helpers
+                              (colors/, with Recolours), plain-ARGB pixel images (image/)
   ├── laurels/                Vets laurels on Wynntils' nametag badge bar: the standings model,
   │                           LaurelBadges (the only class touching Wynntils' badge types),
   │                           LaurelCommands (/wv laurels) and the temporary StreakCrawl;
   │                           see vetsmod_laurels.md
   ├── datamodels/             Guild, User, UserUUID, MembershipSnapshot DTOs
   ├── debug/                  /wv debug tree, DebugConfigManager, diagnostics, dumps;
-  │                           debug/anni/, the anni harness (/wv debug tree anni)
+  │                           debug/anni/, the anni harness (/wv debug tree anni);
+  │                           debug/retro/, the retro report (/wv debug tree retro)
+  ├── retro/                  /wv retro: Wynncraft in 2013 Minecraft art. RetroModeManager,
+  │                           LivePack, WynntilsConfigOverrides (the Wynntils settings it
+  │                           switches); retro/manifest/ parses the rule files, retro/rules/
+  │                           decides over them (RetroAssetIds spells every generated id);
+  │                           retro/pack/ (RetroPackInjector, RetroPackResources, PackFiles)
+  │                           inserts a pack above Wynncraft's at each reload and
+  │                           retro/pack/generate/ builds its files from the player's own game
+  │                           files, one GenerationStep each; retro/render/ draws over the
+  │                           screens while it is live (container titles and backgrounds, glass
+  │                           slots, slot values, the attack-speed effect, gear box and tome
+  │                           icons, single stacks and accessories, the HUD);
+  │                           see vetsmod_retro.md
   ├── WynntilsEventListener   WorldStateEvent, GuildEvent, ChatMessageEvent
-  └── Mixins (15)             Chat (3), Legacy items (3), Command (1 — UnlockCommandMixin),
+  └── Mixins (21)             Chat (3), Legacy items (3), Command (1 — UnlockCommandMixin),
+                               Retro (5 — RetroResourceReloadMixin, RetroHoveredSlotMixin,
+                               RetroEffectsInInventoryMixin, RetroContainerBackgroundMixin,
+                               RetroItemModelResolverMixin),
                                top-level (7 — NametagMixin, CommandSuggestionsMixin,
                                QueueTitleMixin, BossHealthOverlayMixin, EntityGlowingMixin,
                                EntityOutlineColorMixin, and LaurelBarMixin in its own
-                               non-required config), accessors (1)
+                               non-required config), accessors (2)
 ```
 
 ## WebSocket protocol
@@ -150,6 +167,8 @@ Managers.Connection.getConnectionState()   // on Wynncraft? gates the v1 sockets
 
 **Internal — vetsmod auth state:** `vetsAuthKey` (string), `vetsAuthTier` (string), `vetsAuthVerifiedAt` (long). The old system's `vetsWaitlistUnlockTime` / `vetsHonouraryUnlockTime` markers are gone; an old `config.json`'s copies are ignored and dropped at the next save.
 
+**Manager-owned, outside `/wv config`:** `vetsAnniMode` (`AnniModeManager`, behind `/wv anni <mode>`) and `retroTextures` (`RetroModeManager`, behind `/wv retro on|off`, which reloads resources). Each is written only through its manager, because a stored value alone would not take effect. [vetsmod_config.md](vetsmod_config.md) §2 has both. Beside `retroTextures`, `retroWynntilsSnapshot` (internal string) holds the Wynntils settings retro switched and the player's values before, written only by `WynntilsConfigOverrides`, and `retroPartsOff` (internal string) the parts of retro turned off, written only by `RetroModeManager.setPartsOff`.
+
 ## Chat pipeline
 
 `ChatLogMixin` (HEAD of vanilla `ChatComponent.addMessage`) runs the rewriter chain in this order: `EncourageUpdateRewriter` → `StaffGuildAlertRewriter` → `StaffChannelMessageRewriter` → `ServerGuildChatRewriter` → `SpoilerRewriter`. First match wins and cancels the vanilla call. Spoiler runs **last** on purpose — lines `ServerGuildChatRewriter` consumes above it (rank remaps, and supporters while glints are shown) are already spoiler-processed there, through `MessageBodyFormatter.formatMessageBody`. `WarningFrameRenderer` (in `chat/`) is not part of this chain: `OutboundDisplayHandler` calls it for server-pushed `warning` frames.
@@ -168,7 +187,7 @@ Rank pills are invisible PUA sequences, not images. A codepoint's meaning is **f
 
 ## Item definitions
 
-`src/client/resources/definitions.yml` — 10 sections: `definitions`, `misc_definitions`, `no_lore_legacy`, `new_format_override`, `unenchanted`, `notjunk`, `not_pedestal`, `blocked_screen_titles`, `inventory_suppressors` (all compiled to regex) plus `enchant_excluded_items`, which is a literal-string set of Minecraft item IDs matched by exact equality. Edit this file to add/change item patterns without touching Java; its header comment describes the format and each section. It is standard YAML, read with SnakeYAML: put a pattern that holds a regex backslash in single quotes, because inside double quotes only YAML's own escapes are legal (the build's tests load the real file, so a bad escape fails them).
+`src/client/resources/definitions.yml` — 10 sections: `definitions`, `misc_definitions`, `no_lore_legacy`, `new_format_override`, `unenchanted`, `notjunk`, `not_pedestal`, `blocked_screen_titles`, `inventory_suppressors` (all compiled to regex) plus `enchant_excluded_items`, which is a literal-string set of Minecraft item IDs matched by exact equality. Edit this file to add/change item patterns without touching Java; its header comment describes the format and each section. It is standard YAML, read with SnakeYAML: put a pattern that holds a regex backslash in single quotes, because inside double quotes only YAML's own escapes are legal (the build's tests load the real file, so a bad escape fails them). The retro textures' rule files, `retro_textures.yml` and `retro_ingredients.yml`, sit beside it and follow the same conventions; [vetsmod_retro.md](vetsmod_retro.md) owns them.
 
 ## Building
 
