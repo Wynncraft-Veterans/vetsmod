@@ -28,6 +28,7 @@ import net.minecraft.client.gui.contextualbar.ContextualBarRenderer;
 import net.minecraft.client.gui.contextualbar.ExperienceBarRenderer;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.LivingEntity;
 import org.wynnvets.listeners.ServerConnectionListener;
 import org.wynnvets.mixin.client.accessors.GuiAccessor;
@@ -284,9 +285,10 @@ public final class RetroHud {
     }
 
     /**
-     * Wynntils' health as hearts, filled from the left, poisoned while Wynntils reads Wynncraft's
-     * corrupted bar from the boss bars. Overhealth colours over them, whether or not they are
-     * poisoned ({@link #overhealthHalves}).
+     * Wynntils' health as hearts, filled from the left, poisoned while the player has vanilla's
+     * poison effect, which Wynncraft sends, or Wynntils reads Wynncraft's corrupted bar from the
+     * boss bars. Overhealth colours over them, whether or not they are poisoned, as vanilla's
+     * absorption hearts stay gold ({@link #overhealthHalves}).
      */
     private static void hearts(GuiGraphics graphics) {
         if (!Models.WorldState.onWorld()) return;
@@ -294,12 +296,14 @@ public final class RetroHud {
         if (health.isEmpty()) return;
         int current = health.get().current();
         int max = health.get().max();
-        boolean corrupted = Models.Ability.corruptedBar.isActive();
+        boolean poisoned =
+                McUtils.player().hasEffect(MobEffects.POISON)
+                        || Models.Ability.corruptedBar.isActive();
         List<Layer> layers = new ArrayList<>();
         layers.add(
                 new Layer(
-                        corrupted ? HEART_POISONED_HALF : HEART_HALF,
-                        corrupted ? HEART_POISONED_FULL : HEART_FULL,
+                        poisoned ? HEART_POISONED_HALF : HEART_HALF,
+                        poisoned ? HEART_POISONED_FULL : HEART_FULL,
                         halves(current, max)));
         int over = overhealthHalves(current, max);
         for (int colour = 0; colour < OVERHEALTH_HALF.size(); colour++) {
