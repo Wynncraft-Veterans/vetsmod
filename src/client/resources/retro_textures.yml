@@ -139,7 +139,7 @@ parts:
     wynntils: ['ItemHighlight']
   # With RetroHud: with it off, Wynncraft's action bar stays whole.
   hud:
-    about: "Vanilla's hearts, food and experience bar for Wynncraft's"
+    about: "Vanilla's hearts, food, armour, air and experience bar for Wynncraft's"
     textures:
       - 'minecraft:gui/sprites/hud/.*'
       - 'minecraft:font/hud/.*'
@@ -337,8 +337,8 @@ aliases:
 
 # Texture pattern: a texture it matches is replaced by the texture of the same id. Most of
 # Wynncraft's own textures have no such source and fall through. Wynncraft's other GUI sprites
-# stay, its other HUD blanks among them (armour, air, a mount's hearts, the attack indicators):
-# retro draws nothing new with them.
+# stay, its other HUD blanks among them (a mount's hearts, the attack indicators): retro draws
+# nothing new with them.
 same_name:
   - 'minecraft:block/.*'
   - 'minecraft:item/.*'
@@ -356,11 +356,14 @@ same_name:
   # The armour slots' own silhouettes, which Wynncraft blanks (it fills an empty armour slot
   # with a placeholder item, which aliases draws as these): shown when a slot is truly empty.
   - 'minecraft:gui/sprites/container/slot/(helmet|chestplate|leggings|boots)'
-  # The HUD retro draws in place of Wynncraft's (RetroHud): hearts for health, food for mana, and
-  # the experience bar, which Wynncraft blanks, and the hotbar, which it repaints under its own
-  # frame. Each beats the automatic keep of a blank.
+  # The HUD retro draws in place of Wynncraft's (RetroHud): hearts for health, food for mana, armour
+  # for sprint and breath, air for the ultimate's charge, and the experience bar, which Wynncraft
+  # blanks, and the hotbar, which it repaints under its own frame. Each beats the automatic keep of
+  # a blank. Retro draws no bursting bubble, but vanilla's air bar does away from Wynncraft.
   - 'minecraft:gui/sprites/hud/heart/(container|half|full|poisoned_half|poisoned_full|withered_half|withered_full)(_blinking)?'
   - 'minecraft:gui/sprites/hud/food_(empty|half|full)'
+  - 'minecraft:gui/sprites/hud/armor_(empty|half|full)'
+  - 'minecraft:gui/sprites/hud/air(_empty|_bursting)?'
   - 'minecraft:gui/sprites/hud/experience_bar_(background|progress)'
   # A mount's jump bar, which takes the experience bar's place while riding, as vanilla's does.
   - 'minecraft:gui/sprites/hud/jump_bar_(background|cooldown|progress)'

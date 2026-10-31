@@ -393,9 +393,9 @@ class ShippedTexturesTest {
 
     @Test
     void theHudRetroDrawsBecomesVanillasOverWynncraftsBlanks() throws IOException {
-        // RetroHud draws vanilla's hearts, food and experience bar, which Wynncraft (pack
-        // a43ae4e6) ships fully transparent, over the vanilla hotbar, which it repaints under its
-        // ornate frame. A same_name copy beats the automatic keep of a blank, and the GUI reads
+        // RetroHud draws vanilla's hearts, food, armour, air and experience bar, which Wynncraft
+        // (pack a43ae4e6) ships fully transparent, over the vanilla hotbar, which it repaints under
+        // its ornate frame. A same_name copy beats the automatic keep of a blank, and the GUI reads
         // vanilla alone.
         TextureRules rules = realTextureRules();
         for (String sprite :
@@ -415,6 +415,12 @@ class ShippedTexturesTest {
                         "hud/food_empty",
                         "hud/food_half",
                         "hud/food_full",
+                        "hud/armor_empty",
+                        "hud/armor_half",
+                        "hud/armor_full",
+                        "hud/air",
+                        "hud/air_empty",
+                        "hud/air_bursting",
                         "hud/experience_bar_background",
                         "hud/experience_bar_progress",
                         "hud/jump_bar_background",
@@ -435,13 +441,11 @@ class ShippedTexturesTest {
 
     @Test
     void wynncraftsOtherGuiSpritesStayItsOwn() throws IOException {
-        // Its other HUD sprites too, which retro draws nothing new with: armour, air, a mount's
-        // hearts, the attack indicators, and the heart and food kinds RetroHud never draws.
+        // Its other HUD sprites too, which retro draws nothing new with: a mount's hearts, the
+        // attack indicators, and the heart and food kinds RetroHud never draws.
         TextureRules rules = realTextureRules();
         for (String sprite :
                 List.of(
-                        "hud/armor_full",
-                        "hud/air",
                         "hud/heart/vehicle_full",
                         "hud/hotbar_attack_indicator_progress",
                         "hud/crosshair_attack_indicator_full",
@@ -728,7 +732,7 @@ class ShippedTexturesTest {
                 "only copper keeps Wynncraft's worn armour");
         assertEquals(
                 new TextureDecision.Keep(KeepReason.TRANSPARENT),
-                rules.decide("minecraft:gui/sprites/hud/armor_full", EVERYTHING_BLANK),
+                rules.decide("minecraft:gui/sprites/hud/heart/vehicle_full", EVERYTHING_BLANK),
                 "a HUD blank retro draws nothing with stays an automatic keep");
     }
 

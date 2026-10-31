@@ -40,7 +40,7 @@ public enum RetroPart {
     GLASS("glass"),
     /** How an item's rarity is marked in its slot. */
     HIGHLIGHTS("highlights"),
-    /** Vanilla's hearts, food and experience bar. */
+    /** Vanilla's hearts, food, armour, air and experience bar. */
     HUD("hud"),
     /** Effect icons and the effects the inventory's list leaves out. */
     EFFECTS("effects"),

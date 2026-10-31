@@ -1,23 +1,30 @@
 package org.wynnvets.retro.render;
 
 import com.wynntils.core.components.Models;
+import com.wynntils.handlers.actionbar.ActionBarSegment;
 import com.wynntils.handlers.actionbar.event.ActionBarRenderEvent;
+import com.wynntils.handlers.actionbar.event.ActionBarUpdatedEvent;
 import com.wynntils.models.characterstats.actionbar.segments.CombatExperienceSegment;
 import com.wynntils.models.characterstats.actionbar.segments.HealthBarSegment;
+import com.wynntils.models.characterstats.actionbar.segments.HealthTextSegment;
 import com.wynntils.models.characterstats.actionbar.segments.HotbarSegment;
 import com.wynntils.models.characterstats.actionbar.segments.LevelSegment;
 import com.wynntils.models.characterstats.actionbar.segments.ManaBarSegment;
+import com.wynntils.models.characterstats.actionbar.segments.ManaTextSegment;
 import com.wynntils.models.characterstats.actionbar.segments.MeterBarSegment;
 import com.wynntils.models.characterstats.actionbar.segments.MeterEdgeAnimationSegment;
 import com.wynntils.models.characterstats.actionbar.segments.MeterTransitionSegment;
 import com.wynntils.models.characterstats.actionbar.segments.ProfessionExperienceSegment;
+import com.wynntils.models.characterstats.actionbar.segments.UltimateReadyActivateSegment;
 import com.wynntils.models.characterstats.actionbar.segments.UltimateReadyTransitionSegment;
 import com.wynntils.models.spells.actionbar.segments.UltimateSegment;
+import com.wynntils.models.spells.type.UltimateInfo;
 import com.wynntils.models.worlds.type.WorldState;
 import com.wynntils.utils.mc.McUtils;
 import com.wynntils.utils.type.CappedValue;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.function.IntPredicate;
@@ -25,19 +32,23 @@ import java.util.function.IntSupplier;
 import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.contextualbar.ContextualBarRenderer;
 import net.minecraft.client.gui.contextualbar.ExperienceBarRenderer;
 import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.Util;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.LivingEntity;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.wynnvets.listeners.ServerConnectionListener;
 import org.wynnvets.mixin.client.accessors.GuiAccessor;
 import org.wynnvets.retro.RetroModeManager;
@@ -62,6 +73,11 @@ import org.wynnvets.retro.rules.RetroAssetIds;
  *   <li>{@link VanillaHudElements#FOOD_BAR}: ten shanks from its mana ({@code getMana()}).</li>
  *   <li>{@link VanillaHudElements#MOUNT_HEALTH}: the same shanks, while the player rides a mount
  *       that has health, when vanilla asks for this in place of food.</li>
+ *   <li>{@link VanillaHudElements#ARMOR_BAR}: ten armour icons above the hearts from Wynncraft's
+ *       sprint or breath meter, filled from the left, while it is not full.</li>
+ *   <li>{@link VanillaHudElements#AIR_BAR}: ten bubbles above the food from the ultimate's charge,
+ *       filled from the right, while Wynncraft shows the ultimate: the last only once it is
+ *       ready.</li>
  *   <li>{@link VanillaHudElements#INFO_BAR}: the experience bar from Wynntils' combat experience
  *       ({@code Models.CombatXp}), when vanilla draws its experience bar this frame
  *       ({@link GuiAccessor}); a mount's jump bar and the locator bar stay vanilla's. Then the
@@ -81,18 +97,20 @@ import org.wynnvets.retro.rules.RetroAssetIds;
  * <p>{@link #hideWynncraftsBars}, for
  * {@link org.wynnvets.listeners.RetroActionBarListener RetroActionBarListener}, takes out of the
  * action bar what Wynncraft draws where these go and the ornate frame round the hotbar, which
- * the vanilla hotbar the pack restores replaces; what it writes there as text, its health and
- * mana numbers and the spell inputs, stays.</p>
+ * the vanilla hotbar the pack restores replaces; the spell inputs stay. Its health and mana
+ * numbers would lie over the armour and bubbles, so they are drawn beside the experience bar
+ * instead, outside the hotbar on each side, in Wynncraft's own glyphs. Wynntils keeps neither
+ * breath nor charge, so {@link #readBar} reads these from the bar ({@link RetroHudReadings}).</p>
  *
  * <p>Retro draws the HUD while the pack is live, its {@code hud} part is on and the game is on
  * Wynncraft ({@link ServerConnectionListener#onWynncraft()}); elsewhere, such as singleplayer with
  * Wynntils' copy of Wynncraft's pack still loaded, vanilla's elements draw vanilla's values with
  * the sprites the pack restored, and with the part off the action bar stays whole and the sprites
- * stay Wynncraft's. A failure, drawing or trimming the action bar, is logged once
+ * stay Wynncraft's. A failure, reading, drawing or trimming the action bar, is logged once
  * and stops retro's HUD for the session: from then on the replaced elements draw nothing and the
  * action bar is left whole, so Wynncraft's HUD returns, drawn over the vanilla hotbar the pack
- * restored. Render thread only; the Wynntils calls run only while drawing, after
- * {@code CLIENT_STARTED}. The values' maths is on plain numbers and is unit-tested; nothing
+ * restored. Render thread only; the Wynntils calls run only while drawing and from the action bar
+ * and world state events, after {@code CLIENT_STARTED}. The values' maths is on plain numbers and is unit-tested; nothing
  * static here touches Wynntils.</p>
  */
 public final class RetroHud {
@@ -108,12 +126,18 @@ public final class RetroHud {
     private static final Identifier FOOD_EMPTY = Identifier.withDefaultNamespace("hud/food_empty");
     private static final Identifier FOOD_HALF = Identifier.withDefaultNamespace("hud/food_half");
     private static final Identifier FOOD_FULL = Identifier.withDefaultNamespace("hud/food_full");
+    private static final Identifier ARMOUR_EMPTY =
+            Identifier.withDefaultNamespace("hud/armor_empty");
+    private static final Identifier ARMOUR_HALF = Identifier.withDefaultNamespace("hud/armor_half");
+    private static final Identifier ARMOUR_FULL = Identifier.withDefaultNamespace("hud/armor_full");
+    private static final Identifier AIR_EMPTY = Identifier.withDefaultNamespace("hud/air_empty");
+    private static final Identifier AIR = Identifier.withDefaultNamespace("hud/air");
     private static final Identifier EXPERIENCE_BACKGROUND =
             Identifier.withDefaultNamespace("hud/experience_bar_background");
     private static final Identifier EXPERIENCE_PROGRESS =
             Identifier.withDefaultNamespace("hud/experience_bar_progress");
 
-    /** The icons in a row of hearts or shanks. */
+    /** The icons in a row. */
     private static final int ICONS = 10;
 
     /** The halves of a full row: vanilla's twenty health or food points. */
@@ -131,10 +155,12 @@ public final class RetroHud {
 
     private static final RetroHeartFlash HEART_FLASH = new RetroHeartFlash();
 
+    private static final RetroHudReadings READINGS = new RetroHudReadings();
+
     /** The corrupted bar Wynntils held when the player last left a world; see {@link #hearts}. */
     private static Object staleCorruptedBar;
 
-    /** The side of a heart or shank. */
+    /** The side of an icon. */
     private static final int ICON_SIZE = 9;
 
     /** From one icon to the next: they overlap by a pixel. */
@@ -145,6 +171,23 @@ public final class RetroHud {
 
     /** How far above the screen's bottom vanilla draws the hearts and food. */
     private static final int ROWS_ABOVE_BOTTOM = 39;
+
+    /** How far above the screen's bottom vanilla draws the armour and air, over the first rows. */
+    private static final int UPPER_ROWS_ABOVE_BOTTOM = 49;
+
+    /**
+     * How far above the screen's bottom the numbers' tops go: by the experience bar, under
+     * Wynntils' overlays beside the hearts and food, and over the offhand slot and attack indicator.
+     */
+    private static final int NUMBERS_ABOVE_BOTTOM = 31;
+
+    /** How far below the height a string is drawn at the numbers' glyphs start: 7 less the ascent. */
+    private static final int NUMBER_GLYPH_DROP = 26;
+
+    /** Between the hotbar's edge and a number. */
+    private static final int NUMBER_GAP = 2;
+
+    private static final int OPAQUE_WHITE = 0xFFFFFFFF;
 
     /** Vanilla's experience fill is its progress times this, one more than the bar's width. */
     private static final int PROGRESS_SCALE = ContextualBarRenderer.WIDTH + 1;
@@ -159,8 +202,31 @@ public final class RetroHud {
                     "[\\x{CFC00}-\\x{CFFFF}](?<digits>(?:[\\x{E000}-\\x{E009}]\\x{CFFFE}?+){1,6})"
                             + "[\\x{CFC00}-\\x{CFFFF}]");
 
+    /**
+     * A run of Wynncraft's health or mana number in the action bar with the spacer on each side,
+     * as Wynntils' {@code AbstractTextSegmentMatcher} takes it ({@link #findNumber}).
+     */
+    private static final Pattern NUMBER_GLYPHS =
+            Pattern.compile(".(?<glyphs>[\\x{E010}-\\x{E01F}\\x{CFFFF}\\x{D0002}]+).");
+
+    /** The number's slash, which no other run in its spacers has. */
+    private static final int NUMBER_SLASH = 0xE01F;
+
     private static final RetroGuard GUARD =
             RetroGuard.stopping("the HUD", "Wynncraft's HUD shows until the game restarts");
+
+    /**
+     * Only the bubbles depend on this read, of a field Wynntils could rename, so failing it leaves
+     * the rest of the HUD drawn.
+     */
+    private static final RetroGuard CHARGE_GUARD =
+            RetroGuard.retrying("reading the ultimate's charge", "no charge in the bubbles");
+
+    /** As {@link #CHARGE_GUARD}: this reads a private map, and the event's own method still works. */
+    private static final RetroGuard ALL_SEGMENTS_GUARD =
+            RetroGuard.retrying(
+                    "taking every segment of a class out of the action bar",
+                    "parts of Wynncraft's badge may show over retro's rows");
 
     private RetroHud() {}
 
@@ -218,10 +284,21 @@ public final class RetroHud {
     }
 
     /**
-     * Replaces vanilla's health, food, mount health, info bar and experience level elements. Call
-     * once, while the client initialises: the replacements touch Wynntils only while drawing.
+     * Replaces vanilla's health, food, mount health, armour, air, info bar and experience level
+     * elements. Call once, while the client initialises: the replacements touch Wynntils only while
+     * drawing.
      */
     public static void register() {
+        HudElementRegistry.replaceElement(
+                VanillaHudElements.ARMOR_BAR,
+                vanilla ->
+                        (graphics, delta) ->
+                                draw(graphics, delta, vanilla, () -> armour(graphics)));
+        HudElementRegistry.replaceElement(
+                VanillaHudElements.AIR_BAR,
+                vanilla ->
+                        (graphics, delta) ->
+                                draw(graphics, delta, vanilla, () -> bubbles(graphics)));
         HudElementRegistry.replaceElement(
                 VanillaHudElements.HEALTH_BAR,
                 vanilla ->
@@ -250,18 +327,32 @@ public final class RetroHud {
      * it: its health and mana bars, the ornate frame round the hotbar, its experience bar (combat,
      * or a profession's while gathering), and the badge above the hotbar's middle, a hexagon with
      * the level in it whose rim shows sprint and breath and which holds the ultimate's charge,
-     * with its animations: the vanilla experience bar and level number go there. The health and
-     * mana numbers and the spell inputs stay, and so does the ultimate's "F" prompt above them.
-     * Wynntils still reads every segment; this only changes what the action bar draws.
-     * {@code setSegmentEnabled} takes out the first segment of each class. The level is a segment
-     * of {@link RetroLevelSegmentMatcher}'s where high mount energy hides it from Wynntils.
+     * with its animations: the vanilla experience bar and level number go there. The spell inputs
+     * stay, and so does the ultimate's "F" prompt above them. The health and mana numbers go too,
+     * but only where {@link #hearts} and {@link #shanks} draw them instead: in a world, and while
+     * vanilla asks for the hearts and food, which it does not of a player who cannot be hurt.
+     * Wynntils still reads every segment; this only changes what the action bar draws. Whatever
+     * the mode, it first notes that a bar arrived, which keeps the readings it draws from fresh.
+     * {@code setSegmentEnabled} takes out the first segment of each class, so the two classes that
+     * several of Wynntils' matchers make, and one bar can hold more than once while the badge
+     * changes to or from the ultimate's, go through {@link #hideAll}. The level and numbers are
+     * segments of {@link RetroLevelSegmentMatcher}'s and {@link RetroNumberSegmentMatcher}'s where
+     * Wynntils' matchers miss them.
      *
      * @param event the action bar about to be drawn
      */
     public static void hideWynncraftsBars(ActionBarRenderEvent event) {
+        READINGS.heard(Util.getMillis());
         if (mode() != Mode.RETRO) return;
         GUARD.run(
                 () -> {
+                    if (numbersMoved()) {
+                        event.setSegmentEnabled(HealthTextSegment.class, false);
+                        event.setSegmentEnabled(ManaTextSegment.class, false);
+                        event.setSegmentEnabled(
+                                RetroNumberSegmentMatcher.HealthSegment.class, false);
+                        event.setSegmentEnabled(RetroNumberSegmentMatcher.ManaSegment.class, false);
+                    }
                     event.setSegmentEnabled(HealthBarSegment.class, false);
                     event.setSegmentEnabled(ManaBarSegment.class, false);
                     event.setSegmentEnabled(HotbarSegment.class, false);
@@ -269,12 +360,129 @@ public final class RetroHud {
                     event.setSegmentEnabled(ProfessionExperienceSegment.class, false);
                     event.setSegmentEnabled(LevelSegment.class, false);
                     event.setSegmentEnabled(RetroLevelSegmentMatcher.Segment.class, false);
-                    event.setSegmentEnabled(MeterBarSegment.class, false);
+                    hideAll(event, MeterBarSegment.class);
                     event.setSegmentEnabled(MeterEdgeAnimationSegment.class, false);
-                    event.setSegmentEnabled(MeterTransitionSegment.class, false);
+                    hideAll(event, MeterTransitionSegment.class);
                     event.setSegmentEnabled(UltimateSegment.class, false);
                     event.setSegmentEnabled(UltimateReadyTransitionSegment.class, false);
                 });
+    }
+
+    /**
+     * Takes every segment of a class out of the action bar, by reflection, since the event's own
+     * method stops at the first. If its map cannot be read, the first still goes.
+     */
+    private static void hideAll(
+            ActionBarRenderEvent event, Class<? extends ActionBarSegment> segment) {
+        event.setSegmentEnabled(segment, false);
+        ALL_SEGMENTS_GUARD.run(
+                () -> {
+                    try {
+                        @SuppressWarnings("unchecked")
+                        Map<ActionBarSegment, Boolean> segments =
+                                (Map<ActionBarSegment, Boolean>)
+                                        FieldUtils.readField(event, "segments", true);
+                        segments.replaceAll(
+                                (candidate, enabled) -> enabled && !segment.isInstance(candidate));
+                    } catch (IllegalAccessException e) {
+                        throw new IllegalStateException(e);
+                    }
+                });
+    }
+
+    /**
+     * Reads what retro draws from the action bar itself. It reads whatever the mode: Wynntils posts
+     * this only when the bar changes, and a player standing still at full health and mana keeps one
+     * bar for as long as they like, which retro then switched on must already have read.
+     *
+     * @param event the action bar, changed
+     */
+    public static void readBar(ActionBarUpdatedEvent event) {
+        GUARD.run(
+                () -> {
+                    if (event.getSegments().isEmpty()) {
+                        READINGS.clear();
+                    } else {
+                        READINGS.update(bar(event));
+                    }
+                });
+    }
+
+    private static RetroHudReadings.Bar bar(ActionBarUpdatedEvent event) {
+        return new RetroHudReadings.Bar(
+                RetroHudReadings.shownMeter(
+                        all(event, MeterBarSegment.class)
+                                .map(meter -> value(meter.getMeterBarInfo().value()))
+                                .toList()),
+                has(event, MeterEdgeAnimationSegment.class)
+                        || has(event, MeterTransitionSegment.class),
+                has(event, UltimateReadyTransitionSegment.class)
+                        || has(event, UltimateReadyActivateSegment.class),
+                first(event, UltimateSegment.class).map(RetroHud::charge).orElse(null),
+                has(event, LevelSegment.class)
+                        || has(event, RetroLevelSegmentMatcher.Segment.class),
+                glyphs(
+                        event,
+                        HealthTextSegment.class,
+                        RetroNumberSegmentMatcher.HealthSegment.class),
+                glyphs(event, ManaTextSegment.class, RetroNumberSegmentMatcher.ManaSegment.class));
+    }
+
+    /** A number's glyphs from Wynntils' segment or else retro's, or {@code null} with neither. */
+    private static String glyphs(
+            ActionBarUpdatedEvent event,
+            Class<? extends ActionBarSegment> wynntils,
+            Class<? extends ActionBarSegment> retro) {
+        return first(event, wynntils)
+                .map(ActionBarSegment::getSegmentText)
+                .or(() -> first(event, retro).map(ActionBarSegment::getSegmentText))
+                .map(RetroHud::numberGlyphs)
+                .orElse(null);
+    }
+
+    private static <T extends ActionBarSegment> Optional<T> first(
+            ActionBarUpdatedEvent event, Class<T> segment) {
+        return all(event, segment).findFirst();
+    }
+
+    private static <T extends ActionBarSegment> Stream<T> all(
+            ActionBarUpdatedEvent event, Class<T> segment) {
+        return event.getSegments().stream().filter(segment::isInstance).map(segment::cast);
+    }
+
+    private static boolean has(
+            ActionBarUpdatedEvent event, Class<? extends ActionBarSegment> segment) {
+        return first(event, segment).isPresent();
+    }
+
+    private static RetroHudReadings.Value value(CappedValue value) {
+        return new RetroHudReadings.Value(value.current(), value.max());
+    }
+
+    /**
+     * The ultimate's charge as Wynntils read it, by reflection, since {@link UltimateSegment} keeps
+     * it in a field with no getter.
+     *
+     * @return the charge, or one with no maximum, which draws no bubbles, if the field cannot be
+     *     read
+     */
+    private static RetroHudReadings.Value charge(UltimateSegment segment) {
+        return CHARGE_GUARD.call(
+                () -> {
+                    try {
+                        return value(
+                                ((UltimateInfo) FieldUtils.readField(segment, "ultimateInfo", true))
+                                        .progress());
+                    } catch (IllegalAccessException e) {
+                        throw new IllegalStateException(e);
+                    }
+                },
+                new RetroHudReadings.Value(0, 0));
+    }
+
+    /** Whether retro draws the numbers, where {@link #hideWynncraftsBars} takes them out. */
+    private static boolean numbersMoved() {
+        return Models.WorldState.onWorld() && McUtils.mc().gameMode.canHurtPlayer();
     }
 
     private static Mode mode() {
@@ -346,6 +554,7 @@ public final class RetroHud {
      * ({@link RetroHeartFlash}), and shake while it is low.
      */
     private static void hearts(GuiGraphics graphics) {
+        healthNumber(graphics);
         Optional<CappedValue> health =
                 Models.WorldState.onWorld() ? Models.CharacterStats.getHealth() : Optional.empty();
         if (health.isEmpty()) {
@@ -380,19 +589,52 @@ public final class RetroHud {
         row(
                 graphics,
                 graphics.guiWidth() / 2 - HALF_HOTBAR,
+                ROWS_ABOVE_BOTTOM,
                 ICON_STEP,
                 flashing ? HEART_CONTAINER_BLINKING : HEART_CONTAINER,
+                true,
                 layers,
                 halves <= SHAKE_HALVES ? shake(tick) : NO_SHAKE);
     }
 
+    /** The health number, outside the hotbar on the hearts' side. */
+    private static void healthNumber(GuiGraphics graphics) {
+        Component number = number(READINGS.healthNumber(Util.getMillis()));
+        if (number == null) return;
+        Font font = McUtils.mc().font;
+        int x = graphics.guiWidth() / 2 - HALF_HOTBAR - NUMBER_GAP - font.width(number);
+        drawNumber(graphics, font, number, x);
+    }
+
+    /** The mana number, outside the hotbar on the food's side. */
+    private static void manaNumber(GuiGraphics graphics) {
+        Component number = number(READINGS.manaNumber(Util.getMillis()));
+        if (number == null) return;
+        int x = graphics.guiWidth() / 2 + HALF_HOTBAR + NUMBER_GAP;
+        drawNumber(graphics, McUtils.mc().font, number, x);
+    }
+
+    /** A number's glyphs in Wynncraft's font, or {@code null} where none is to be drawn. */
+    private static Component number(String glyphs) {
+        if (glyphs == null || !numbersMoved()) return null;
+        return Component.literal(glyphs).withStyle(style -> style.withFont(RetroHudFont.FONT));
+    }
+
+    /** With no shadow: the glyphs carry their own grey edge. */
+    private static void drawNumber(GuiGraphics graphics, Font font, Component number, int x) {
+        int y = graphics.guiHeight() - NUMBERS_ABOVE_BOTTOM - NUMBER_GLYPH_DROP;
+        graphics.drawString(font, number, x, y, OPAQUE_WHITE, false);
+    }
+
     /**
-     * Notes the corrupted bar Wynntils holds whenever the player is not in a world, for
-     * {@link #hearts} to ignore. Wynntils posts this on a disconnect too.
+     * Forgets what was read from the action bar, and notes the corrupted bar Wynntils holds whenever
+     * the player is not in a world, for {@link #hearts} to ignore. Wynntils posts this on a
+     * disconnect too.
      *
      * @param newState the state Wynntils' world state just became
      */
     public static void worldStateChanged(WorldState newState) {
+        READINGS.clear();
         if (newState == WorldState.WORLD) return;
         GUARD.run(() -> staleCorruptedBar = Models.Ability.corruptedBar.getEvent());
     }
@@ -418,18 +660,60 @@ public final class RetroHud {
 
     /** Wynntils' mana as shanks, filled from the right as vanilla's food is. */
     private static void shanks(GuiGraphics graphics) {
+        manaNumber(graphics);
         if (!Models.WorldState.onWorld()) return;
         Optional<CappedValue> mana = Models.CharacterStats.getMana();
         if (mana.isEmpty()) return;
-        int rightmost = graphics.guiWidth() / 2 + HALF_HOTBAR - ICON_SIZE;
         int halves = halves(mana.get().current(), mana.get().max());
         row(
                 graphics,
-                rightmost,
+                rightmostIcon(graphics),
+                ROWS_ABOVE_BOTTOM,
                 -ICON_STEP,
                 FOOD_EMPTY,
+                true,
                 List.of(new Layer(FOOD_HALF, FOOD_FULL, halves)),
                 NO_SHAKE);
+    }
+
+    /** Wynncraft's sprint or breath meter as armour, filled from the left. */
+    private static void armour(GuiGraphics graphics) {
+        if (!Models.WorldState.onWorld()) return;
+        int halves = READINGS.armourHalves(Util.getMillis());
+        if (halves == RetroHudReadings.NO_ROW) return;
+        row(
+                graphics,
+                graphics.guiWidth() / 2 - HALF_HOTBAR,
+                UPPER_ROWS_ABOVE_BOTTOM,
+                ICON_STEP,
+                ARMOUR_EMPTY,
+                true,
+                List.of(new Layer(ARMOUR_HALF, ARMOUR_FULL, halves)),
+                NO_SHAKE);
+    }
+
+    /**
+     * The ultimate's charge as bubbles, filled from the right as vanilla's air is. A bubble is whole
+     * or empty, and its hollow middle would show an empty one's dot, as vanilla's never does.
+     */
+    private static void bubbles(GuiGraphics graphics) {
+        if (!Models.WorldState.onWorld()) return;
+        int bubbles = READINGS.bubbles(Util.getMillis());
+        if (bubbles == RetroHudReadings.NO_ROW) return;
+        row(
+                graphics,
+                rightmostIcon(graphics),
+                UPPER_ROWS_ABOVE_BOTTOM,
+                -ICON_STEP,
+                AIR_EMPTY,
+                false,
+                List.of(new Layer(AIR, AIR, 2 * bubbles)),
+                NO_SHAKE);
+    }
+
+    /** The left edge of the icon that ends level with the hotbar's right edge. */
+    private static int rightmostIcon(GuiGraphics graphics) {
+        return graphics.guiWidth() / 2 + HALF_HOTBAR - ICON_SIZE;
     }
 
     /**
@@ -438,24 +722,31 @@ public final class RetroHud {
      * edge lies over the pixel it shares with its right-hand neighbour.
      *
      * @param first the left edge of the icon filled first
+     * @param aboveBottom how far above the screen's bottom the row's top is
      * @param step from that icon to the next: positive for a row filled from the left, negative
      *     for one filled from the right
+     * @param emptyUnderFill whether a filled icon has the empty sprite under it too
      * @param layers what fills the row, the first drawn first
      * @param shake how far down the next icon drawn goes
      */
     private static void row(
             GuiGraphics graphics,
             int first,
+            int aboveBottom,
             int step,
             Identifier empty,
+            boolean emptyUnderFill,
             List<Layer> layers,
             IntSupplier shake) {
-        int top = graphics.guiHeight() - ROWS_ABOVE_BOTTOM;
+        int top = graphics.guiHeight() - aboveBottom;
         for (int drawn = 0; drawn < ICONS; drawn++) {
             int icon = step > 0 ? ICONS - 1 - drawn : drawn;
             int x = first + icon * step;
             int y = top + shake.getAsInt();
-            graphics.blitSprite(RenderPipelines.GUI_TEXTURED, empty, x, y, ICON_SIZE, ICON_SIZE);
+            if (emptyUnderFill || unfilled(icon, layers)) {
+                graphics.blitSprite(
+                        RenderPipelines.GUI_TEXTURED, empty, x, y, ICON_SIZE, ICON_SIZE);
+            }
             for (Layer layer : layers) {
                 Identifier sprite =
                         switch (fill(icon, layer.halves())) {
@@ -469,6 +760,10 @@ public final class RetroHud {
                 }
             }
         }
+    }
+
+    private static boolean unfilled(int icon, List<Layer> layers) {
+        return layers.stream().allMatch(layer -> fill(icon, layer.halves()) == Fill.EMPTY);
     }
 
     /** Wynntils' combat experience on vanilla's bar, where {@code bar} would draw vanilla's. */
@@ -527,6 +822,58 @@ public final class RetroHud {
             found = level.find(level.start("digits"));
         }
         return Optional.empty();
+    }
+
+    /**
+     * Where Wynncraft's health or mana number is in an action bar's text
+     * ({@link RetroNumberSegmentMatcher}). The two differ by their spacers' signs: health's opens
+     * negative and closes positive, and mana's the reverse.
+     *
+     * @param actionBar the action bar, without formatting
+     * @param inFont whether the character at an index of it is in the number's font
+     * @param health whether to find health's number rather than mana's
+     * @return the first such run with a slash in that font, spacers included, or empty when there
+     *     is none
+     */
+    // Package-private for unit tests. See RetroHudTest.
+    static Optional<MatchResult> findNumber(String actionBar, IntPredicate inFont, boolean health) {
+        Matcher number = NUMBER_GLYPHS.matcher(actionBar);
+        while (number.find()) {
+            String run = number.group();
+            int opening = run.codePointAt(0);
+            int closing = run.codePointBefore(run.length());
+            boolean spacers =
+                    health
+                            ? isNegativeSpacer(opening) && isPositiveSpacer(closing)
+                            : isPositiveSpacer(opening) && isNegativeSpacer(closing);
+            if (spacers
+                    && number.group("glyphs").codePoints().anyMatch(glyph -> glyph == NUMBER_SLASH)
+                    && inFont.test(number.start("glyphs"))) {
+                return Optional.of(number.toMatchResult());
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static boolean isNegativeSpacer(int codePoint) {
+        return codePoint >= 0xCFC00 && codePoint <= 0xCFFFF;
+    }
+
+    private static boolean isPositiveSpacer(int codePoint) {
+        return codePoint >= 0xD0000 && codePoint <= 0xD03FF;
+    }
+
+    /**
+     * A number's glyphs, without the spacer on each side, which place it for Wynncraft's action bar.
+     *
+     * @param segmentText the number's segment, spacers included
+     * @return its glyphs and the spacers between them
+     */
+    // Package-private for unit tests. See RetroHudTest.
+    static String numberGlyphs(String segmentText) {
+        return segmentText.substring(
+                segmentText.offsetByCodePoints(0, 1),
+                segmentText.offsetByCodePoints(segmentText.length(), -1));
     }
 
     /**

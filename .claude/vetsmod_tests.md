@@ -52,7 +52,7 @@ When you add, rename or delete a test, or change what it asserts, update its ent
 - [`org.wynnvets.retro.manifest`](#orgwynnvetsretromanifest) — [`AssetSectionsTest`](#assetsectionstest), [`ManifestParserTest`](#manifestparsertest), [`ModelSectionsTest`](#modelsectionstest), [`PartSectionsTest`](#partsectionstest), [`RetroPartTest`](#retroparttest), [`ScreenSectionsTest`](#screensectionstest), [`ShippedAssetsTest`](#shippedassetstest), [`ShippedEquipmentTest`](#shippedequipmenttest), [`ShippedItemModelsTest`](#shippeditemmodelstest), [`ShippedManifestTest`](#shippedmanifesttest), [`ShippedPartsTest`](#shippedpartstest), [`ShippedPotionsTest`](#shippedpotionstest), [`ShippedScreensTest`](#shippedscreenstest), [`ShippedStacksTest`](#shippedstackstest), [`ShippedTexturesTest`](#shippedtexturestest), [`ShippedVanillaTweaksTest`](#shippedvanillatweakstest), [`StackSectionsTest`](#stacksectionstest), [`TextureSectionsTest`](#texturesectionstest)
 - [`org.wynnvets.retro.pack`](#orgwynnvetsretropack) — [`PackFilesTest`](#packfilestest), [`RetroPackInjectorTest`](#retropackinjectortest), [`RetroPackResourcesTest`](#retropackresourcestest)
 - [`org.wynnvets.retro.pack.generate`](#orgwynnvetsretropackgenerate) — [`DrawnArtTest`](#drawnarttest), [`GenerationStepsTest`](#generationstepstest), [`ModelJsonTest`](#modeljsontest), [`PackOutputTest`](#packoutputtest), [`ProgrammerArtSourcesTest`](#programmerartsourcestest), [`RetroPackGeneratorTest`](#retropackgeneratortest), [`TintFactorsTest`](#tintfactorstest), [`VanillaTweaksPackTest`](#vanillatweakspacktest)
-- [`org.wynnvets.retro.render`](#orgwynnvetsretrorender) — [`IdentityMemoTest`](#identitymemotest), [`RetroAccessoriesTest`](#retroaccessoriestest), [`RetroContainerTitlesTest`](#retrocontainertitlestest), [`RetroGuardTest`](#retroguardtest), [`RetroHeartFlashTest`](#retroheartflashtest), [`RetroHudTest`](#retrohudtest), [`RetroInventoryEffectsTest`](#retroinventoryeffectstest), [`RetroSlotIconsTest`](#retrosloticonstest), [`RetroSlotValuesTest`](#retroslotvaluestest), [`RetroSlotsTest`](#retroslotstest), [`RetroStackModelsTest`](#retrostackmodelstest), [`RetroStacksTest`](#retrostackstest)
+- [`org.wynnvets.retro.render`](#orgwynnvetsretrorender) — [`IdentityMemoTest`](#identitymemotest), [`RetroAccessoriesTest`](#retroaccessoriestest), [`RetroContainerTitlesTest`](#retrocontainertitlestest), [`RetroGuardTest`](#retroguardtest), [`RetroHeartFlashTest`](#retroheartflashtest), [`RetroHudReadingsTest`](#retrohudreadingstest), [`RetroHudTest`](#retrohudtest), [`RetroInventoryEffectsTest`](#retroinventoryeffectstest), [`RetroSlotIconsTest`](#retrosloticonstest), [`RetroSlotValuesTest`](#retroslotvaluestest), [`RetroSlotsTest`](#retroslotstest), [`RetroStackModelsTest`](#retrostackmodelstest), [`RetroStacksTest`](#retrostackstest)
 - [`org.wynnvets.retro.rules`](#orgwynnvetsretrorules) — [`ModelRulesTest`](#modelrulestest), [`PartFilterTest`](#partfiltertest), [`RetroAssetIdsTest`](#retroassetidstest), [`RuleUsageTest`](#ruleusagetest), [`TextureRulesTest`](#texturerulestest)
 - [`org.wynnvets.util`](#orgwynnvetsutil) — [`ConfigValueTextTest`](#configvaluetexttest), [`JsonTest`](#jsontest), [`TickDelaysTest`](#tickdelaystest), [`UuidsTest`](#uuidstest)
 
@@ -4259,12 +4259,12 @@ The shipped texture rows against the client jar: the sources, the aliases, the v
   - `decide(silhouette, EVERYTHING_BLANK)` equals `Copy(silhouette, VANILLA)`: `same_name` wins over Wynncraft's blank.
   - For each of `ring`, `bracelet` and `necklace`: `decide("minecraft:wynn/gui/slot/<accessory>", CLIENT_JAR)` equals `Keep(NO_RULE)`.
   - `decide("minecraft:gui/sprites/container/slot/shield", CLIENT_JAR)` equals `Keep(KEEP_WYNNCRAFT)`.
-- **`theHudRetroDrawsBecomesVanillasOverWynncraftsBlanks`**: `RetroHud` draws vanilla's hearts, food and experience bar and leaves vanilla's jump bar, all of which Wynncraft (pack `a43ae4e6`) ships fully transparent, over the vanilla hotbar, which it repaints under its ornate frame. A `same_name` copy beats the automatic keep of a blank, and the GUI reads vanilla alone.
-  - For each of `hud/heart/container`, `hud/heart/half`, `hud/heart/full`, `hud/food_empty`, `hud/food_half`, `hud/food_full`, `hud/experience_bar_background`, `hud/experience_bar_progress`, `hud/jump_bar_background`, `hud/jump_bar_cooldown`, `hud/jump_bar_progress`, `hud/hotbar`, `hud/hotbar_selection`, `hud/hotbar_offhand_left` and `hud/hotbar_offhand_right` under `minecraft:gui/sprites/`: `textureInClientJar(id)` is true.
+- **`theHudRetroDrawsBecomesVanillasOverWynncraftsBlanks`**: `RetroHud` draws vanilla's hearts, food, armour, air and experience bar and leaves vanilla's jump bar, all of which Wynncraft (pack `a43ae4e6`) ships fully transparent, over the vanilla hotbar, which it repaints under its ornate frame. A `same_name` copy beats the automatic keep of a blank, and the GUI reads vanilla alone.
+  - For each of `hud/heart/container`, `hud/heart/half`, `hud/heart/full`, `hud/heart/poisoned_half`, `hud/heart/poisoned_full`, `hud/heart/container_blinking`, `hud/heart/half_blinking`, `hud/heart/full_blinking`, `hud/heart/poisoned_half_blinking`, `hud/heart/poisoned_full_blinking`, `widget/button`, `widget/button_highlighted`, `hud/food_empty`, `hud/food_half`, `hud/food_full`, `hud/armor_empty`, `hud/armor_half`, `hud/armor_full`, `hud/air`, `hud/air_empty`, `hud/air_bursting`, `hud/experience_bar_background`, `hud/experience_bar_progress`, `hud/jump_bar_background`, `hud/jump_bar_cooldown`, `hud/jump_bar_progress`, `hud/hotbar`, `hud/hotbar_selection`, `hud/hotbar_offhand_left` and `hud/hotbar_offhand_right` under `minecraft:gui/sprites/`: `textureInClientJar(id)` is true.
   - `decide(id, EVERYTHING_BLANK)` equals `Copy(id, VANILLA)`.
   - `decide(id, CLIENT_JAR)` equals `Copy(id, VANILLA)`.
-- **`wynncraftsOtherGuiSpritesStayItsOwn`**: No rule covers its other GUI sprites, its other HUD sprites among them, which retro draws nothing new with: armour, air, a mount's hearts, the attack indicators, and the heart and food kinds `RetroHud` never draws.
-  - For each of `hud/armor_full`, `hud/air`, `hud/heart/vehicle_full`, `hud/hotbar_attack_indicator_progress`, `hud/crosshair_attack_indicator_full`, `hud/heart/frozen_full`, `hud/food_full_hunger`, `container/slot_highlight_back` and `boss_bar/white_background` under `minecraft:gui/sprites/`: `decide(id, CLIENT_JAR)` equals `Keep(NO_RULE)`.
+- **`wynncraftsOtherGuiSpritesStayItsOwn`**: No rule covers its other GUI sprites, its other HUD sprites among them, which retro draws nothing new with: a mount's hearts, the attack indicators, and the heart and food kinds `RetroHud` never draws.
+  - For each of `hud/heart/vehicle_full`, `hud/hotbar_attack_indicator_progress`, `hud/crosshair_attack_indicator_full`, `hud/heart/frozen_full`, `hud/food_full_hunger`, `container/slot_highlight_back` and `boss_bar/white_background` under `minecraft:gui/sprites/`: `decide(id, CLIENT_JAR)` equals `Keep(NO_RULE)`.
 - **`pinnedVariantsBecomeTheirVanillaBlockFromTheClientJar`**: Each pinned variant becomes its vanilla block's texture, and since only vanilla has anything under `CLIENT_JAR`, the target exists in the client jar. The pins include `stone_0` → `stone`, `dirt_top_0` → `dirt`, `grass_top_1` → `grass_block_top`, `pumpkin_bottom` → `pumpkin_top`, `oak_planks_flat` → `oak_planks`, `iron_bars_top` → `iron_bars`, and `piston_bottom`, `piston_inner`, `piston_side_sticky` and `piston_top_sticky` → `piston_top`.
   - For each entry of `PINNED_VARIANTS`: `decide("minecraft:block/variants/<name>", CLIENT_JAR)` equals `Copy("minecraft:block/<block>", VANILLA)`.
 - **`variantsWithNoVanillaBlockKeepWynncraftsTexture`**: Wynncraft's own blocks match no tint or alias, and no source has them by name.
@@ -4300,7 +4300,7 @@ The shipped texture rows against the client jar: the sources, the aliases, the v
   - `decide("minecraft:mob_effect/strength")` equals `Copy("minecraft:mob_effect/strength", PROGRAMMER_ART)`.
   - `decide("minecraft:entity/iron_golem/iron_golem")` equals `Copy("minecraft:entity/iron_golem/iron_golem", PROGRAMMER_ART)`.
   - `decide("minecraft:entity/equipment/humanoid/iron")` equals `Copy` of the same id from `PROGRAMMER_ART`: only copper keeps Wynncraft's worn armour.
-  - `decide("minecraft:gui/sprites/hud/armor_full")` equals `Keep(TRANSPARENT)`.
+  - `decide("minecraft:gui/sprites/hud/heart/vehicle_full")` equals `Keep(TRANSPARENT)`.
 - **`layeredEntitiesAreReplacedWholeOrNotAtAll`**: `decideAll` over eight villager, sheep and wolf textures. Wynncraft ships the villager body and the farmer profession; Programmer Art has the villager body, the sheep body and wool, and the wolf body and collar; vanilla has what the client jar has.
   - `entity/villager/villager` and `entity/villager/profession/farmer` each equal `Copy(<itself>, VANILLA)` (2 assertions): villagers read vanilla whole.
   - `entity/villager/farmer` is not `Keep(LAYER_GROUP)`: Wynncraft's leftover, which vanilla lacks, is no member, so it breaks nothing.
@@ -5001,13 +5001,59 @@ Test: [`RetroHeartFlashTest.java`](../src/test/java/org/wynnvets/retro/render/Re
 - **`theRowFromBeforeAChangeIsKeptForASecondAfterTheLastOne`**: After changes at 500 ms and 1400 ms, `shownHalves()` stays 20 through 2400 ms, exactly a second after the last, and is 12 at 2401 ms.
 - **`aResetForgetsTheRowAndAnyFlash`**: A `reset` mid-flash stops it, and the next `update` starts afresh at its own row, unflashing, even though it is lower.
 
+### `RetroHudReadingsTest`
+
+Test: [`RetroHudReadingsTest.java`](../src/test/java/org/wynnvets/retro/render/RetroHudReadingsTest.java) · Subject: [`RetroHudReadings`](../src/client/java/org/wynnvets/retro/render/RetroHudReadings.java)
+
+`RetroHudReadings` keeps what `RetroHud` last read from the action bar for its armour and bubble rows and the numbers. The suite pins what each bar means for them on plain values, with a bar heard at time 0 unless a test says otherwise.
+
+- **`nothingIsDrawnBeforeABarIsRead`**:
+  - `armourHalves(0)` and `bubbles(0)` equal `NO_ROW`.
+  - `healthNumber(0)` and `manaNumber(0)` are `null`.
+- **`aFullMeterDrawsNoArmourRow`**:
+  - After a 25/25 meter, `armourHalves(0)` equals `NO_ROW`.
+  - After the ultimate rim's 32/32, it equals `NO_ROW` too.
+- **`aMeterBelowFullDrawsItsShareOfTheRow`**:
+  - After 24/25, `armourHalves(0)` equals 19: a step lost takes a half.
+  - After 1/25, it equals 1: never empty while anything is left.
+- **`anEmptyMeterDrawsAnEmptyRow`**: After 0/0, Wynncraft's empty rim, `armourHalves(0)` equals 0, not `NO_ROW`.
+- **`theMeterHoldsThroughItsAnimationButNotOtherwise`**: From 24/25.
+  - After an animation frame, `armourHalves(0)` equals 19.
+  - After a bar with neither meter nor animation, it equals `NO_ROW`.
+- **`aRimWithAValueBeatsTheEmptyGlyphBesideIt`**: `shownMeter`, for a bar holding both badges' rims.
+  - `[0/0, 20/32]` gives 20/32, and `[32/32, 0/0]` gives 32/32: the empty glyph loses in either order.
+  - `[25/25, 20/32]` gives 20/32: otherwise the emptiest.
+  - `[0/0]` gives 0/0, and an empty list `null`.
+- **`chargeFillsBubblesRoundedDownButAtLeastOne`**: Out of 22, `bubbles(0)` equals 0 at frame 0, 1 at frame 1, 5 at frame 11 and 9 at frame 21, which is not yet ready.
+- **`onlyAReadyUltimateFillsTheRowEvenOverItsLastFrame`**: After a ready bar that also has frame 21, `bubbles(0)` equals `BUBBLES`.
+- **`aChargeWithNoMaximumDrawsNoBubbles`**: After 0/0, Wynntils' empty `UltimateInfo`, `bubbles(0)` equals `NO_ROW`.
+- **`aChargeThatCannotBeReadEmptiesARowThatWasReady`**: After a ready bar then a 0/0 charge, what `RetroHud` passes when it cannot read one, `bubbles(0)` equals `NO_ROW`, not ten through a recharge.
+- **`theLevelTakesTheBubblesAwayAndOtherFramesHoldThem`**: From frame 11.
+  - After a bar with neither charge nor level, `bubbles(0)` equals 5.
+  - After a bar with the level, it equals `NO_ROW`.
+- **`aBarWithoutANumberTakesItAway`**:
+  - After a bar with both, `healthNumber(0)` equals `"health"` and `manaNumber(0)` `"mana"`.
+  - After a bar with only mana's, `healthNumber(0)` is `null` and `manaNumber(0)` still `"mana"`.
+- **`clearForgetsEverythingUntilABarIsHeardAgain`**: After `clear` and a new `heard(0)`, `armourHalves(0)` and `bubbles(0)` equal `NO_ROW`, and `healthNumber(0)` and `manaNumber(0)` are `null`.
+- **`readingsDropOutOnceNoBarHasArrivedForABarsLife`**:
+  - At `BAR_LIFE_MILLIS`, `armourHalves` equals 19, `bubbles` 5, `healthNumber` `"h"` and `manaNumber` `"m"`.
+  - A millisecond later, both rows equal `NO_ROW` and both numbers are `null`.
+  - After `heard` at that time, with no new `update`, `armourHalves` equals 19.
+
 ### `RetroHudTest`
 
 Test: [`RetroHudTest.java`](../src/test/java/org/wynnvets/retro/render/RetroHudTest.java) · Subject: [`RetroHud`](../src/client/java/org/wynnvets/retro/render/RetroHud.java)
 
-`RetroHud` draws vanilla's hearts, food, experience bar and level number from Wynntils' health, mana and combat experience while the retro pack is live on Wynncraft. The suite pins its maths on plain numbers, through the package-private `halves(current, max)` (the halves of a row of ten hearts or shanks a value fills, out of `HALVES`, 20), `fill(icon, halves)` (whether one icon is `Fill.EMPTY`, `HALF` or `FULL`) and `progressWidth(current, max)` (the experience bar's fill in pixels), and `findLevel(actionBar, inLevelFont)` (where Wynncraft's level is in the action bar's text, for `RetroLevelSegmentMatcher`, which is not tested as it needs Wynntils). Drawing, the action bar and the mode need a running client and Wynntils' models, and are not tested; the class's static fields are sprite `Identifier`s and a flag, so loading it builds no Wynntils object.
+`RetroHud` draws vanilla's hearts, food, armour, air, experience bar and level number from Wynntils' health, mana and combat experience and from the action bar while the retro pack is live on Wynncraft. The suite pins its maths on plain numbers, through the package-private `halves(current, max)` (the halves of a row of ten hearts or shanks a value fills, out of `HALVES`, 20), `fill(icon, halves)` (whether one icon is `Fill.EMPTY`, `HALF` or `FULL`) and `progressWidth(current, max)` (the experience bar's fill in pixels), `findLevel(actionBar, inLevelFont)` (where Wynncraft's level is in the action bar's text, for `RetroLevelSegmentMatcher`), and `findNumber(actionBar, inFont, health)` and `numberGlyphs(segmentText)` (where a health or mana number is, for `RetroNumberSegmentMatcher`, and its glyphs); the matchers are not tested as they need Wynntils. Drawing, the action bar and the mode need a running client and Wynntils' models, and are not tested; the class's static fields are sprite `Identifier`s, patterns, plain holders (`RetroHeartFlash`, `RetroHudReadings`) and guards, so loading it builds no Wynntils object.
 
 - **`onlyABarFromSinceTheLastWorldCounts`**: `isCurrentBar(bar, stale)` is false for no bar and for the bar a disconnect left behind, and true for a new bar, with or without one left behind.
+- **`eachNumberIsFoundInItsOwnSpacers`**: Health's number, a character, then mana's.
+  - `findNumber(bar, all, true).group()` equals health's number.
+  - `findNumber(bar, all, false)`: `group()` equals mana's number, `start()` is health's length plus 1, and `end()` the bar's length.
+- **`mountEnergyBeforeTheManaNumberIsPassedOver`**: The energy glyph Wynntils' mana matcher gives up on, right before the number. `group()` equals mana's number.
+- **`aDecimalNumberIsFoundThoughWynntilsCannotParseIt`**: A value with a decimal point and a `k`. `group()` equals the whole run.
+- **`nothingElseIsTakenForANumber`**: `findNumber` is empty for the energy glyph alone (no slash), for mana's number sought as health's and health's as mana's, for one in no index of the font, for glyphs with no spacers, and for an empty string.
+- **`aNumbersGlyphsLoseOnlyTheOuterSpacers`**: `numberGlyphs(mana's number)` equals its glyphs with the spacers between them.
 - **`theLevelIsFoundInItsSpacers`**: Level 120 with a character on either side.
   - `group()` equals the level with its spacers; `start()` is 1 and `end()` is 1 plus its length.
 - **`highMountEnergyBeforeTheLevelIsPassedOver`**: The energy glyph at the digit 0's code point, in its own spacers, right before the level.

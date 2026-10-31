@@ -11,10 +11,10 @@ import org.wynnvets.retro.render.RetroHud.Fill;
 
 /**
  * Tests for {@link RetroHud}'s logic on plain values: how much of a row of hearts or shanks a value
- * fills, how full each icon is, how wide the experience bar's fill is, and where the level is in
- * the action bar's text. Drawing needs a running client and Wynntils' models, and is not tested;
- * the class's static fields are sprite ids, a pattern and a flag, so loading it builds no Wynntils
- * object.
+ * fills, how full each icon is, how wide the experience bar's fill is, and where the level and
+ * numbers are in the action bar's text. Drawing needs a running client and Wynntils' models, and is
+ * not tested; the class's static fields are sprite ids, patterns, plain holders and guards, so
+ * loading it builds no Wynntils object.
  */
 class RetroHudTest {
 
@@ -44,6 +44,72 @@ class RetroHudTest {
 
     private static String glyphs(int... codePoints) {
         return new String(codePoints, 0, codePoints.length);
+    }
+
+    /** Health 12/34: digits a negative spacer apart, the slash two wide, as Wynncraft sends it. */
+    private static final String HEALTH_12_OF_34 =
+            glyphs(
+                    0xCFFC0, 0xE011, 0xCFFFF, 0xE012, 0xD0002, 0xE01F, 0xD0002, 0xE013, 0xCFFFF,
+                    0xE014, 0xD0020);
+
+    /** Mana 5/6, in the opposite spacers to health's. */
+    private static final String MANA_5_OF_6 =
+            glyphs(0xD0020, 0xE015, 0xD0002, 0xE01F, 0xD0002, 0xE016, 0xCFFC0);
+
+    /** Mount energy that Wynntils' mana matcher takes for the number and gives up on. */
+    private static final String MIDDLE_ENERGY = glyphs(0xD0008, 0xE015, 0xCFFE7);
+
+    @Test
+    void eachNumberIsFoundInItsOwnSpacers() {
+        String bar = HEALTH_12_OF_34 + "x" + MANA_5_OF_6;
+        assertEquals(
+                HEALTH_12_OF_34,
+                RetroHud.findNumber(bar, ALL_IN_LEVEL_FONT, true).orElseThrow().group());
+        MatchResult mana = RetroHud.findNumber(bar, ALL_IN_LEVEL_FONT, false).orElseThrow();
+        assertEquals(MANA_5_OF_6, mana.group());
+        assertEquals(HEALTH_12_OF_34.length() + 1, mana.start());
+        assertEquals(bar.length(), mana.end());
+    }
+
+    @Test
+    void mountEnergyBeforeTheManaNumberIsPassedOver() {
+        String bar = MIDDLE_ENERGY + MANA_5_OF_6;
+        assertEquals(
+                MANA_5_OF_6,
+                RetroHud.findNumber(bar, ALL_IN_LEVEL_FONT, false).orElseThrow().group());
+    }
+
+    @Test
+    void aDecimalNumberIsFoundThoughWynntilsCannotParseIt() {
+        String decimal = glyphs(0xCFFC0, 0xE011, 0xE01E, 0xE012, 0xE01A, 0xE01F, 0xE013, 0xD0020);
+        assertEquals(
+                decimal,
+                RetroHud.findNumber(decimal, ALL_IN_LEVEL_FONT, true).orElseThrow().group());
+    }
+
+    @Test
+    void nothingElseIsTakenForANumber() {
+        assertTrue(
+                RetroHud.findNumber(MIDDLE_ENERGY, ALL_IN_LEVEL_FONT, false).isEmpty(), "no slash");
+        assertTrue(
+                RetroHud.findNumber(MANA_5_OF_6, ALL_IN_LEVEL_FONT, true).isEmpty(),
+                "mana's signs");
+        assertTrue(RetroHud.findNumber(HEALTH_12_OF_34, ALL_IN_LEVEL_FONT, false).isEmpty());
+        assertTrue(
+                RetroHud.findNumber(HEALTH_12_OF_34, index -> false, true).isEmpty(), "other font");
+        assertTrue(
+                RetroHud.findNumber(
+                                glyphs('a', 0xE011, 0xE01F, 0xE012, 'b'), ALL_IN_LEVEL_FONT, true)
+                        .isEmpty(),
+                "no spacers");
+        assertTrue(RetroHud.findNumber("", ALL_IN_LEVEL_FONT, true).isEmpty());
+    }
+
+    @Test
+    void aNumbersGlyphsLoseOnlyTheOuterSpacers() {
+        assertEquals(
+                glyphs(0xE015, 0xD0002, 0xE01F, 0xD0002, 0xE016),
+                RetroHud.numberGlyphs(MANA_5_OF_6));
     }
 
     @Test

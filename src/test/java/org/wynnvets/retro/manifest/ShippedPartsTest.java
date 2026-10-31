@@ -106,6 +106,8 @@ class ShippedPartsTest {
                     entry("minecraft:gui/sprites/tooltip/background", RetroPart.TOOLTIPS),
                     entry("minecraft:gui/sprites/tooltip/unique_frame", RetroPart.TOOLTIPS),
                     entry("minecraft:gui/sprites/hud/heart/full", RetroPart.HUD),
+                    entry("minecraft:gui/sprites/hud/armor_full", RetroPart.HUD),
+                    entry("minecraft:gui/sprites/hud/air", RetroPart.HUD),
                     entry("minecraft:gui/sprites/hud/hotbar", RetroPart.HUD));
 
     private static PartSections rows() throws IOException {
