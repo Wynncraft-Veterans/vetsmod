@@ -611,7 +611,6 @@ class ShippedItemModelsTest {
         assertEquals(
                 Optional.of("vetsmod:item/retro/accessory/necklace_netherite"),
                 rules.ingredientParent("burial_talisman"));
-        assertEquals(Optional.of("minecraft:item/rabbit_hide"), rules.ingredientParent("fox_coat"));
         assertEquals(
                 rules.itemStub("minecraft:item/wynn/ingredient/liff_leaf").orElseThrow(),
                 rules.modelStub("minecraft:item/wynn/ingredient/liff_leaf").orElseThrow(),

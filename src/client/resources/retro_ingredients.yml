@@ -11,8 +11,8 @@
 #   Ingredient stacks carry a white tint, so the model shows as it is.
 # - A stem with no row falls to potions and then item_models in retro_textures.yml, and with no
 #   row there keeps Wynncraft's model too. Almost all of those already parent a vanilla item or
-#   block model, whose textures the retro pack replaces by name (same_name). The rows below cover
-#   the stems whose model parents neither.
+#   block model, whose textures the retro pack replaces by name (same_name). The rows below are
+#   for stems whose model parents neither.
 # - Each stem appears once (a repeat fails the build). Quote every value, and a stem YAML could
 #   read as a number.
 # - Where the 2013 icon differs from the item Wynncraft uses today, the row names the 2013 one:
@@ -28,13 +28,10 @@ ingredients:
   penguin_egg: 'minecraft:item/egg'
   # Wynncraft's water powder art; the legacy icon is light blue dye (351:12).
   rocky_spirit: 'minecraft:item/light_blue_dye'
-  # Wynncraft's sorghum art, on a coat: a rabbit hide instead.
-  fox_coat: 'minecraft:item/rabbit_hide'
   # Wynncraft's armour models. item_models already stubs those; the rows keep the icon from
-  # depending on it. The parka's is leather, drawn here as chainmail.
+  # depending on it.
   gilded_regalia: 'minecraft:item/golden_chestplate'
   winged_helmet: 'minecraft:item/iron_helmet'
-  warm_parka: 'minecraft:item/chainmail_chestplate'
   # Wynncraft's wings on a head model: the elytra.
   cursed_wings: 'minecraft:item/elytra'
   # The accessories' legacy icons (259:n, 278:n) were damage values that only selected Wynncraft's

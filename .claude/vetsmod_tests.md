@@ -4094,7 +4094,7 @@ The shipped item model rows and tables against the client jar and vetsmod's own 
   - `ingredientParent("rocky_spirit")` equals `Optional.of("minecraft:item/light_blue_dye")`: legacy `351:12`, and Wynncraft's model parents its own powder art.
   - `ingredientParent("gilded_regalia")` equals `Optional.of("minecraft:item/golden_chestplate")`.
   - `ingredientParent("cursed_wings")` equals `Optional.of("minecraft:item/elytra")`.
-  - `burial_talisman` gives `vetsmod:item/retro/accessory/necklace_netherite`, and `fox_coat` `minecraft:item/rabbit_hide`.
+  - `burial_talisman` gives `vetsmod:item/retro/accessory/necklace_netherite`.
   - `liff_leaf`, with no row of its own, has its `item_models` stub from `modelStub`.
   - For each of `butterfly_buckler` and `router_shield`: `ingredientParent` equals `Optional.empty()`.
 - **`everyPlantIngredientFallsThroughToItsGreenCopy`**: Twenty-six plant ingredients have no row in `retro_ingredients.yml`, so `item_models` draws each on its green copy.
