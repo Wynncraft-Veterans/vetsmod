@@ -96,6 +96,7 @@ class ShippedScreensTest {
                         fill(Set.of(), Set.of(), Set.of(8), false, false, Set.of()),
                         fill(Set.of(), Set.of(), Set.of(), true, false, Set.of()),
                         fill(Set.of(), Set.of(0, 1), Set.of(), false, false, Set.of()),
+                        fill(Set.of(), Set.of(0, 1, 7, 8), Set.of(), false, false, Set.of()),
                         fill(Set.of(), Set.of(1), Set.of(), false, false, Set.of()),
                         fill(Set.of(), Set.of(), Set.of(), false, true, Set.of(11, 12, 13, 14, 15)),
                         fill(Set.of(0), Set.of(0, 8), Set.of(), false, false, Set.of()),
@@ -119,23 +120,24 @@ class ShippedScreensTest {
                         "TradeMarketRevealItemsContainer",
                         "(Blacksmith(Repair|Sell)|ItemIdentifier(Augments)?)Container",
                         "GuildBankContainer",
+                        "GuildManagementContainer",
                         "MountFeederContainer",
                         "CharacterInfoContainer"),
-                fills.subList(1, 10).stream()
+                fills.subList(1, 11).stream()
                         .map(fill -> ((SlotFill.ContainerSlots) fill).containers().pattern())
                         .toList());
-        assertEquals("Merchant", ((SlotFill.ContainerSlots) fills.get(10)).titles().pattern());
-        assertEquals("Item Pedestal", ((SlotFill.ContainerSlots) fills.get(11)).titles().pattern());
+        assertEquals("Merchant", ((SlotFill.ContainerSlots) fills.get(11)).titles().pattern());
+        assertEquals("Item Pedestal", ((SlotFill.ContainerSlots) fills.get(12)).titles().pattern());
         assertEquals(
                 "Housing Islands|Powder Master.*",
-                ((SlotFill.ContainerSlots) fills.get(12)).titles().pattern());
+                ((SlotFill.ContainerSlots) fills.get(13)).titles().pattern());
         assertEquals(
-                "Party Finder: .*", ((SlotFill.ContainerSlots) fills.get(13)).titles().pattern());
+                "Party Finder: .*", ((SlotFill.ContainerSlots) fills.get(14)).titles().pattern());
         assertEquals(
                 "CraftingStationContainer",
-                ((SlotFill.ContainerSlots) fills.get(14)).containers().pattern());
-        assertEquals("\\S+ {4,}\\S+", ((SlotFill.ContainerSlots) fills.get(15)).titles().pattern());
-        assertEquals(".*", ((SlotFill.ContainerSlots) fills.get(16)).titles().pattern());
+                ((SlotFill.ContainerSlots) fills.get(15)).containers().pattern());
+        assertEquals("\\S+ {4,}\\S+", ((SlotFill.ContainerSlots) fills.get(16)).titles().pattern());
+        assertEquals(".*", ((SlotFill.ContainerSlots) fills.get(17)).titles().pattern());
     }
 
     @Test
@@ -153,6 +155,7 @@ class ShippedScreensTest {
                         "ItemIdentifierContainer",
                         "ItemIdentifierAugmentsContainer",
                         "GuildBankContainer",
+                        "GuildManagementContainer",
                         "MountFeederContainer",
                         "CharacterInfoContainer",
                         "CraftingStationContainer",

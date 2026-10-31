@@ -1104,6 +1104,8 @@ slot_fills:
   - {container: '(Blacksmith(Repair|Sell)|ItemIdentifier(Augments)?)Container', slots: outside_bounds}
   # The guild bank's buttons are its two left columns; the rest is storage.
   - {container: 'GuildBankContainer', cols: [0, 1]}
+  # The guild's management screen: its middle holds the buttons, on plain slots.
+  - {container: 'GuildManagementContainer', cols: [0, 1, 7, 8]}
   # The Mount Feeder's second column only divides its mount's slots from its food's.
   - {container: 'MountFeederContainer', cols: [1]}
   # Character Info's skill point books, the one thing on it that is spent, are plain slots.

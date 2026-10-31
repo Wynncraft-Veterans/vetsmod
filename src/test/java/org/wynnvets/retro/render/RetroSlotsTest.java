@@ -339,6 +339,11 @@ class RetroSlotsTest {
                 RetroSlots.containerSlots(fills, "GuildBankContainer", "Guild Bank", 45, null),
                 "the two left columns; the rest is storage");
         assertEquals(
+                Set.of(0, 1, 7, 8, 9, 10, 16, 17, 18, 19, 25, 26),
+                RetroSlots.containerSlots(
+                        fills, "GuildManagementContainer", "Returners: Manage", 27, null),
+                "the two columns each side; the middle's buttons are on plain slots");
+        assertEquals(
                 Set.of(1, 10, 19, 28, 37),
                 RetroSlots.containerSlots(fills, "MountFeederContainer", "Mount Feeder", 45, null),
                 "the column between the mount's slots and the food's");
