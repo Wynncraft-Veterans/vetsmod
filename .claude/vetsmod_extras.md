@@ -45,11 +45,11 @@ The glass follows the usual way sudoku apps colour cells, by what a cell is show
 | `PEER` | A blank in the selected cell's row, column or box | White |
 | `EMPTY` | Any other blank | Light gray |
 
-The left page has `renderTitle`, then the difficulty, time and status, the rules and controls, and the wait until the next puzzle, each wrapped by `FontRenderer.renderAlignedTextInBox` and stacked by `calculateRenderHeight`. The wait is worked out on the client: the next puzzle comes at 04:00 in `America/Halifax` on the day after the board's. The server dates its very first puzzle a day ahead so that it stays up through the next rollover, which this reads correctly. An earlier day's board has no difficulty line: the fetch only names the current puzzle's.
+The left page has `renderTitle`, then the difficulty, time and status, the rules and controls, and the wait until the next puzzle, with its readings in dark red and the rules and wait in dark gray, each wrapped by `FontRenderer.renderAlignedTextInBox` and stacked by `calculateRenderHeight`. The wait is worked out on the client: the next puzzle comes at 04:00 in `America/Halifax` on the day after the board's. The server dates its very first puzzle a day ahead so that it stays up through the next rollover, which this reads correctly. An earlier day's board has no difficulty line: the fetch only names the current puzzle's.
 
-The bottom ribbon holds the puzzle's number, the days since the first puzzle's day (`SudokuBoard.FIRST_DAY`, 2026-11-02) plus one, then the player's streak, or "Unlinked" when `SendState` is `NEVER`. The streak comes from the last reply: a new board carries on the streak of the day before its own and starts at 0 otherwise, so it can read one lower than the server's until today's result goes out.
+The bottom ribbon holds the puzzle's number, the days since the first puzzle's day (`SudokuBoard.FIRST_DAY`, 2026-11-02) plus one, then the player's streak, or "Unlinked" when `SendState` is `NEVER`. The streak comes from the last reply: a new board carries on the streak of the day before its own, or of the puzzle it replaced less that puzzle's result, and starts at 0 otherwise, so it can read one lower than the server's until today's result goes out.
 
-Clicking selects a cell, a given included, so its matching digits light up; a grid line and a solved board do not. Setting a given does nothing. Number keys (both rows) set the selected cell, Backspace and Delete clear it, and every other key falls through to Wynntils and vanilla, so Esc closes the book. There are no arrow keys and no pencil marks, which is why the server leaves out its hardest level.
+Clicking selects a cell, a given included, so its matching digits light up; a grid line and a solved board do not. Setting a given does nothing. Number keys (both rows) set the selected cell, Backspace and Delete clear it, and every other key falls through to Wynntils and vanilla, so Esc closes the book. Control with a number key adds or removes a pencil mark on a blank. Not Shift, which Windows hides from the number pad while Num Lock is on. Marks draw at half size, each in its digit's place in a three-by-three grid, and stamp no time. A digit replaces the cell's marks, Backspace on a blank clears them, and a digit set elsewhere leaves other cells' marks alone. There are no arrow keys.
 
 ### Timer
 
@@ -57,14 +57,14 @@ Active time is real time while the screen is current, by `System.nanoTime`. It s
 
 ### Stored board
 
-`sudokuProgress` holds `{day, cells, fills, activeMs, solved, submitted, rank, streak}`, like `retroWynntilsSnapshot` a JSON string in the config rather than a file of its own. It is saved on every cell change and in `removed()`. A cell with a digit and no time is a given, so a stored board needs no copy of its puzzle. Text that is not a board this class could have written is logged and treated as none.
+`sudokuProgress` holds `{day, cells, fills, activeMs, solved, submitted, rank, streak, notes}`, like `retroWynntilsSnapshot` a JSON string in the config rather than a file of its own. It is saved on every cell change and in `removed()`. A cell with a digit and no time is a given, so a stored board needs no copy of its puzzle, which also shows when staff have replaced the day's puzzle: the same day with other digits starts a fresh board. An open board of the replaced puzzle gets the server's refusal when it is solved. `notes` holds each blank's pencil marks as bits 1 to 9, and a board stored without it has none. Text that is not a board this class could have written is logged and treated as none.
 
 | Event | What happens |
 |---|---|
 | Esc, restart, world change, or a server menu opens | The time is banked, and the same command resumes. Nothing reopens by itself |
 | Rollover with the screen open | The board keeps its `day` and submits it; the server says if that day has closed |
 | Reopen with a solved, unsent board and an authenticated session | It is sent first (Opening, step 1) |
-| Reopen with today's board | It carries on, or shows finished with its time. A stored day whose givens differ from the puzzle's is dropped |
+| Reopen with today's board | It carries on, or shows finished with its time. |
 | Reopen with an older unsent board that can still go out | It stays on screen, finished, until it goes out or the server closes it. There is one stored slot, and a new board would overwrite it |
 | Reopen with any other older board | It is dropped and a new one starts |
 

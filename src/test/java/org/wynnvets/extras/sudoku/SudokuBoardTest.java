@@ -205,6 +205,132 @@ class SudokuBoardTest {
         assertEquals(SOLUTION, board.grid());
     }
 
+    // ── Pencil marks ─────────────────────────────────────────────────────
+
+    @Test
+    void toggleNote_marksAndUnmarksABlank() {
+        SudokuBoard board = SudokuBoard.fresh(DAY, GIVENS);
+        assertTrue(board.toggleNote(2, 4));
+        assertTrue(board.toggleNote(2, 9));
+        assertTrue(board.hasNote(2, 4));
+        assertTrue(board.hasNote(2, 9));
+        assertFalse(board.hasNote(2, 5));
+
+        assertTrue(board.toggleNote(2, 4));
+        assertFalse(board.hasNote(2, 4));
+        assertTrue(board.hasNote(2, 9));
+    }
+
+    @Test
+    void toggleNote_stampsNoTimeAndLeavesTheCellBlank() {
+        SudokuBoard board = SudokuBoard.fresh(DAY, GIVENS);
+        board.setActiveMs(9000);
+        board.toggleNote(2, 4);
+        assertEquals(0, board.cell(2));
+        assertEquals(0, board.fill(2));
+        assertEquals(0, board.seconds());
+    }
+
+    @Test
+    void toggleNote_ignoresAGivenAnEntryAndASolvedBoard() {
+        SudokuBoard board = SudokuBoard.fresh(DAY, GIVENS);
+        board.set(2, 4);
+        assertFalse(board.toggleNote(0, 1));
+        assertFalse(board.toggleNote(2, 1));
+        assertFalse(board.hasNote(0, 1));
+        assertFalse(board.hasNote(2, 1));
+        assertFalse(solved().toggleNote(0, 1));
+    }
+
+    @Test
+    void settingADigit_clearsTheCellsNotes() {
+        SudokuBoard board = SudokuBoard.fresh(DAY, GIVENS);
+        board.toggleNote(2, 4);
+        board.toggleNote(2, 9);
+        assertTrue(board.set(2, 1));
+        assertFalse(board.hasNote(2, 4));
+        assertFalse(board.hasNote(2, 9));
+        // And clearing that digit does not bring them back.
+        assertTrue(board.set(2, 0));
+        assertFalse(board.hasNote(2, 4));
+    }
+
+    @Test
+    void clearingABlank_clearsItsNotes_andOnlyThenChangesTheBoard() {
+        SudokuBoard board = SudokuBoard.fresh(DAY, GIVENS);
+        assertFalse(board.set(2, 0));
+        board.toggleNote(2, 4);
+        assertTrue(board.set(2, 0));
+        assertFalse(board.hasNote(2, 4));
+        assertFalse(board.set(2, 0));
+    }
+
+    @Test
+    void notes_surviveTheStoredForm() {
+        SudokuBoard board = SudokuBoard.fresh(DAY, GIVENS);
+        board.toggleNote(2, 4);
+        board.toggleNote(3, 9);
+        SudokuBoard read = SudokuBoard.fromJson(board.toJson());
+        assertTrue(read.hasNote(2, 4));
+        assertTrue(read.hasNote(3, 9));
+        assertFalse(read.hasNote(2, 9));
+    }
+
+    @Test
+    void aBoardStoredBeforeNotes_readsWithNone() {
+        String stored =
+                SudokuBoard.fresh(DAY, GIVENS).toJson().replaceAll(",\"notes\":\\[[0-9,]*\\]", "");
+        assertFalse(stored.contains("notes"));
+        SudokuBoard read = SudokuBoard.fromJson(stored);
+        assertEquals(GIVENS, read.grid());
+        assertFalse(read.hasNote(2, 4));
+    }
+
+    @Test
+    void badNotes_readAsNoBoard() {
+        String good = SudokuBoard.fresh(DAY, GIVENS).toJson();
+        String zeros = "0,".repeat(80) + "0";
+        // The wrong length, a bit that is no digit, and a mark on the given in cell 0.
+        assertNull(SudokuBoard.fromJson(good.replace("\"notes\":[" + zeros, "\"notes\":[0")));
+        assertNull(
+                SudokuBoard.fromJson(
+                        good.replace(
+                                "\"notes\":[" + zeros,
+                                "\"notes\":[" + "0,0," + "1024," + "0,".repeat(77) + "0")));
+        assertNull(
+                SudokuBoard.fromJson(
+                        good.replace(
+                                "\"notes\":[" + zeros,
+                                "\"notes\":[" + "2," + "0,".repeat(79) + "0")));
+    }
+
+    @Test
+    void aReplacedPuzzle_startsFreshAndTakesItsResultOffTheStreak() {
+        String replaced = "0" + GIVENS.substring(1);
+        SudokuBoard played = SudokuBoard.fresh("2026-11-05", GIVENS);
+        played.toggleNote(2, 4);
+        played.recordResult(0, 5);
+        SudokuBoard next = SudokuBoard.forOpening(played, "2026-11-05", replaced, true);
+        assertEquals(replaced, next.grid());
+        assertFalse(next.hasNote(2, 4));
+        assertTrue(next.ribbon(true).endsWith("Streak 5"));
+
+        played.recordResult(3, 6);
+        assertTrue(
+                SudokuBoard.forOpening(played, "2026-11-05", replaced, true)
+                        .ribbon(true)
+                        .endsWith("Streak 5"));
+    }
+
+    @Test
+    void anUnsentBoardOfAReplacedPuzzle_doesNotHoldUpTheNewOne() {
+        SudokuBoard unsent = solved();
+        assertTrue(unsent.isUnsent());
+        SudokuBoard next = SudokuBoard.forOpening(unsent, DAY, GIVENS, true);
+        assertEquals(GIVENS, next.grid());
+        assertFalse(next.isSolved());
+    }
+
     // ── Number, ribbon and next puzzle ───────────────────────────────────
 
     @Test
@@ -371,7 +497,9 @@ class SudokuBoardTest {
                         + "\",\"fills\":["
                         + "0,".repeat(80)
                         + "0],\"activeMs\":0,\"solved\":false,\"submitted\":false,"
-                        + "\"rank\":0,\"streak\":0}",
+                        + "\"rank\":0,\"streak\":0,\"notes\":["
+                        + "0,".repeat(80)
+                        + "0]}",
                 oneBlank().toJson());
     }
 

@@ -1855,6 +1855,26 @@ Test: [`SudokuBoardTest.java`](../src/test/java/org/wynnvets/extras/sudoku/Sudok
 
 `SudokuBoard` is one player's board for one day. The suite pins its cells and fills, the rule check, the status line, the stored form, the board a reopen picks, the key mapping and the geometry. `SudokuScreen`, which draws it, cannot load under the harness. `oneBlank()` is a board of a known `SOLUTION` with only the top-left cell, whose digit is 5, left to enter, and `solved()` is that board solved.
 
+- **`toggleNote_marksAndUnmarksABlank`**: A pencil mark toggles, one digit at a time.
+  - After marking 4 and 9 on a blank, `hasNote` is true for both and false for 5; toggling 4 again leaves only 9.
+- **`toggleNote_stampsNoTimeAndLeavesTheCellBlank`**: A mark is not an entry.
+  - With 9000 ms banked, `cell(2)`, `fill(2)` and `seconds()` stay 0.
+- **`toggleNote_ignoresAGivenAnEntryAndASolvedBoard`**: Only a blank takes a mark.
+  - `toggleNote` is false on a given, on an entry and on a solved board, and no mark appears.
+- **`settingADigit_clearsTheCellsNotes`**: A digit replaces a cell's marks.
+  - After `set(2, 1)` the marks are gone, and clearing the digit does not bring them back.
+- **`clearingABlank_clearsItsNotes_andOnlyThenChangesTheBoard`**: Backspace on a blank clears its marks.
+  - `set(2, 0)` is false with no marks, true with some, and false again afterwards.
+- **`notes_surviveTheStoredForm`**: Marks survive `toJson` and `fromJson`.
+  - The marked digits read true and an unmarked one false.
+- **`aBoardStoredBeforeNotes_readsWithNone`**: Progress saved before pencil marks still loads.
+  - JSON with no `notes` key reads as the same grid with no marks.
+- **`badNotes_readAsNoBoard`**: Marks the class could not have written drop the board.
+  - The wrong length, a bit that is no digit and a mark on a given each read as null.
+- **`aReplacedPuzzle_startsFreshAndTakesItsResultOffTheStreak`**: The same day with other digits is a new board.
+  - The new board has the new digits and no marks, and its streak is the stored one, less one if that board had a rank.
+- **`anUnsentBoardOfAReplacedPuzzle_doesNotHoldUpTheNewOne`**: The server can never take a replaced puzzle's board, so it is not kept for sending.
+  - A solved, unsent board with other digits on the same day gives a new, unsolved board of the new digits.
 - **`number_countsDaysFromTheFirstPuzzle`**: A puzzle's number counts days from the first.
   - `2026-11-02` is 1, `2026-12-01` is 30 and a day that is not a date is 0.
 - **`ribbon_showsTheStreakOrThatThePlayerIsUnlinked`**: The ribbon names the number, then the streak or "Unlinked".
@@ -1927,7 +1947,7 @@ Test: [`SudokuBoardTest.java`](../src/test/java/org/wynnvets/extras/sudoku/Sudok
   - A solved board reads back with `isUnsent()` true.
   - After `markSubmitted()` it reads back with `isSolved()` true and `isUnsent()` false.
 - **`theStoredForm_holdsTheDocumentedKeys`**: The stored form is the documented object.
-  - `oneBlank().toJson()` equals `{"day":…,"cells":…,"fills":[…],"activeMs":0,"solved":false,"submitted":false,"rank":0,"streak":0}`, keys in that order.
+  - `oneBlank().toJson()` equals `{"day":…,"cells":…,"fills":[…],"activeMs":0,"solved":false,"submitted":false,"rank":0,"streak":0,"notes":[…]}`, keys in that order.
 - **`nothingStored_readsAsNull`**: Nothing stored is no board.
   - `fromJson(null)` and `fromJson("")` are null.
 - **`textThatIsNoBoard_readsAsNull`**: Text that is not a board is no board.

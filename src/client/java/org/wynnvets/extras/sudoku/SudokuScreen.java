@@ -10,6 +10,7 @@ import com.wynntils.utils.render.type.HorizontalAlignment;
 import com.wynntils.utils.render.type.TextShadow;
 import com.wynntils.utils.render.type.VerticalAlignment;
 import java.time.Instant;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -20,9 +21,9 @@ import org.wynnvets.util.Durations;
 
 /**
  * The daily sudoku in a Wynntils book: the board on the right page, one glass pane per cell with
- * its colour from {@link SudokuBoard.CellRole} and its digit on top, the puzzle's details and the
- * instructions on the left, and the puzzle's number on the bottom ribbon. It sends no packets, so
- * the server cannot tell it is open. See {@code vetsmod_extras.md}.
+ * its colour from {@link SudokuBoard.CellRole} and its digit or pencil marks on top, the puzzle's
+ * details and the instructions on the left, and the puzzle's number on the bottom ribbon. It sends
+ * no packets, so the server cannot tell it is open. See {@code vetsmod_extras.md}.
  *
  * <p>The timer runs between {@link #added()} and {@link #removed()}. Not {@code init}, which runs
  * again on a resize, nor {@code ScreenClosedEvent}, which does not fire when a server menu replaces
@@ -45,11 +46,21 @@ final class SudokuScreen extends WynntilsMenuScreenBase {
     private static final int TEXT_WIDTH = 130;
 
     /** Generous because Wynntils measures a wrapped line 1 px shorter than it draws one. */
-    private static final int PARAGRAPH_GAP = 7;
+    private static final int PARAGRAPH_GAP = 8;
 
     private static final String RULES =
-            "Fill every row, column and 3x3 box with 1 to 9, once each.";
-    private static final String CONTROLS = "Click a cell, then press a number. Backspace clears.";
+            ChatFormatting.DARK_GRAY
+                    + "Fill every row, column, and 3x3 block with 1 to 9, once each.";
+    private static final String CONTROLS =
+            "Click a cell, then press a number. Hold Ctrl to pencil. Backspace clears.";
+    private static final String NEW_DAILY = ChatFormatting.DARK_GRAY + "New puzzle daily:";
+    private static final String NEXT_IN = ChatFormatting.DARK_GRAY + "Next in ";
+
+    /** A pencil mark's size, and the spacing of its three-by-three grid inside a cell. */
+    private static final float NOTE_SCALE = 0.5f;
+
+    private static final int NOTE_FIRST = 3;
+    private static final int NOTE_PITCH = 5;
 
     /** The bottom ribbon's text box, where Wynntils' own books print their version. */
     private static final int RIBBON_LEFT = 54;
@@ -149,6 +160,11 @@ final class SudokuScreen extends WynntilsMenuScreenBase {
     public boolean keyPressed(KeyEvent event) {
         int digit = SudokuBoard.digitForKey(event.key());
         if (digit < 0 || selected < 0) return super.keyPressed(event);
+        // Not Shift, which Windows hides from the number pad while Num Lock is on.
+        if (digit > 0 && event.hasControlDown()) {
+            if (board.toggleNote(selected, digit)) SudokuClient.saveProgress(board);
+            return true;
+        }
         bankTime();
         if (board.set(selected, digit)) {
             if (board.trySolve()) {
@@ -177,15 +193,23 @@ final class SudokuScreen extends WynntilsMenuScreenBase {
 
     private void renderLeftPage(GuiGraphics graphics) {
         float y = TEXT_Y + offsetY;
-        if (difficulty != null) y = renderParagraph(graphics, "Difficulty: " + difficulty, y);
+        if (difficulty != null)
+            y = renderParagraph(graphics, "Difficulty: " + value(difficulty), y);
         // A solved board's time is the one the server works out, not the banked milliseconds.
         long seconds = board.isSolved() ? board.seconds() : activeMs() / 1000L;
-        y = renderParagraph(graphics, "Time: " + Durations.minutesSeconds(seconds), y);
-        y = renderParagraph(graphics, board.status(), y) + PARAGRAPH_GAP;
-        y = renderParagraph(graphics, RULES, y) + PARAGRAPH_GAP;
+        y = renderParagraph(graphics, "Time: " + value(Durations.minutesSeconds(seconds)), y);
+        String status = board.status();
+        if (!status.isEmpty()) y = renderParagraph(graphics, status, y);
+        y = renderParagraph(graphics, RULES, y + PARAGRAPH_GAP) + PARAGRAPH_GAP;
         y = renderParagraph(graphics, CONTROLS, y) + PARAGRAPH_GAP;
+        y = renderParagraph(graphics, NEW_DAILY, y);
         long wait = board.secondsToNextPuzzle(Instant.now());
-        renderParagraph(graphics, "New puzzle daily. Next in " + Durations.hoursMinutes(wait), y);
+        renderParagraph(graphics, NEXT_IN + value(Durations.hoursMinutes(wait)), y);
+    }
+
+    /** A reading on the left page, in the colour that picks it out from the text around it. */
+    private static String value(String text) {
+        return ChatFormatting.DARK_RED + text;
     }
 
     /**
@@ -246,6 +270,7 @@ final class SudokuScreen extends WynntilsMenuScreenBase {
             int digit = board.cell(i);
             if (digit == 0) {
                 graphics.renderFakeItem(glass, x, y);
+                renderNotes(graphics, i, x, y);
                 continue;
             }
             RenderUtils.drawRect(
@@ -254,6 +279,26 @@ final class SudokuScreen extends WynntilsMenuScreenBase {
             graphics.renderFakeItem(glass, x, y);
             graphics.renderFakeItem(glass, x, y);
             renderDigit(graphics, digit, x, y);
+        }
+    }
+
+    /** Each mark keeps its digit's place on a number pad's three rows, read from the top. */
+    private void renderNotes(GuiGraphics graphics, int index, int x, int y) {
+        for (int digit = 1; digit <= SudokuBoard.SIZE; digit++) {
+            if (!board.hasNote(index, digit)) continue;
+            int column = (digit - 1) % SudokuBoard.BOX;
+            int row = (digit - 1) / SudokuBoard.BOX;
+            FontRenderer.getInstance()
+                    .renderText(
+                            graphics,
+                            StyledText.fromString(Integer.toString(digit)),
+                            x + NOTE_FIRST + column * NOTE_PITCH,
+                            y + NOTE_FIRST + row * NOTE_PITCH,
+                            CommonColors.BLACK,
+                            HorizontalAlignment.CENTER,
+                            VerticalAlignment.MIDDLE,
+                            TextShadow.NONE,
+                            NOTE_SCALE);
         }
     }
 

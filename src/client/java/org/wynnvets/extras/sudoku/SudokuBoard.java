@@ -77,6 +77,10 @@ final class SudokuBoard {
     private final String day;
     private final int[] cells;
     private final int[] fills;
+
+    /** Each blank's pencil marks: bit 1 to bit 9 for the digits marked. */
+    private final int[] notes = new int[CELLS];
+
     private long activeMs;
     private boolean solved;
     private boolean submitted;
@@ -92,7 +96,8 @@ final class SudokuBoard {
             boolean solved,
             boolean submitted,
             int rank,
-            int streak) {}
+            int streak,
+            int[] notes) {}
 
     private SudokuBoard(String day, int[] cells, int[] fills) {
         this.day = day;
@@ -145,6 +150,8 @@ final class SudokuBoard {
         for (int i = 0; i < CELLS; i++) {
             if (board.fills[i] < 0 || (board.cells[i] == 0 && board.fills[i] != 0)) return null;
         }
+        // A board stored before pencil marks has none.
+        if (stored.notes() != null && !board.restoreNotes(stored.notes())) return null;
         if (stored.solved() && !board.obeysTheRules()) return null;
         board.activeMs = stored.activeMs();
         board.solved = stored.solved();
@@ -152,6 +159,16 @@ final class SudokuBoard {
         board.rank = Math.max(0, stored.rank());
         board.streak = Math.max(0, stored.streak());
         return board;
+    }
+
+    /** Takes stored marks, unless they name a non-digit or sit on a filled cell. */
+    private boolean restoreNotes(int[] stored) {
+        if (stored.length != CELLS) return false;
+        for (int i = 0; i < CELLS; i++) {
+            if ((stored[i] & ~ALL_DIGITS) != 0 || (cells[i] != 0 && stored[i] != 0)) return false;
+            notes[i] = stored[i];
+        }
+        return true;
     }
 
     private static int[] digitsOf(String digits) {
@@ -167,7 +184,8 @@ final class SudokuBoard {
      * today's stored board carries on, finished or not; an older solved board that can still be
      * sent is kept, since a new one would take its place in the one stored slot before it went
      * out; anything else older is dropped, and a new board carries on the streak of the day before
-     * its own.
+     * its own. A stored board of the same day with other digits means the server replaced the
+     * puzzle: it is dropped too, and with its result wiped the streak goes back to before it.
      *
      * @param stored the stored board, or {@code null}
      * @param day the current puzzle's day
@@ -179,16 +197,18 @@ final class SudokuBoard {
             SudokuBoard stored, String day, String givens, boolean canStillSend) {
         if (stored == null) return fresh(day, givens);
         if (stored.day.equals(day) && stored.givens().equals(givens)) return stored;
-        if (stored.isUnsent() && canStillSend) return stored;
+        if (stored.isUnsent() && canStillSend && !stored.day.equals(day)) return stored;
         SudokuBoard next = fresh(day, givens);
         if (next.number() == stored.number() + 1) next.streak = stored.streak;
+        if (stored.day.equals(day))
+            next.streak = Math.max(0, stored.streak - (stored.rank > 0 ? 1 : 0));
         return next;
     }
 
     /** The stored form. */
     String toJson() {
         return Json.GSON.toJson(
-                new Stored(day, grid(), fills, activeMs, solved, submitted, rank, streak));
+                new Stored(day, grid(), fills, activeMs, solved, submitted, rank, streak, notes));
     }
 
     // ── Reading ──────────────────────────────────────────────────────────
@@ -205,6 +225,11 @@ final class SudokuBoard {
     /** The active second a cell was last set at, or 0 on a given or a blank. */
     int fill(int index) {
         return fills[index];
+    }
+
+    /** Whether a blank has a pencil mark for a digit. */
+    boolean hasNote(int index, int digit) {
+        return (notes[index] & 1 << digit) != 0;
     }
 
     /** Whether a cell came with the puzzle. */
@@ -366,16 +391,36 @@ final class SudokuBoard {
     }
 
     /**
-     * Sets or clears a cell at the banked time. A given and a solved board ignore it.
+     * Sets or clears a cell at the banked time. A digit replaces the cell's pencil marks, and
+     * clearing a blank clears them. A given and a solved board ignore it.
      *
      * @param index the cell
      * @param digit the digit, or 0 to clear the cell
      * @return whether the board changed
      */
     boolean set(int index, int digit) {
-        if (solved || isGiven(index) || cells[index] == digit) return false;
+        if (solved || isGiven(index)) return false;
+        if (cells[index] == digit) {
+            if (digit != 0 || notes[index] == 0) return false;
+            notes[index] = 0;
+            return true;
+        }
         cells[index] = digit;
         fills[index] = digit == 0 ? 0 : fillSeconds(activeMs);
+        notes[index] = 0;
+        return true;
+    }
+
+    /**
+     * Adds or removes a pencil mark on a blank. Everything else ignores it, and it stamps no time.
+     *
+     * @param index the cell
+     * @param digit the digit, 1 to 9
+     * @return whether the board changed
+     */
+    boolean toggleNote(int index, int digit) {
+        if (solved || cells[index] != 0) return false;
+        notes[index] ^= 1 << digit;
         return true;
     }
 
