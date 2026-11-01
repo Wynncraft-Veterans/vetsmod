@@ -101,6 +101,9 @@ VetsmodClient (entry point)
   │                           slots, slot values, the attack-speed effect, gear box and tome
   │                           icons, single stacks and accessories, the HUD);
   │                           see vetsmod_retro.md
+  ├── extras/                 Easter eggs, one sub-package each, under /wv extras
+                              (ExtrasCommands, unlisted in /wv help). sudoku/ is the daily
+                              puzzle in a Wynntils book; see vetsmod_extras.md
   ├── WynntilsEventListener   WorldStateEvent, GuildEvent, ChatMessageEvent
   └── Mixins (21)             Chat (3), Legacy items (3), Command (1 — UnlockCommandMixin),
                                Retro (5 — RetroResourceReloadMixin, RetroHoveredSlotMixin,
@@ -119,7 +122,7 @@ Both connections open only on a Wynncraft join ([vetsmod_networking.md](vetsmod_
 - **Inbound** `wss://api.wynnvets.org/v1/inbound` — client sends messages; the server's replies come back on it
 - **Outbound** `wss://api.wynnvets.org/v1/outbound` — server pushes: relayed chat to every client (to an unauthenticated one only while `unauth` is on), the `server_info` hello to every socket on connect, and the rest only to authenticated sockets
 
-**Control frames** (sent by client) — the four below are the presence/identity set; `/v1/inbound` accepts fifteen in all, adding `rank_change`, the six staff-action frames and the four MWE anni frames. Full inventory in [server_api_reference.md](server_api_reference.md).
+**Control frames** (sent by client) — the four below are the presence/identity set; `/v1/inbound` accepts sixteen in all, adding `rank_change`, the six staff-action frames, the four MWE anni frames and `sudoku_submit`. Full inventory in [server_api_reference.md](server_api_reference.md).
 - `register` — presence (uuid, username, tier, and `exact_text: true` from clients that send exact chat text)
 - `tablist` — guild tab snapshot for `!list`
 - `queue_status` — `{queued, world}`: the sender entering (`true`) or leaving (`false`) a Wynncraft world queue (presence side-channel; orthogonal to the `queue` chat type)
@@ -168,7 +171,7 @@ Managers.Connection.getConnectionState()   // on Wynncraft? gates the v1 sockets
 
 **Internal — vetsmod auth state:** `vetsAuthKey` (string), `vetsAuthTier` (string), `vetsAuthVerifiedAt` (long). The old system's `vetsWaitlistUnlockTime` / `vetsHonouraryUnlockTime` markers are gone; an old `config.json`'s copies are ignored and dropped at the next save.
 
-**Manager-owned, outside `/wv config`:** `vetsAnniMode` (`AnniModeManager`, behind `/wv anni <mode>`) and `retroTextures` (`RetroModeManager`, behind `/wv retro on|off`, which reloads resources). Each is written only through its manager, because a stored value alone would not take effect. [vetsmod_config.md](vetsmod_config.md) §2 has both. Beside `retroTextures`, `retroWynntilsSnapshot` (internal string) holds the Wynntils settings retro switched and the player's values before, written only by `WynntilsConfigOverrides`, and `retroPartsOff` (internal string) the parts of retro turned off, written only by `RetroModeManager.setPartsOff`.
+**Manager-owned, outside `/wv config`:** `vetsAnniMode` (`AnniModeManager`, behind `/wv anni <mode>`) and `retroTextures` (`RetroModeManager`, behind `/wv retro on|off`, which reloads resources). Each is written only through its manager, because a stored value alone would not take effect. [vetsmod_config.md](vetsmod_config.md) §2 has both. Beside `retroTextures`, `retroWynntilsSnapshot` (internal string) holds the Wynntils settings retro switched and the player's values before, written only by `WynntilsConfigOverrides`, and `retroPartsOff` (internal string) the parts of retro turned off, written only by `RetroModeManager.setPartsOff`. `sudokuProgress` (internal string) holds the `/wv extras sudoku` board ([vetsmod_extras.md](vetsmod_extras.md)).
 
 ## Chat pipeline
 

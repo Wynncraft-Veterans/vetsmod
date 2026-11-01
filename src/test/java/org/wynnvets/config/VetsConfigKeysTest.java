@@ -44,6 +44,7 @@ class VetsConfigKeysTest {
         EXPECTED.put("RETRO_TEXTURES", "retroTextures");
         EXPECTED.put("RETRO_WYNNTILS_SNAPSHOT", "retroWynntilsSnapshot");
         EXPECTED.put("RETRO_PARTS_OFF", "retroPartsOff");
+        EXPECTED.put("SUDOKU_PROGRESS", "sudokuProgress");
         EXPECTED.put("LEGACY_ITEM_HIGHLIGHTING", "legacyItemHighlighting");
         EXPECTED.put("LEGACY_ITEM_SHOW_ENCHANTMENTS", "legacyItemShowEnchantments");
         EXPECTED.put("LEGACY_ITEM_UNDERROLLING", "legacyItemUnderrolling");

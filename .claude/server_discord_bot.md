@@ -158,7 +158,7 @@ Show components and their enabled/disabled state (✅/❌).
 
 ### `!enable <component>` / `!disable <component>`
 Toggleable components: `inbound`, `outbound`, `staff`, `bridge`, `unauth`.
-- `inbound` disabled → reject chat messages from clients. Every control frame still works — not just `auth`/`register`/`tablist`/`queue_status` but `rank_change` and the six staff-action frames too, which are dispatched above the disabled gate
+- `inbound` disabled → reject chat messages from clients. Every control frame still works — not just `auth`/`register`/`tablist`/`queue_status` but `rank_change`, the six staff-action frames and `sudoku_submit` too, which are dispatched above the disabled gate
 - `outbound` disabled → drop messages from broadcast queue
 - `staff` disabled → skip staff roster polling
 - `bridge` disabled → skip Discord relay of game messages

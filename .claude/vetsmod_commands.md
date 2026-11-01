@@ -19,8 +19,8 @@ Where another doc owns the detail, the entry links it rather than restating it.
 ### Registration
 
 [`CommandRegistry.register`](../src/client/java/org/wynnvets/commands/CommandRegistry.java) registers the
-roots `/motd` and `/wv` on the dispatcher it is given. `/wv`'s `debug`, `distribute`, `laurels` and `retro`
-subtrees are built elsewhere and mounted with `.then(…)`: `/wv debug` by
+roots `/motd` and `/wv` on the dispatcher it is given. `/wv`'s `debug`, `distribute`, `laurels`, `retro` and
+`extras` subtrees are built elsewhere and mounted with `.then(…)`: `/wv debug` by
 [`DebugCommands.buildCommandTree`](../src/client/java/org/wynnvets/debug/DebugCommands.java), whose `tree`
 literal mounts
 [`AnniDebugCommands.buildCommandTree`](../src/client/java/org/wynnvets/debug/anni/AnniDebugCommands.java)
@@ -30,8 +30,11 @@ and
 [`DistributeCommands.buildCommandTree`](../src/client/java/org/wynnvets/distribute/DistributeCommands.java),
 `/wv laurels` by
 [`LaurelCommands.buildCommandTree`](../src/client/java/org/wynnvets/laurels/LaurelCommands.java),
-and `/wv retro` by
-[`RetroCommands.buildCommandTree`](../src/client/java/org/wynnvets/retro/RetroCommands.java).
+`/wv retro` by
+[`RetroCommands.buildCommandTree`](../src/client/java/org/wynnvets/retro/RetroCommands.java),
+and `/wv extras` by
+[`ExtrasCommands.buildCommandTree`](../src/client/java/org/wynnvets/extras/ExtrasCommands.java), which mounts
+[`SudokuCommand.buildCommandTree`](../src/client/java/org/wynnvets/extras/sudoku/SudokuCommand.java).
 Those classes are the only builders. The classes their nodes call into, such as `HelpCommands`,
 `ConfigCommands`, `AnniRsvpCommand`, `AnniScrollspotCommand`, `AnniSnapshotDebugCommands`,
 `AnniHighlightDebugCommands` and `AnniDebugSuggestions`, register nothing.
@@ -323,6 +326,17 @@ The places are literal children (`1`, `2`, `3`), so completion offers them, and 
 `StringArgumentType.string()` like `/wv check`'s. Each node short of a finished command prints a red usage
 line (`/wv laurels <update|return>`, then the `return` forms). The gate is `isConfirmedStaff()` on both
 sides because the frame is refused from any session the server does not treat as staff.
+
+### `/wv extras`
+
+Tree built in [`ExtrasCommands.buildCommandTree()`](../src/client/java/org/wynnvets/extras/ExtrasCommands.java),
+pinned by `ExtrasCommandsTest`. Everyone can play, so nothing gates it, and like `/wv invite-force` it is
+deliberately never listed in `/wv help`. [vetsmod_extras.md](vetsmod_extras.md) owns the behaviour.
+
+| Command | Parse gate | Runtime gate | Handler | What it does | Side effects | Bugs |
+|---|---|---|---|---|---|---|
+| `/wv extras` | none | none | `CommandUsage.usage` | Prints the red usage line `/wv extras sudoku` | none | none |
+| `/wv extras sudoku` | none | none | `SudokuCommand.run` | Sends any solved board still unsent, fetches the day's puzzle and opens the board; red "Close this menu and run it again." over a menu | a `sudoku_submit` frame, `sudokuProgress` | none |
 
 ### `/wv retro`
 
@@ -618,7 +632,7 @@ A key `/wv config` does not accept, such as a hand-typed `vetsAnniMode`, falls t
 
 ## 4. Things to know when adding commands
 
-- Register a new `/wv` subcommand in `CommandRegistry.register()` with Brigadier's literal and argument builders, or give a whole subtree its own `buildCommandTree()` and mount it with `.then(…)`, as `/wv debug`, `/wv distribute`, `/wv laurels` and `/wv retro` are.
+- Register a new `/wv` subcommand in `CommandRegistry.register()` with Brigadier's literal and argument builders, or give a whole subtree its own `buildCommandTree()` and mount it with `.then(…)`, as `/wv debug`, `/wv distribute`, `/wv laurels`, `/wv extras` and `/wv retro` are.
 - Gate with a real predicate. `CommandRegistry`'s own `userIsCaptain`/`userIsVet` are all-true stubs; the gated commands call one of the gates in §1's table directly. A `.requires` is a parse gate, so a handler that re-tests it refuses only if the gate's state changes between parse and run: a refusal that should explain itself belongs in the handler.
 - Keep a `.requires` predicate under `/wv` cheap and free of side effects: `CommandCompletionSync` tests every one of them each client tick. A gate whose state changes needs nothing more for tab completion to follow it.
 - Give a node that needs an argument after it `.executes(CommandUsage.usage("/wv …"))`, so typing it bare prints a usage line instead of going to the server.

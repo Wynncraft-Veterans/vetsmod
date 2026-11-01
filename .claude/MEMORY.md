@@ -20,6 +20,7 @@
 - [PUA Rank Pills](vetsmod_pua_pills.md) — How invisible PUA rank pills are framed and decoded, why a codepoint's meaning is frame-scoped, and `PillCodec` as the single encode/decode authority
 - [Guild Resource Distribution](vetsmod_distribute.md) — /wv distribute, the Manage-Members GUI automation state machine, the five modes, the NoAspects opt-out, front-of-queue command reflection
 - [Retro Textures](vetsmod_retro.md) — /wv retro: Wynncraft in 2013 art through a pack generated at each reload from the player's own files and bundled Vanilla Tweaks art; invariants, package map, placement and threading, the rule files and their mechanisms, stubs and generated items, the semantic layer (titles, glass slots, hover, icons, the HUD, the Wynntils settings), the debug report and item dump, how to add each known pattern, maintenance burdens, accepted trade-offs, test plan, the parts a player can turn off
+- [Extras](vetsmod_extras.md) — /wv extras, the unlisted easter eggs: the daily sudoku in a Wynntils book, its timer, stored board, reopen rules and result frame
 - [Unit Tests](vetsmod_tests.md) — Every JUnit class under src/test/java, by package: its subject, what the suite pins down, and per @Test a summary plus one bullet per assertion statement (expression, relation, exact expected value)
 
 ## temporary-server (FastAPI Python backend)

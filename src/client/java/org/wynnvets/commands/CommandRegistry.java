@@ -11,6 +11,7 @@ import net.minecraft.network.chat.Component;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.debug.DebugCommands;
 import org.wynnvets.distribute.DistributeCommands;
+import org.wynnvets.extras.ExtrasCommands;
 import org.wynnvets.fetcher.ondemand.LeaderboardFetcher;
 import org.wynnvets.fetcher.ondemand.ListFetcher;
 import org.wynnvets.fetcher.ondemand.MotdFetcher;
@@ -290,7 +291,10 @@ public final class CommandRegistry {
                         .then(LaurelCommands.buildCommandTree())
 
                         // /wv retro — full sub-tree built by RetroCommands
-                        .then(RetroCommands.buildCommandTree()));
+                        .then(RetroCommands.buildCommandTree())
+
+                        // /wv extras — full sub-tree built by ExtrasCommands
+                        .then(ExtrasCommands.buildCommandTree()));
     }
 
     // ── Permission predicates ───────────────────────────────────────────

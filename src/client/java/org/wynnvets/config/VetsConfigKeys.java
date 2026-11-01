@@ -87,6 +87,15 @@ public final class VetsConfigKeys {
      *  like {@link #RETRO_TEXTURES}. */
     public static final String RETRO_PARTS_OFF = "retroPartsOff";
 
+    // ── Daily sudoku ─────────────────────────────────────────────────────
+
+    /** The board of {@code /wv extras sudoku}: a JSON object with {@code day}, {@code cells},
+     *  {@code fills}, {@code activeMs}, {@code solved} and {@code submitted}, written by
+     *  {@link org.wynnvets.extras.sudoku.SudokuScreen SudokuScreen} and
+     *  {@link org.wynnvets.extras.sudoku.SudokuClient SudokuClient}. Empty (the default) until the
+     *  first board. Kept on disk so a restart keeps the board and its time. Internal. */
+    public static final String SUDOKU_PROGRESS = "sudokuProgress";
+
     // ── User-facing configuration keys (toggled via /wv config) ─────────────
     // Not every key declared below is user-facing: USER_CONFIG_KEYS is the
     // list /wv config reaches.

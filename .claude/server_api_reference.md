@@ -64,6 +64,7 @@ subsection), §7 and §7.1.
 | `caution_add` / `warn_add` / `eject_add` | `_handle_staff_commit` | commit ack, or a `would_trigger` preflight | §1.10 |
 | `check_membership` | `_handle_check_membership` | membership ack, or a member's invite verdict | §1.10 |
 | `laurels_set` | `_handle_laurels_set` | `{"status":"ok","kind":"laurels_set","metric",…}` ack, below | §1.16 |
+| `sudoku_submit` | `_handle_sudoku_submit` | untyped: `{"status":"ok","seconds","rank","streak","duplicate"}`, or `{"status":"error","detail","retry"}` with a fixed player-safe `detail` | `v1_protocol.md` |
 | `anni_query` | `_handle_anni_query` | `anni_query_response` | §1.11 |
 | `anni_scrollspot_set` | `_handle_anni_scrollspot_set` | `anni_scrollspot_response` | §1.12 |
 | `anni_rsvp` | `_handle_anni_rsvp` | `anni_rsvp_response` | §1.13 |

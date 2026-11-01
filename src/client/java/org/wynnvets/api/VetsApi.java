@@ -47,6 +47,12 @@ public final class VetsApi {
     public static final URI LAURELS = URI.create("https://api.wynnvets.org/v1/outbound/laurels");
 
     /**
+     * GET the day's sudoku puzzle. Read by
+     * {@link org.wynnvets.extras.sudoku.SudokuClient SudokuClient}.
+     */
+    public static final URI SUDOKU = URI.create("https://api.wynnvets.org/v1/outbound/sudoku");
+
+    /**
      * Builds the URI to GET every member ranked by an all-time metric, the one endpoint here that
      * takes a parameter. Read by
      * {@link org.wynnvets.fetcher.ondemand.LeaderboardFetcher LeaderboardFetcher}.

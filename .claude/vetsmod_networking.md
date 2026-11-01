@@ -100,6 +100,7 @@ When the current socket closes or fails it is uninstalled, the loss hook runs wi
 | `STAFF` | `/v1/outbound/staff` |
 | `SUPPORTERS` | `/v1/outbound/supporters` |
 | `LAURELS` | `/v1/outbound/laurels`, read by `LaurelPoller` |
+| `SUDOKU` | `/v1/outbound/sudoku`, read by `SudokuClient` |
 | `leaderboard(metric)` | `/v1/outbound/leaderboard/<metric>`, a builder rather than a constant (the metric is `xp` or `graids`), read by `LeaderboardFetcher` |
 | `LIST` | `/v1/outbound/list` |
 | `ROSTER` | `/v1/outbound/roster` |
@@ -141,7 +142,7 @@ String stringOrEmpty(JsonObject obj, String key)  // → optString(obj, key, "")
 int    optInt(JsonObject obj, String key, int fallback)
 ```
 
-Three names for one string function is deliberate. The fallback is not an axis — `null` and `""` *are* fallbacks — and the two conveniences exist so that the call sites which take no fallback do not have to grow an argument — **40 of 76** (`stringOrNull` 26, `stringOrEmpty` 14), up from 23 of 44 when the accessors landed. `Json`'s own Javadoc carries the per-method figures and is the copy to trust.
+Three names for one string function is deliberate. The fallback is not an axis — `null` and `""` *are* fallbacks — and the two conveniences exist so that the call sites which take no fallback do not have to grow an argument — **40 of 82** (`stringOrNull` 26, `stringOrEmpty` 14), up from 23 of 44 when the accessors landed. `Json`'s own Javadoc carries the per-method figures and is the copy to trust.
 
 **The policy, on all three axes: fallback.** A missing key or a JSON null is normal and falls back *silently*. A wrong-typed value or a `null` receiver falls back *and warns* (`VetsLogger.warn`, naming the key and the exception class). The warn is unconditional — no suppression cache, because that would put mutable state in the class, to throttle a condition that previously destroyed a whole payload, or everything after the failing read, wherever it threw. Ceiling: `OnlineMemberService.parseConnectedUsers` reads three fields per connected user, so a wholly malformed `/list` payload costs three warns per entry per `/wv list` or `/wv list world` call.
 
@@ -219,6 +220,8 @@ Styling: Staff underlined (via `StaffRanksPoller.confirmedRankFor()`); supporter
 5. Honourary + waitlist from VetsMod `/list`
 6. Tab-only usernames (no UUID match, including no `PolledJsonMap.WYNN_ALIASES` hit) added as guild tier
 7. Apply grace-period cache (`OnlineGuildCache`: recently-seen guild-tier players; `graceCandidates` keeps honourary and waitlist names out, since a grace name is re-added as guild tier with no UUID; `graceReadds` re-adds them only for a Returners viewer, since the cache lives for the whole game and a name remembered while the viewer was wrongly taken for a member must not come back)
+
+`SudokuClient` (`/wv extras sudoku`, `VetsApi.SUDOKU`) is an on-demand fetch in the same shape that lives with its subsystem, in `extras.sudoku`; it sends its result as the `sudoku_submit` frame through `sendStaffActionFrame` ([vetsmod_extras.md](vetsmod_extras.md)).
 
 ## 5. Polling services
 

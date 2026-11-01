@@ -46,6 +46,9 @@ public final class VetsConfigDefaults {
         stringConfig.put(VetsConfigKeys.RETRO_WYNNTILS_SNAPSHOT, "");
         stringConfig.put(VetsConfigKeys.RETRO_PARTS_OFF, "");
 
+        // Daily sudoku: no board yet.
+        stringConfig.put(VetsConfigKeys.SUDOKU_PROGRESS, "");
+
         // User-facing BOOLEAN defaults — all true except colorBlindMode.
         // (moreReliableGuildCheck is true, despite what this comment used to say.)
         // This block holds 21 of the 30 USER_CONFIG_KEYS. The other nine default

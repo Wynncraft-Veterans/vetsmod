@@ -42,6 +42,7 @@ class VetsConfigSchemaTest {
                     "retroTextures",
                     "retroWynntilsSnapshot",
                     "retroPartsOff",
+                    "sudokuProgress",
                     "legacyItemHighlighting",
                     "legacyItemShowEnchantments",
                     "legacyItemUnderrolling",

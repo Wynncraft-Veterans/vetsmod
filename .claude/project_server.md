@@ -9,7 +9,7 @@ type: project
 **Entry point:** `server.py` → creates FastAPI app, runs uvicorn. App factory in `app/__init__.py` with async lifespan context manager.
 
 **Three pillars:**
-1. `/v1/inbound` WebSocket — receives messages from mod clients, validates/deduplicates/relays. Inbound chat types: `guild`, `queue`, `waitlist`, `honourary` (`queue` covers guild messages from a sender stuck in a Wynncraft world queue — see `v1_protocol.md` for why). Accepts fifteen control frame types — `register`, `tablist`, `queue_status`, `auth`, `rank_change`, the six staff-action frames (`laurels_set` among them, which the server answers itself) and the four MWE anni frames. Full inventory in [server_api_reference.md](server_api_reference.md).
+1. `/v1/inbound` WebSocket — receives messages from mod clients, validates/deduplicates/relays. Inbound chat types: `guild`, `queue`, `waitlist`, `honourary` (`queue` covers guild messages from a sender stuck in a Wynncraft world queue — see `v1_protocol.md` for why). Accepts sixteen control frame types — `register`, `tablist`, `queue_status`, `auth`, `rank_change`, the six staff-action frames (`laurels_set` among them, which the server answers itself), the four MWE anni frames and `sudoku_submit`. Full inventory in [server_api_reference.md](server_api_reference.md).
 2. `/v1/outbound` WebSocket — pushes processed chat to connected clients (FIFO queue, broadcast; tier-filtered for an authenticated socket, and unauthenticated sockets get it only while `unauth` is on). Outbound types add `bridge` (Discord relay). Pushes a `server_info` hello frame on connect; accepts `auth` frames from the client, and sends the targeted and control frames only to sockets that have sent one. vetsmod sends one only for a confirmed member tier, against a server whose `server_info` carries `chat_tiers: "all"`.
 3. Discord bot — bridges game↔Discord, handles admin commands (incl. `!disable unauth` toggle).
 4. (auxiliary) HTTP introspection client → dazebot's `POST /api/auth/introspect` validates each `auth` frame's key. 60s LRU cache, serve-stale-on-error during dazebot outages.
@@ -85,6 +85,7 @@ The three disk stores survive a container recreate only because production point
 - `GET /v1/outbound/aliases` — lowercase stale-Wynncraft-username → UUID map, built from the v3.8 guild payload's `legacyName` (read by vetsmod's `PolledJsonMap.WYNN_ALIASES`)
 - `GET /v1/outbound/no-aspects` — members opted out of aspect distribution, read by vetsmod's `NoAspectsFilter`
 - `GET /v1/outbound/laurels` — the top-3 vets laurels standings, read by vetsmod's `LaurelPoller` (503 until the first guild payload; shape owned by temporary-server `v1_protocol.md` §5.2)
+- `GET /v1/outbound/sudoku` — the day's sudoku puzzle, read by vetsmod's `SudokuClient` for `/wv extras sudoku` (503 until the server's first poll; shape owned by temporary-server `v1_protocol.md`)
 - `GET /v1/outbound/leaderboard/{metric}` — every member ranked by all-time `xp` or `graids`, the lists the laurel podiums are cut from, read by vetsmod's `LeaderboardFetcher` for `/wv list xp` and `/wv list graids` (404 for any other metric, the same 503; shape owned by temporary-server `v1_protocol.md` §5.3)
 
 Naming is inconsistent in source and is not normalised here: `no-aspects` and `anni-snapshot` are hyphenated while `donor_pool` and `guild_motd` are underscored.

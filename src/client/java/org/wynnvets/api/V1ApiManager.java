@@ -864,20 +864,22 @@ public final class V1ApiManager {
     /**
      * Sends a staff-action control frame (the caution/warn/eject family --
      * caution_check / caution_add / warn_add / eject_add -- or check_membership or
-     * laurels_set) and registers a callback for the matching server ack. The frame carries a
-     * fresh request id ({@code req}), which the server echoes, so the ack reaches this callback
-     * and no other; a server that does not echo has its staff-action acks paired with callbacks
-     * eldest first ({@link #pendingAcks}).
+     * laurels_set), or the sudoku_submit frame that shares its ack path, and registers a
+     * callback for the matching server ack. The frame carries a fresh request id ({@code req}),
+     * which the server echoes, so the ack reaches this callback and no other; a server that does
+     * not echo has its staff-action acks paired with callbacks eldest first
+     * ({@link #pendingAcks}).
      *
      * <p>A session the server does not treat as staff gets an error ack, which normally
      * resolves this frame's callback like any other ack; callers that want to spare
      * non-staff the round trip check {@link #isConfirmedStaff()} first. The one exception is
      * {@code check_membership}, which answers an authenticated non-staff Returners member with
-     * an invite verdict ({@code MembershipSnapshot.getMayInvite}). The {@code fields} map
-     * is merged into the outgoing JSON after {@code "type"} is set, so do NOT include
-     * {@code "type"} -- it would replace the frame type. The callback is single-use and always
-     * runs: if the socket that carried the frame is lost first, it gets {@link #lostAck()}, and
-     * against a server that echoes ids it gets {@link #timeoutAck()} when no reply comes within
+     * an invite verdict ({@code MembershipSnapshot.getMayInvite}), and {@code sudoku_submit} is
+     * not a staff frame at all: any session with a known Discord may send it. The
+     * {@code fields} map is merged into the outgoing JSON after {@code "type"} is set, so do NOT
+     * include {@code "type"} -- it would replace the frame type. The callback is single-use and
+     * always runs: if the socket that carried the frame is lost first, it gets {@link #lostAck()},
+     * and against a server that echoes ids it gets {@link #timeoutAck()} when no reply comes within
      * {@link PendingAcks.Kind}'s timeout (15 s for a read, 45 s for a commit). Both carry
      * {@code outcome_unknown}, since the server may have acted. It normally runs on the thread
      * that delivers inbound frames, but runs on the caller's thread when the socket is down, on
@@ -886,7 +888,7 @@ public final class V1ApiManager {
      * {@link #disconnect()} drains it -- bounce to the main thread for game-state work.</p>
      *
      * @param type     the staff-action frame type (e.g. "caution_check", "eject_add",
-     *                 "check_membership", "laurels_set")
+     *                 "check_membership", "laurels_set", "sudoku_submit")
      * @param fields   frame-specific fields (e.g. target_username, message, confirm)
      * @param callback invoked once, normally with the server's ack JSON and otherwise
      *                 with a client-built error ack (socket down, socket lost, no reply in

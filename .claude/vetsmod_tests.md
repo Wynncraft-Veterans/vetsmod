@@ -28,6 +28,8 @@ When you add, rename or delete a test, or change what it asserts, update its ent
 - [`org.wynnvets.distribute.command`](#orgwynnvetsdistributecommand) — [`NameOrSelectorArgumentTest`](#nameorselectorargumenttest)
 - [`org.wynnvets.distribute.distributor`](#orgwynnvetsdistributedistributor) — [`GraidsDistributorTest`](#graidsdistributortest), [`MemberSlotPresserTest`](#memberslotpressertest), [`ObjectivesDistributorTest`](#objectivesdistributortest), [`RandomDistributorTest`](#randomdistributortest), [`SplitDistributorTest`](#splitdistributortest)
 - [`org.wynnvets.distribute.recipients`](#orgwynnvetsdistributerecipients) — [`NameResolverTest`](#nameresolvertest), [`NoAspectsFilterTest`](#noaspectsfiltertest)
+- [`org.wynnvets.extras`](#orgwynnvetsextras) — [`ExtrasCommandsTest`](#extrascommandstest)
+- [`org.wynnvets.extras.sudoku`](#orgwynnvetsextrassudoku) — [`SudokuBoardTest`](#sudokuboardtest), [`SudokuClientTest`](#sudokuclienttest)
 - [`org.wynnvets.fetcher.lookup`](#orgwynnvetsfetcherlookup) — [`MojangCooldownTest`](#mojangcooldowntest), [`PlayerLookupTest`](#playerlookuptest)
 - [`org.wynnvets.fetcher.lookup.providers`](#orgwynnvetsfetcherlookupproviders) — [`PlayerDbProviderTest`](#playerdbprovidertest), [`VetsSnapshotProviderTest`](#vetssnapshotprovidertest)
 - [`org.wynnvets.fetcher.ondemand`](#orgwynnvetsfetcherondemand) — [`CheckReportRendererTest`](#checkreportrenderertest), [`LeaderboardFetcherTest`](#leaderboardfetchertest), [`OnlineMemberServiceTest`](#onlinememberservicetest), [`ReturnersRosterProbeTest`](#returnersrosterprobetest), [`TimeLabelsTest`](#timelabelstest)
@@ -54,7 +56,7 @@ When you add, rename or delete a test, or change what it asserts, update its ent
 - [`org.wynnvets.retro.pack.generate`](#orgwynnvetsretropackgenerate) — [`DrawnArtTest`](#drawnarttest), [`GenerationStepsTest`](#generationstepstest), [`ModelJsonTest`](#modeljsontest), [`PackOutputTest`](#packoutputtest), [`RetroPackGeneratorTest`](#retropackgeneratortest), [`RetroSourcesTest`](#retrosourcestest), [`TintFactorsTest`](#tintfactorstest), [`VanillaTweaksPackTest`](#vanillatweakspacktest)
 - [`org.wynnvets.retro.render`](#orgwynnvetsretrorender) — [`IdentityMemoTest`](#identitymemotest), [`RetroAccessoriesTest`](#retroaccessoriestest), [`RetroContainerTitlesTest`](#retrocontainertitlestest), [`RetroGuardTest`](#retroguardtest), [`RetroHeartFlashTest`](#retroheartflashtest), [`RetroHudGlyphsTest`](#retrohudglyphstest), [`RetroHudReadingsTest`](#retrohudreadingstest), [`RetroHudTest`](#retrohudtest), [`RetroInventoryEffectsTest`](#retroinventoryeffectstest), [`RetroSlotIconsTest`](#retrosloticonstest), [`RetroSlotValuesTest`](#retroslotvaluestest), [`RetroSlotsTest`](#retroslotstest), [`RetroStackModelsTest`](#retrostackmodelstest), [`RetroStacksTest`](#retrostackstest)
 - [`org.wynnvets.retro.rules`](#orgwynnvetsretrorules) — [`ModelRulesTest`](#modelrulestest), [`PartFilterTest`](#partfiltertest), [`RetroAssetIdsTest`](#retroassetidstest), [`RuleUsageTest`](#ruleusagetest), [`TextureRulesTest`](#texturerulestest)
-- [`org.wynnvets.util`](#orgwynnvetsutil) — [`ConfigValueTextTest`](#configvaluetexttest), [`JsonTest`](#jsontest), [`TickDelaysTest`](#tickdelaystest), [`UuidsTest`](#uuidstest)
+- [`org.wynnvets.util`](#orgwynnvetsutil) — [`ConfigValueTextTest`](#configvaluetexttest), [`DurationsTest`](#durationstest), [`JsonTest`](#jsontest), [`TickDelaysTest`](#tickdelaystest), [`UuidsTest`](#uuidstest)
 
 ## `org.wynnvets`
 
@@ -1262,7 +1264,7 @@ Test: [`ShippedConfigTest.java`](../src/test/java/org/wynnvets/config/ShippedCon
 
 Test: [`VetsConfigDefaultsTest.java`](../src/test/java/org/wynnvets/config/VetsConfigDefaultsTest.java) · Subject: [`VetsConfigDefaults`](../src/client/java/org/wynnvets/config/VetsConfigDefaults.java)
 
-`VetsConfigDefaults` holds the values `config.json` starts from; they also feed the shipped `config.yml` and `/wv config <key> default`. The suite pins every user-facing default against a frozen literal table in the test, and checks that each user key in `VetsConfigSchema.USER_CONFIG_KEYS` has a default of the right Java type, with the tri-state `handleSpoilers` left unset. Three internal defaults are pinned too: `retroTextures` starts off, and `retroWynntilsSnapshot` and `retroPartsOff` start empty. It needs no running client because `VetsConfigDefaults` has no static state and does not load `VetsConfig`.
+`VetsConfigDefaults` holds the values `config.json` starts from; they also feed the shipped `config.yml` and `/wv config <key> default`. The suite pins every user-facing default against a frozen literal table in the test, and checks that each user key in `VetsConfigSchema.USER_CONFIG_KEYS` has a default of the right Java type, with the tri-state `handleSpoilers` left unset. Four internal defaults are pinned too: `retroTextures` starts off, and `retroWynntilsSnapshot`, `retroPartsOff` and `sudokuProgress` start empty. It needs no running client because `VetsConfigDefaults` has no static state and does not load `VetsConfig`.
 
 - **`userDefaults_areTheFirstRunValues`**: Each entry in the frozen user-default table (for example `printMOTD` true, `colorBlindMode` false, `legacyItemBackgroundGradientTopOpacity` 69) equals the value in `firstRunValues()`.
   - For each `(key, expected)` in the test's 29-entry `USER_DEFAULTS` table, from `legacyItemHighlighting` (true) to `moreReliableGuildCheck` (true): `VetsConfigDefaults.firstRunValues().get(key)` equals `expected`. Non-true entries: `colorBlindMode` false, `legacyItemBackgroundGradientTopOpacity` 69L, `legacyItemBackgroundGradientBottomOpacity` 100L, `vetsAnniRoleStyle` `"descriptive"`, `vetsAnniFlashIntensity` `"normal"`, `legacyItemBackgroundGradientTop` `"orange"`, `legacyItemBackgroundGradientBottom` `"crimson"`, `legacyItemForegroundSprite` `"box_gradient_2"`, `legacyItemForegroundColor` `"orange"`.
@@ -1278,6 +1280,8 @@ Test: [`VetsConfigDefaultsTest.java`](../src/test/java/org/wynnvets/config/VetsC
   - `firstRunValues().get("retroWynntilsSnapshot")` equals `""`.
 - **`retroPartsOff_isEmptyOnAFirstRun`**: Retro starts with every part on.
   - `firstRunValues().get("retroPartsOff")` equals `""`.
+- **`sudokuProgress_isEmptyOnAFirstRun`**: There is no sudoku board on a first run.
+  - `firstRunValues().get("sudokuProgress")` equals `""`.
 - **`firstRunValues_includeTheDebugKeys`**: `firstRunValues()` contains the debug key `itemDump` with value `false`.
   - `firstRunValues().get("itemDump")` equals `Boolean.FALSE`.
 
@@ -1288,7 +1292,7 @@ Test: [`VetsConfigKeysTest.java`](../src/test/java/org/wynnvets/config/VetsConfi
 `VetsConfigKeys` is the list of string constants naming each setting as stored in `config.json`. Those names are the file format: renaming one makes existing values unreadable and they are dropped at the next save. The suite compares the constants against a frozen constant-to-name table, read by reflection over all public static final `String` fields, so an added, removed or renamed key fails, and it checks the on-disk names are distinct.
 
 - **`everyKeyConstant_hasItsOnDiskName`**: The reflected map of constant name to string value equals the frozen expected table, in both content and key set.
-  - `keyConstants()`, the sorted map of every public static final `String` field of `VetsConfigKeys` (constant name to value), equals `new TreeMap<>(EXPECTED)`: the 47 frozen pairs from `VETS_AUTOMESSAGE` to `vetsAutomessage` through `LEGACY_ITEM_FOREGROUND_COLOR` to `legacyItemForegroundColor`.
+  - `keyConstants()`, the sorted map of every public static final `String` field of `VetsConfigKeys` (constant name to value), equals `new TreeMap<>(EXPECTED)`: the 48 frozen pairs from `VETS_AUTOMESSAGE` to `vetsAutomessage` through `LEGACY_ITEM_FOREGROUND_COLOR` to `legacyItemForegroundColor`.
 - **`onDiskNames_areDistinct`**: No two constants share the same on-disk name.
   - For each `name` in the values of `keyConstants()`: `seen.add(name)` is true, meaning no earlier constant has the same on-disk name.
 
@@ -1309,7 +1313,7 @@ Test: [`VetsConfigSchemaTest.java`](../src/test/java/org/wynnvets/config/VetsCon
   - `VALID_FLASH_INTENSITIES` equals, in order, `subtle`, `normal`, `strong`.
   - `VALID_SPRITES` equals, in order, the 10 names from `wynn` (first) to `box_gradient_2` (last).
 - **`fixedValuesOf_mapsOnlyRoleStyleAndFlashIntensity`**: For every known name, `fixedValuesOf` returns the role-style or flash-intensity list for those two keys and `null` for all others.
-  - For `name` = `vetsAnniRoleStyle` in `ALL_NAMES` (49 names, `vetsAutomessage` first, `noSuchKey` last): `fixedValuesOf(name)` equals `descriptive`, `short`, `formal`.
+  - For `name` = `vetsAnniRoleStyle` in `ALL_NAMES` (50 names, `vetsAutomessage` first, `noSuchKey` last): `fixedValuesOf(name)` equals `descriptive`, `short`, `formal`.
   - For `name` = `vetsAnniFlashIntensity`: `fixedValuesOf(name)` equals `subtle`, `normal`, `strong`.
   - For every other name in `ALL_NAMES`: `fixedValuesOf(name)` is null.
 - **`isFixedValue_acceptsTheListedLowercaseValuesOnly`**: Listed lowercase values pass for their key; wrong-list values, upper case `SHORT`, empty, `null`, colour keys and unknown keys fail.
@@ -1824,6 +1828,191 @@ Test: [`NoAspectsFilterTest.java`](../src/test/java/org/wynnvets/distribute/reci
 - **`anEmptyResultIsTheSharedImmutableInstanceOnEveryFailurePath`**: Parsing `garbage`, `{}`, and a list with an object-valued uuid all return the same `Set.of()` instance, covering both the guard and the catch exit.
   - `NoAspectsFilter.parseUuids("garbage")` is the same instance as `NoAspectsFilter.parseUuids("{}")`.
   - `NoAspectsFilter.parseUuids("{}")` is the same instance as `NoAspectsFilter.parseUuids([{"uuid": {"nested": 1}}])`.
+
+## `org.wynnvets.extras`
+
+### `ExtrasCommandsTest`
+
+Test: [`ExtrasCommandsTest.java`](../src/test/java/org/wynnvets/extras/ExtrasCommandsTest.java) · Subject: [`ExtrasCommands`](../src/client/java/org/wynnvets/extras/ExtrasCommands.java)
+
+`ExtrasCommands` builds `/wv extras`. The suite pins the tree's shape and that nothing gates it. The commands themselves are not run, since an answer goes through Wynntils' chat.
+
+- **`treeBuildsWithItsDocumentedShape`**: The tree is `extras` with one child, `sudoku`, and both nodes run on their own.
+  - The node's name equals `extras`.
+  - `extras.getCommand()` is not null: a bare `extras` prints its usage line.
+  - The child names equal `[sudoku]`.
+  - `sudoku`'s command is not null.
+  - `sudoku` has no children.
+- **`everyoneCanPlay_soNothingGatesTheTree`**: Neither node has a requirement that can fail.
+  - `extras.getRequirement().test(null)` is true.
+  - `sudoku`'s `getRequirement().test(null)` is true.
+
+## `org.wynnvets.extras.sudoku`
+
+### `SudokuBoardTest`
+
+Test: [`SudokuBoardTest.java`](../src/test/java/org/wynnvets/extras/sudoku/SudokuBoardTest.java) · Subject: [`SudokuBoard`](../src/client/java/org/wynnvets/extras/sudoku/SudokuBoard.java)
+
+`SudokuBoard` is one player's board for one day. The suite pins its cells and fills, the rule check, the status line, the stored form, the board a reopen picks, the key mapping and the geometry. `SudokuScreen`, which draws it, cannot load under the harness. `oneBlank()` is a board of a known `SOLUTION` with only the top-left cell, whose digit is 5, left to enter, and `solved()` is that board solved.
+
+- **`number_countsDaysFromTheFirstPuzzle`**: A puzzle's number counts days from the first.
+  - `2026-11-02` is 1, `2026-12-01` is 30 and a day that is not a date is 0.
+- **`ribbon_showsTheStreakOrThatThePlayerIsUnlinked`**: The ribbon names the number, then the streak or "Unlinked".
+  - `ribbon(true)` equals `No. 12 - Streak 3` and `ribbon(false)` equals `No. 12 - Unlinked`.
+- **`secondsToNextPuzzle_countsToFourInHalifaxAfterItsDay`**: The wait runs to 04:00 Halifax after the board's day, across a clock change.
+  - The day's own 04:00 waits a day, its last minute waits 60 s, and the day the clocks go back waits 25 hours.
+- **`secondsToNextPuzzle_runsLongOnTheFirstPuzzleAndStopsAtZero`**: The first puzzle's longer run shows, and a wait never goes negative.
+  - Day `2026-11-02` at noon on the 1st waits 40 hours, later than its end waits 0, and a day that is not a date waits 0.
+- **`role_withNoSelection_isGivenEntryOrEmpty`**: With nothing selected, a cell is what it holds.
+  - A puzzle digit is `GIVEN`, a set digit `ENTRY` and a blank `EMPTY`.
+- **`role_marksTheSelectionItsPeersAndMatchingDigits`**: The selection lights up its row, column, box and digit.
+  - The selected cell is `SELECTED`, and blanks in its row, box and column are `PEER`; a blank elsewhere stays `EMPTY`.
+  - With a 5 selected, another 5 is `SAME_DIGIT` and a 3 stays `GIVEN`.
+- **`role_marksARepeatedDigitOnBothCells`**: A repeat marks every copy, under the selection.
+  - After `set(2, 5)` beside a given 5, both cells are `CONFLICT`, and cell 2 is `SELECTED` once selected.
+- **`aStoredResult_survivesTheStoredForm`**: The rank and streak survive the stored form.
+  - After `toJson` and `fromJson`, `status()` equals `Solved, rank 4` and `ribbon(true)` equals `No. 0 - Streak 9`.
+- **`aNewBoard_carriesOnlyYesterdaysStreak`**: A streak carries over one day and no further.
+  - From a streak of 5, the next day's ribbon reads `Streak 5`, and the day after that reads `Streak 0`.
+- **`status_namesTheRankOnceTheServerGaveOne`**: A sent board with a rank says so.
+  - After `recordResult(2, 7)`, `status()` equals `Solved, rank 2`.
+- **`aFreshBoard_holdsItsGivensAndNoTimes`**: A new board is its puzzle, with no time on it.
+  - `day()` equals `DAY` and `grid()` equals `GIVENS`.
+  - `cell(0)` equals 5 and `isGiven(0)` is true.
+  - `cell(2)` equals 0 and `isGiven(2)` is false.
+  - `seconds()` and `activeMs()` equal 0, and `isSolved()` is false.
+- **`fillSeconds_roundsUpAndIsNeverZero`**: A fill is the time rounded up, at least 1.
+  - `fillSeconds` of 0, 1 and 1000 equals 1.
+  - `fillSeconds(1001)` equals 2 and `fillSeconds(204_500)` equals 205.
+- **`anEntryIsStampedWithTheBankedTime_andIsNotAGiven`**: `set` stamps the cell with the banked time.
+  - With 4200 ms banked, `set(2, 4)` is true.
+  - `cell(2)` equals 4, `fill(2)` equals 5, `isGiven(2)` is false and `seconds()` equals 5.
+- **`anEntryInTheFirstSecond_stillIsNotAGiven`**: An entry at 0 ms gets a fill of 1.
+  - `set(2, 4)` is true, `fill(2)` equals 1 and `isGiven(2)` is false.
+- **`settingACellAgain_takesTheLaterTime`**: A cell keeps the time it was last set.
+  - With the cell already set and 9000 ms banked, `set(2, 7)` is true.
+  - `cell(2)` equals 7 and `fill(2)` equals 9.
+- **`theSameDigitAgain_changesNothing`**: Retyping a cell's digit keeps its time.
+  - With 9000 ms banked, `set(2, 4)` over a 4 is false and `fill(2)` stays 1.
+- **`clearingACell_blanksItAndItsTime`**: Digit 0 clears a cell.
+  - `set(2, 0)` is true, `cell(2)` and `fill(2)` equal 0, and `grid()` equals `GIVENS`.
+  - A second `set(2, 0)` is false.
+- **`aGiven_ignoresInput`**: A given cannot be changed or cleared.
+  - `set(0, 9)` and `set(0, 0)` are false.
+  - `cell(0)` equals 5 and `grid()` equals `GIVENS`.
+- **`aCompleteValidBoard_solves`**: A full board that obeys the rules solves.
+  - `trySolve()` and `isSolved()` are true, and `grid()` equals `SOLUTION`.
+- **`aBoardWithABlank_doesNotSolve`**: A blank fails the rule check.
+  - `oneBlank().trySolve()` is false.
+- **`aFullBoardThatBreaksARow_doesNotSolve`**: A wrong last digit leaves the board in play.
+  - After `set(0, 4)`, `trySolve()` and `isSolved()` are false.
+  - `status()` equals `Not solved yet`.
+- **`aFullBoardWithOnlyItsBoxesBroken_doesNotSolve`**: The boxes are checked on their own.
+  - On a Latin square, each row the one above shifted by one, `trySolve()` is false.
+- **`aFullBoardWithOnlyItsColumnsBroken_doesNotSolve`**: The columns are checked on their own.
+  - On nine copies of `123456789`, `trySolve()` is false.
+- **`aSolvedBoard_ignoresInputAndDoesNotSolveTwice`**: A solved board is finished.
+  - `set(0, 4)`, `set(0, 0)` and `trySolve()` are false, and `grid()` equals `SOLUTION`.
+- **`status_followsTheBoard`**: The status line tracks the result.
+  - A board in play gives an empty status.
+  - A solved board has `isUnsent()` true and status `Solved, not sent`.
+  - After `markSubmitted()`, `isUnsent()` is false and the status is `Solved`.
+- **`anUnsolvedBoard_isNotUnsent`**: Only a solved board can be unsent.
+  - `oneBlank().isUnsent()` is false.
+- **`aBoardRoundTrips`**: The stored form keeps a board in play.
+  - `fromJson(toJson())` is not null, with the same `day()` and `grid()`.
+  - `fill(2)` equals 5 and `activeMs()` equals 4200.
+  - `isGiven(2)` is false, `isGiven(0)` is true and `isSolved()` is false.
+- **`aSolvedBoardRoundTrips_withItsResultState`**: The stored form keeps the result state.
+  - A solved board reads back with `isUnsent()` true.
+  - After `markSubmitted()` it reads back with `isSolved()` true and `isUnsent()` false.
+- **`theStoredForm_holdsTheDocumentedKeys`**: The stored form is the documented object.
+  - `oneBlank().toJson()` equals `{"day":…,"cells":…,"fills":[…],"activeMs":0,"solved":false,"submitted":false,"rank":0,"streak":0}`, keys in that order.
+- **`nothingStored_readsAsNull`**: Nothing stored is no board.
+  - `fromJson(null)` and `fromJson("")` are null.
+- **`textThatIsNoBoard_readsAsNull`**: Text that is not a board is no board.
+  - `fromJson` is null for: broken JSON, `[]`, `{}`, no `day`, no `cells`, no `fills`, short `cells`, short `fills`, a null in `fills`, and a negative `activeMs`.
+- **`aTimeOnABlankOrBelowZero_readsAsNull`**: The fills must fit the cells.
+  - `fromJson` is null for a board with a time on a blank, and for one with a time below zero.
+- **`aStoredSolvedBoardThatBreaksTheRules_readsAsNull`**: `solved` is not taken on trust.
+  - `fromJson` of `ONE_BLANK` marked `solved: true` is null.
+- **`nothingStored_opensANewBoard`**: With no stored board, a new one opens.
+  - `forOpening(null, DAY, GIVENS, true)` has `day()` `DAY` and `grid()` `GIVENS`.
+- **`todaysBoard_carriesOn_finishedOrNot`**: Today's board is the one that opens.
+  - `forOpening` returns the same instance for a board in play and for a finished one, with `canStillSend` false.
+- **`anOlderBoardWithNoUnsentSolve_isDropped`**: An older board with nothing to send gives way.
+  - For an older board in play, `forOpening` returns a different board, of `DAY`.
+  - For an older board solved and sent, `forOpening` returns a board of `DAY`.
+- **`anOlderUnsentSolve_isKeptOnlyWhileItCanStillGoOut`**: An unsent solve outranks the new day while it can still be sent.
+  - With `canStillSend` true, `forOpening` returns the same instance.
+  - With `canStillSend` false, it returns a board of `DAY`.
+- **`aStoredBoardOfTheSameDayWithOtherGivens_isDropped`**: A stored board must be of the puzzle on offer.
+  - `forOpening` returns a different board, whose `grid()` equals `GIVENS`.
+- **`theGivensOfAStoredBoardWithEntries_stillMatchTheirPuzzle`**: Entries do not count as givens when a stored board is matched against its puzzle.
+  - A board with an entry, read back, is returned as the same instance by `forOpening`.
+- **`digitForKey_mapsBothRowsOfNumberKeys`**: Both rows of number keys set digits.
+  - For each digit 1 to 9, `digitForKey` of `GLFW_KEY_0 + digit` and of `GLFW_KEY_KP_0 + digit` equals the digit.
+- **`digitForKey_clearsOnBackspaceAndDelete`**: Two keys clear a cell.
+  - `digitForKey` of Backspace and Delete equals 0.
+- **`digitForKey_ignoresEveryOtherKey`**: No other key is taken, including the zeros.
+  - `digitForKey` of `0`, keypad `0`, Esc, `A` and Up equals -1.
+- **`theBoard_isTheSizeThePageWasMeasuredFor`**: The size the book's page was measured against.
+  - `BOARD_SIZE` equals 156.
+- **`cellOrigin_pitchesAt17WithAnExtraPixelAtEachBox`**: The item squares' origins.
+  - `cellOrigin` of 0 to 8 equals 1, 18, 35, 53, 70, 87, 105, 122 and 139.
+- **`theLinesAndTheCells_tileTheBoardExactly`**: Lines and cells do not overlap and leave no gap.
+  - Adding every pixel of the ten lines and then of the nine cells to a set never meets a duplicate.
+  - The set's size equals `BOARD_SIZE`.
+- **`lineThickness_isTwoBetweenBoxesOnly`**: Only the lines between boxes are thick.
+  - `lineThickness` equals 2 for lines 3 and 6, and 1 for the other eight.
+- **`cellAt_findsEachCellAtItsCorners`**: The hit test agrees with the geometry.
+  - For every cell, `cellAt` of its top-left and bottom-right pixels equals `row * 9 + column`.
+- **`cellAt_missesTheLinesAndOffTheBoard`**: A point off the items is no cell.
+  - `cellAt` equals -1 on the outer line (x 0, y 0), a cell line (x 17), a box line (x 51, 52), the far line (x 155), before the board (x -1) and after it (x 156, y 156).
+
+### `SudokuClientTest`
+
+Test: [`SudokuClientTest.java`](../src/test/java/org/wynnvets/extras/sudoku/SudokuClientTest.java) · Subject: [`SudokuClient`](../src/client/java/org/wynnvets/extras/sudoku/SudokuClient.java)
+
+`SudokuClient` is the sudoku's traffic with the server. The suite pins the puzzle parse, the frame's fields, who can send what, and the chat lines and board state a reply turns into. The network send and the stored copy are not exercised, since they go through the socket and `VetsConfig`. `solved()` is a board solved by one entry, 205 seconds in.
+
+- **`parsePuzzle_readsTheThreeFields`**: A good body gives a puzzle.
+  - `day()`, `givens()` and `difficulty()` equal the body's.
+  - `difficultyLabel()` equals `Medium` for `medium`.
+- **`parsePuzzle_answersNullForABodyThatIsNotOne`**: Anything else gives `null`.
+  - `parsePuzzle` is null for: an empty body, broken JSON, `[]`, `{}`, no or an empty `day`, no `givens`, short `givens`, `givens` with a non-digit, and no or an empty `difficulty`.
+- **`submitFields_holdTheDayTheGridAndTheFills`**: The frame carries only what the server takes from the client.
+  - The key set equals `day`, `grid`, `fills`.
+  - `day` equals `DAY` and `grid` equals `SOLUTION`.
+  - `fills` has 81 entries: the entry's 205, and 0 for each of the other 80 givens.
+- **`sendState_readyOnAnAuthenticatedSession`**: An authenticated session can send.
+  - `sendState(true, true, true, false)` equals `READY`.
+- **`sendState_laterForAKeyHolderWithNoSocket`**: A key with the socket down waits, even one last rejected, since the next socket judges it afresh.
+  - `sendState` of `(false, false, true, false)` and `(false, false, true, true)` equals `LATER`.
+- **`sendState_laterForAKeyStillWaitingOnItsAuth`**: A key not rejected on a live socket waits, so its result is not dropped.
+  - `sendState(false, true, true, false)` equals `LATER`.
+- **`sendState_neverWithNoKeyOrARejectedKey`**: With no key, or a key rejected on a live socket, nothing can go.
+  - `sendState` of `(false, false, false, false)`, `(false, true, false, false)` and `(false, true, true, true)` equals `NEVER`.
+- **`anOkReply_printsTheTimeRankAndStreak_andFinishesTheBoard`**: A success prints the server's figures.
+  - The lines equal `[Solved in 3:27. Rank 4, 12 day streak.]`, using the reply's `seconds` over the board's.
+  - The line is green.
+  - `isUnsent()` is false.
+- **`aDuplicateReply_stillPrints`**: A duplicate is a success.
+  - The lines equal `[Solved in 3:25. Rank 1, 2 day streak.]`.
+  - `isUnsent()` is false.
+- **`aFinalError_printsItsDetail_andFinishesTheBoard`**: `retry: false` ends the board's sending.
+  - The lines equal `[Solved in 3:25., That puzzle's day is over.]`.
+  - The second line is red.
+  - `isUnsent()` is false.
+- **`aRetryableError_keepsTheBoardUnsent_andHidesItsDetail`**: `retry: true` keeps the board.
+  - The lines equal `[Solved in 3:25., Results send next time.]`.
+  - `isUnsent()` is true.
+- **`theClientsOwnErrorAcks_keepTheBoardUnsent`**: The client-built acks have no `retry` and count as retryable.
+  - For each of the socket-down, drain, lost and timed-out acks: the lines equal `[Solved in 3:25., Results send next time.]` and `isUnsent()` is true.
+- **`unsentLines_laterSaysItSendsNextTime`**: The line for a key holder off Wynncraft.
+  - `unsentLines(solved(), LATER)` gives `[Solved in 3:25., Results send next time.]`.
+- **`unsentLines_neverPointsAtTheDiscordCommand`**: The line for a player with no accepted key, naming the command as `~vetsmod`.
+  - `unsentLines(solved(), NEVER)` gives `[Solved in 3:25., Link your Discord with ~vetsmod to submit results.]`.
 
 ## `org.wynnvets.fetcher.lookup`
 
@@ -5258,7 +5447,7 @@ Test: [`RetroStackModelsTest.java`](../src/test/java/org/wynnvets/retro/render/R
 
 Test: [`RetroStacksTest.java`](../src/test/java/org/wynnvets/retro/render/RetroStacksTest.java) · Subject: [`RetroStacks`](../src/client/java/org/wynnvets/retro/render/RetroStacks.java)
 
-`RetroStacks` builds the stacks retro draws for itself and parses the ids its rows name. The stacks need the Minecraft bootstrap and are not tested; the suite pins the parsed id.
+`RetroStacks` builds the stacks retro's rows name and parses the ids those rows name. The stacks need the Minecraft bootstrap and are not tested; the suite pins the parsed id.
 
 - **`anIdIsParsedOnce`**: `RetroStacks.id` returns the same parsed id for the same string.
   - `id("minecraft:paper").toString()` equals `minecraft:paper`.
@@ -5553,6 +5742,22 @@ Tests:
   - For each `line` in four lines (`booleanLine(Form.LIST, "k", Verb.EQUALS, true)`, `intLine(Form.SINGLE, "k", Verb.SET_TO, 1L)`, `triStateLine(Form.SINGLE, "k", Verb.RESET_TO, null)`, `stringLine(Form.LIST, "k", Verb.EQUALS, literal "v" styled AQUA)`): `line.getSiblings().size()` equals 1.
   - For each of the same four lines: `line.getStyle().getColor().getValue()` equals `ChatFormatting.GRAY`'s colour int.
   - For each of the same four lines: the first sibling has 0 siblings of its own (equals 0).
+
+### `DurationsTest`
+
+Test: [`DurationsTest.java`](../src/test/java/org/wynnvets/util/DurationsTest.java) · Subject: [`Durations`](../src/client/java/org/wynnvets/util/Durations.java)
+
+`Durations` spells a stopwatch reading and a wait. The suite pins the padding, that the minutes run on past an hour, and the floor at zero.
+
+- **`hoursMinutes_padsTheMinutesAndDropsTheSeconds`**: A wait reads to the minute.
+  - `hoursMinutes` of 359, 59400 and -5 equals `0h 05m`, `16h 30m` and `0h 00m`.
+
+- **`minutesSeconds_padsTheSecondsAndNotTheMinutes`**: The seconds always have two digits.
+  - `minutesSeconds` of 0, 7, 60 and 205 equals `0:00`, `0:07`, `1:00` and `3:25`.
+- **`minutesSeconds_doesNotRollOverIntoHours`**: An hour or more stays in minutes.
+  - `minutesSeconds(4321)` equals `72:01`.
+- **`minutesSeconds_readsATimeBelowZeroAsZero`**: Below zero reads as nothing.
+  - `minutesSeconds(-5)` equals `0:00`.
 
 ### `JsonTest`
 
