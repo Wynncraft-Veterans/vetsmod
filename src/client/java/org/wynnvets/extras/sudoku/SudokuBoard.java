@@ -81,6 +81,9 @@ final class SudokuBoard {
     /** Each blank's pencil marks: bit 1 to bit 9 for the digits marked. */
     private final int[] notes = new int[CELLS];
 
+    /** The puzzle's solution, worked out from its givens on first need; never stored. */
+    private int[] solution;
+
     private long activeMs;
     private boolean solved;
     private boolean submitted;
@@ -391,8 +394,9 @@ final class SudokuBoard {
     }
 
     /**
-     * Sets or clears a cell at the banked time. A digit replaces the cell's pencil marks, and
-     * clearing a blank clears them. A given and a solved board ignore it.
+     * Sets or clears a cell at the banked time. A digit replaces the cell's pencil marks and takes
+     * itself out of the marks in its row, column and box, and clearing a blank clears its marks. A
+     * given and a solved board ignore it.
      *
      * @param index the cell
      * @param digit the digit, or 0 to clear the cell
@@ -408,6 +412,11 @@ final class SudokuBoard {
         cells[index] = digit;
         fills[index] = digit == 0 ? 0 : fillSeconds(activeMs);
         notes[index] = 0;
+        if (digit != 0) {
+            for (int other = 0; other < CELLS; other++) {
+                if (sharesAUnit(index, other)) notes[other] &= ~(1 << digit);
+            }
+        }
         return true;
     }
 
@@ -419,9 +428,150 @@ final class SudokuBoard {
      * @return whether the board changed
      */
     boolean toggleNote(int index, int digit) {
-        if (solved || cells[index] != 0) return false;
-        notes[index] ^= 1 << digit;
+        return toggleNotes(new int[] {index}, digit);
+    }
+
+    /**
+     * Pencils a digit into several cells at once: takes it out of every blank among them that has
+     * it if they all do, and otherwise adds it to each. Filled cells are skipped, and it stamps no
+     * time.
+     *
+     * @param indexes the cells
+     * @param digit the digit, 1 to 9
+     * @return whether the board changed, which it does unless no blank is among them
+     */
+    boolean toggleNotes(int[] indexes, int digit) {
+        if (solved) return false;
+        boolean anyBlank = false;
+        boolean allMarked = true;
+        for (int index : indexes) {
+            if (cells[index] != 0) continue;
+            anyBlank = true;
+            allMarked &= hasNote(index, digit);
+        }
+        if (!anyBlank) return false;
+        for (int index : indexes) {
+            if (cells[index] != 0) continue;
+            notes[index] = allMarked ? notes[index] & ~(1 << digit) : notes[index] | 1 << digit;
+        }
         return true;
+    }
+
+    /**
+     * Pencils every blank with the digits its row, column and box leave open, replacing its marks.
+     *
+     * @return whether the board changed
+     */
+    boolean fillNotes() {
+        if (solved) return false;
+        boolean changed = false;
+        for (int i = 0; i < CELLS; i++) {
+            if (cells[i] != 0) continue;
+            int open = openDigits(cells, i);
+            changed |= notes[i] != open;
+            notes[i] = open;
+        }
+        return changed;
+    }
+
+    /**
+     * A cell worth looking at next: the first entry that is wrong, else a blank only one digit can
+     * fill, by its own marks or by its row, column or box, else the blank with fewest digits open.
+     *
+     * @return the cell, or -1 on a solved board
+     */
+    int hintCell() {
+        if (solved || solution() == null) return -1;
+        for (int i = 0; i < CELLS; i++) {
+            if (isWrong(i)) return i;
+        }
+        int[] open = new int[CELLS];
+        for (int i = 0; i < CELLS; i++) {
+            if (cells[i] == 0) open[i] = openDigits(cells, i);
+        }
+        int fewest = -1;
+        for (int i = 0; i < CELLS; i++) {
+            if (cells[i] != 0) continue;
+            if (Integer.bitCount(open[i]) == 1 || hasHiddenSingle(open, i)) return i;
+            if (fewest < 0 || Integer.bitCount(open[i]) < Integer.bitCount(open[fewest])) {
+                fewest = i;
+            }
+        }
+        return fewest;
+    }
+
+    /** Whether a cell holds a digit other than the solution's. */
+    boolean isWrong(int index) {
+        return cells[index] != 0 && solution() != null && cells[index] != solution()[index];
+    }
+
+    /** Whether some open digit of a blank is open nowhere else in one of its units. */
+    private static boolean hasHiddenSingle(int[] open, int index) {
+        for (int digit = 1; digit <= SIZE; digit++) {
+            if ((open[index] & 1 << digit) == 0) continue;
+            for (int unit = 0; unit < 3; unit++) {
+                boolean alone = true;
+                for (int other = 0; other < CELLS && alone; other++) {
+                    if (other != index
+                            && sameUnit(unit, index, other)
+                            && (open[other] & 1 << digit) != 0) {
+                        alone = false;
+                    }
+                }
+                if (alone) return true;
+            }
+        }
+        return false;
+    }
+
+    /** Row, column or box: unit 0, 1 or 2. */
+    private static boolean sameUnit(int unit, int a, int b) {
+        return switch (unit) {
+            case 0 -> a / SIZE == b / SIZE;
+            case 1 -> a % SIZE == b % SIZE;
+            default -> a / SIZE / BOX == b / SIZE / BOX && a % SIZE / BOX == b % SIZE / BOX;
+        };
+    }
+
+    /** The digits, as bits 1 to 9, that a blank's row, column and box leave open. */
+    private static int openDigits(int[] grid, int index) {
+        int used = 0;
+        for (int other = 0; other < CELLS; other++) {
+            if (other != index && sharesAUnit(index, other)) used |= 1 << grid[other];
+        }
+        return ALL_DIGITS & ~used;
+    }
+
+    /** The solution, or null if the givens have none, which a server puzzle never lacks. */
+    private int[] solution() {
+        if (solution == null) {
+            int[] grid = digitsOf(givens());
+            if (fillIn(grid)) solution = grid;
+        }
+        return solution;
+    }
+
+    /** Fills a grid, the blank with fewest digits open first; false if it has no answer. */
+    private static boolean fillIn(int[] grid) {
+        int best = -1;
+        int bestOpen = 0;
+        for (int i = 0; i < CELLS; i++) {
+            if (grid[i] != 0) continue;
+            int open = openDigits(grid, i);
+            if (best < 0 || Integer.bitCount(open) < Integer.bitCount(bestOpen)) {
+                best = i;
+                bestOpen = open;
+                if (Integer.bitCount(open) <= 1) break;
+            }
+        }
+        if (best < 0) return true;
+        for (int digit = 1; digit <= SIZE; digit++) {
+            if ((bestOpen & 1 << digit) == 0) continue;
+            grid[best] = digit;
+            if (fillIn(grid)) return true;
+        }
+        grid[best] = 0;
+        return false;
     }
 
     /**
@@ -467,6 +617,28 @@ final class SudokuBoard {
         if (key >= GLFW.GLFW_KEY_1 && key <= GLFW.GLFW_KEY_9) return key - GLFW.GLFW_KEY_0;
         if (key >= GLFW.GLFW_KEY_KP_1 && key <= GLFW.GLFW_KEY_KP_9) return key - GLFW.GLFW_KEY_KP_0;
         return key == GLFW.GLFW_KEY_BACKSPACE || key == GLFW.GLFW_KEY_DELETE ? 0 : -1;
+    }
+
+    /**
+     * Where an arrow key moves the selection: one cell over, stopping at the edge.
+     *
+     * @param cell the selected cell, or -1, which starts in the centre
+     * @param key a GLFW key code
+     * @return the new cell, or -1 for a key that is not an arrow
+     */
+    static int moved(int cell, int key) {
+        int row = cell < 0 ? SIZE / 2 : cell / SIZE;
+        int column = cell < 0 ? SIZE / 2 : cell % SIZE;
+        switch (key) {
+            case GLFW.GLFW_KEY_UP -> row = cell < 0 ? row : Math.max(0, row - 1);
+            case GLFW.GLFW_KEY_DOWN -> row = cell < 0 ? row : Math.min(SIZE - 1, row + 1);
+            case GLFW.GLFW_KEY_LEFT -> column = cell < 0 ? column : Math.max(0, column - 1);
+            case GLFW.GLFW_KEY_RIGHT -> column = cell < 0 ? column : Math.min(SIZE - 1, column + 1);
+            default -> {
+                return -1;
+            }
+        }
+        return row * SIZE + column;
     }
 
     /** Where a row's or column's item square starts, from the board's edge. */

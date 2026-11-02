@@ -1863,6 +1863,22 @@ Test: [`SudokuBoardTest.java`](../src/test/java/org/wynnvets/extras/sudoku/Sudok
   - `toggleNote` is false on a given, on an entry and on a solved board, and no mark appears.
 - **`settingADigit_clearsTheCellsNotes`**: A digit replaces a cell's marks.
   - After `set(2, 1)` the marks are gone, and clearing the digit does not bring them back.
+- **`settingADigit_takesItOutOfTheMarksAroundIt`**: A digit comes out of the marks in its row, column and box.
+  - After `set(2, 4)`, the 4s marked in cells 3, 11 and 29 are gone, the 4 in cell 30 stays, and cell 3's 9 stays.
+- **`toggleNotes_addsToEveryBlankUnlessAllHaveIt`**: Several cells take one mark together.
+  - Over blanks 3 and 30 and given 0, the first call marks both blanks and not the given, the second clears both, and with only one marked a call marks both.
+- **`toggleNotes_withNoBlankOrOnASolvedBoard_changesNothing`**: A mark needs a blank to land on.
+  - `toggleNotes` is false over a given, an entry and a given, and false on a solved board.
+- **`fillNotes_pencilsEachBlankWithItsOpenDigits`**: A fills every blank with its open digits.
+  - Cell 2 ends with exactly 1, 2 and 4 marked, its own 9 replaced; a given gets none; a second call and a solved board change nothing.
+- **`hintCell_pointsAtAWrongEntryFirst`**: A wrong entry is the first hint.
+  - With a wrong 1 at cell 2 and a right 6 at cell 3, `hintCell()` is 2, and `isWrong` is true for 2 only.
+- **`hintCell_pointsAtABlankThatOneDigitFills`**: Otherwise a hint is a blank the solution fills.
+  - The hinted cell is blank and takes its solution digit as a right entry.
+- **`hintCell_isMinusOneOnASolvedBoard`**: A solved board has no hint.
+  - `hintCell()` is -1.
+- **`moved_stepsOneCellAndStopsAtTheEdge`**: An arrow moves the selection one cell.
+  - From none it starts at the centre, 40; from 0, right is 1 and down 9 while left and up stay at 0; from 80, right stays and up is 71; any other key is -1.
 - **`clearingABlank_clearsItsNotes_andOnlyThenChangesTheBoard`**: Backspace on a blank clears its marks.
   - `set(2, 0)` is false with no marks, true with some, and false again afterwards.
 - **`notes_surviveTheStoredForm`**: Marks survive `toJson` and `fromJson`.

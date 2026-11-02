@@ -256,6 +256,109 @@ class SudokuBoardTest {
     }
 
     @Test
+    void settingADigit_takesItOutOfTheMarksAroundIt() {
+        SudokuBoard board = SudokuBoard.fresh(DAY, GIVENS);
+        // Around blank cell 2: 3 shares its row, 11 its box and 29 its column; 30 shares none.
+        for (int cell : new int[] {3, 11, 29, 30}) board.toggleNote(cell, 4);
+        board.toggleNote(3, 9);
+        assertTrue(board.set(2, 4));
+        assertFalse(board.hasNote(3, 4));
+        assertFalse(board.hasNote(11, 4));
+        assertFalse(board.hasNote(29, 4));
+        assertTrue(board.hasNote(30, 4));
+        assertTrue(board.hasNote(3, 9));
+    }
+
+    @Test
+    void toggleNotes_addsToEveryBlankUnlessAllHaveIt() {
+        SudokuBoard board = SudokuBoard.fresh(DAY, GIVENS);
+        // Blanks 3 and 30 with given 0: the given is skipped.
+        int[] cells = {3, 30, 0};
+        assertTrue(board.toggleNotes(cells, 6));
+        assertTrue(board.hasNote(3, 6));
+        assertTrue(board.hasNote(30, 6));
+        assertFalse(board.hasNote(0, 6));
+
+        assertTrue(board.toggleNotes(cells, 6));
+        assertFalse(board.hasNote(3, 6));
+        assertFalse(board.hasNote(30, 6));
+
+        // With only one marked, they all get it.
+        board.toggleNote(3, 6);
+        assertTrue(board.toggleNotes(cells, 6));
+        assertTrue(board.hasNote(3, 6));
+        assertTrue(board.hasNote(30, 6));
+    }
+
+    @Test
+    void toggleNotes_withNoBlankOrOnASolvedBoard_changesNothing() {
+        SudokuBoard board = SudokuBoard.fresh(DAY, GIVENS);
+        board.set(2, 4);
+        assertFalse(board.toggleNotes(new int[] {0, 1, 2}, 6));
+        assertFalse(board.hasNote(2, 6));
+        assertFalse(solved().toggleNotes(new int[] {0, 1}, 6));
+    }
+
+    @Test
+    void fillNotes_pencilsEachBlankWithItsOpenDigits() {
+        SudokuBoard board = SudokuBoard.fresh(DAY, GIVENS);
+        // Cell 2's row holds 5, 3 and 7, its column 8, and its box 5, 3, 6, 9 and 8.
+        board.toggleNote(2, 9);
+        assertTrue(board.fillNotes());
+        for (int digit = 1; digit <= 9; digit++) {
+            assertEquals(digit == 1 || digit == 2 || digit == 4, board.hasNote(2, digit));
+        }
+        assertFalse(board.hasNote(0, 5));
+        assertFalse(board.fillNotes());
+        assertFalse(solved().fillNotes());
+    }
+
+    @Test
+    void hintCell_pointsAtAWrongEntryFirst() {
+        SudokuBoard board = SudokuBoard.fresh(DAY, GIVENS);
+        // The answer at 2 is 4 and at 3 is 6: 3 right, 2 wrong.
+        board.set(3, 6);
+        board.set(2, 1);
+        assertEquals(2, board.hintCell());
+        assertTrue(board.isWrong(2));
+        assertFalse(board.isWrong(3));
+        assertFalse(board.isWrong(0));
+    }
+
+    @Test
+    void hintCell_pointsAtABlankThatOneDigitFills() {
+        SudokuBoard board = SudokuBoard.fresh(DAY, GIVENS);
+        int cell = board.hintCell();
+        assertEquals(0, board.cell(cell));
+        board.fillNotes();
+        int open = 0;
+        for (int digit = 1; digit <= 9; digit++) {
+            if (board.hasNote(cell, digit)) open++;
+        }
+        // Either it has one digit open, or one of its digits is open nowhere else in a unit.
+        assertTrue(open >= 1);
+        assertTrue(board.set(cell, SOLUTION.charAt(cell) - '0'));
+        assertFalse(board.isWrong(cell));
+    }
+
+    @Test
+    void hintCell_isMinusOneOnASolvedBoard() {
+        assertEquals(-1, solved().hintCell());
+    }
+
+    @Test
+    void moved_stepsOneCellAndStopsAtTheEdge() {
+        assertEquals(40, SudokuBoard.moved(-1, GLFW.GLFW_KEY_UP));
+        assertEquals(1, SudokuBoard.moved(0, GLFW.GLFW_KEY_RIGHT));
+        assertEquals(9, SudokuBoard.moved(0, GLFW.GLFW_KEY_DOWN));
+        assertEquals(0, SudokuBoard.moved(0, GLFW.GLFW_KEY_LEFT));
+        assertEquals(0, SudokuBoard.moved(0, GLFW.GLFW_KEY_UP));
+        assertEquals(80, SudokuBoard.moved(80, GLFW.GLFW_KEY_RIGHT));
+        assertEquals(71, SudokuBoard.moved(80, GLFW.GLFW_KEY_UP));
+        assertEquals(-1, SudokuBoard.moved(0, GLFW.GLFW_KEY_A));
+    }
+
+    @Test
     void clearingABlank_clearsItsNotes_andOnlyThenChangesTheBoard() {
         SudokuBoard board = SudokuBoard.fresh(DAY, GIVENS);
         assertFalse(board.set(2, 0));
