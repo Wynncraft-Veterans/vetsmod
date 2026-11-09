@@ -19,8 +19,7 @@ import org.wynnvets.retro.render.RetroNumberSegmentMatcher;
  * Hands {@link RetroActionBar#readBar} each {@link ActionBarUpdatedEvent}, for what retro draws
  * from the bar itself. Registers {@link RetroLevelSegmentMatcher} and
  * {@link RetroNumberSegmentMatcher} too, for the level and numbers Wynntils' own matchers can miss,
- * and tells
- * {@link RetroHud#worldStateChanged} of each {@link WorldStateEvent}.
+ * and tells {@link RetroHud#worldStateChanged} of each {@link WorldStateEvent}.
  *
  * <p>Default priority: Wynntils' own listeners ({@code CharacterStatsModel}'s and
  * {@code SpellModel}'s among them) only disable segments too, so the order does not matter.</p>

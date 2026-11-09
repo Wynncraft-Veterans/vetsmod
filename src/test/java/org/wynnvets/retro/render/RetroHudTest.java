@@ -9,7 +9,8 @@ import org.wynnvets.retro.render.RetroHud.Fill;
 
 /**
  * Tests for {@link RetroHud}'s logic on plain values: how much of a row of hearts or shanks a value
- * fills, how full each icon is, and how wide the experience bar's fill is. Drawing needs a running
+ * fills, how much overhealth fills and each of its colours, how full each icon is, how wide the
+ * experience bar's fill is, and which corrupted bar counts. Drawing needs a running
  * client and Wynntils' models, and is not tested; the class's static fields are sprite ids, plain
  * holders and a guard, so loading it builds no Wynntils object.
  */

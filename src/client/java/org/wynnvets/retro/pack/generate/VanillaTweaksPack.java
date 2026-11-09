@@ -13,7 +13,8 @@ import org.wynnvets.logging.VetsLogger;
 
 /**
  * The Vanilla Tweaks art the jar bundles for
- * {@link org.wynnvets.retro.manifest.RetroSource#VANILLA_TWEAKS}, credited in {@code credits.txt}.
+ * {@link org.wynnvets.retro.manifest.RetroSource#VANILLA_TWEAKS RetroSource.VANILLA_TWEAKS},
+ * credited in {@code credits.txt}.
  *
  * <p>It lives under {@code retro/vanilla_tweaks}, outside the mod's {@code assets}: Fabric loads
  * those as a resource pack whether retro is on or not, and this art must show only through the

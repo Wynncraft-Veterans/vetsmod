@@ -140,9 +140,7 @@ parts:
   # With RetroHud: with it off, Wynncraft's action bar stays whole.
   hud:
     about: "Vanilla's hearts, food, armour, air and experience bar for Wynncraft's"
-    textures:
-      - 'minecraft:gui/sprites/hud/.*'
-      - 'minecraft:font/hud/.*'
+    textures: ['minecraft:gui/sprites/hud/.*']
     wynntils: ['MountJumpBar']
   # With hidden_inventory_effects.
   effects:

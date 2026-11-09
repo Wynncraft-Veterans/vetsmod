@@ -96,11 +96,10 @@ VetsmodClient (entry point)
   │                           inserts a pack above Wynncraft's at each reload and
   │                           retro/pack/generate/ builds its files from the player's own game
   │                           files and the Vanilla Tweaks art in the jar, one GenerationStep
-  │                           each; retro/render/ draws over the
-  │                           screens while it is live (container titles and backgrounds, glass
-  │                           slots, slot values, the attack-speed effect, gear box and tome
-  │                           icons, single stacks and accessories, the HUD);
-  │                           see vetsmod_retro.md
+  │                           each; retro/render/ draws over the screens while it is live
+  │                           (container titles and backgrounds, glass slots, slot values, the
+  │                           attack-speed effect, gear box and tome icons, single stacks and
+  │                           accessories, the HUD); see vetsmod_retro.md
   ├── extras/                 Easter eggs, one sub-package each, under /wv extras
   │                           (ExtrasCommands, unlisted in /wv help). sudoku/ is the daily
   │                           puzzle in a Wynntils book; see vetsmod_extras.md

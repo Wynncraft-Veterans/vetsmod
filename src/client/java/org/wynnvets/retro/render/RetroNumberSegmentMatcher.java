@@ -1,10 +1,11 @@
 package org.wynnvets.retro.render;
 
-import com.wynntils.core.text.StyledText;
 import com.wynntils.handlers.actionbar.ActionBarSegment;
 import com.wynntils.handlers.actionbar.ActionBarSegmentMatcher;
 import com.wynntils.models.characterstats.actionbar.matchers.HealthTextSegmentMatcher;
 import com.wynntils.models.characterstats.actionbar.matchers.ManaTextSegmentMatcher;
+import java.util.Optional;
+import java.util.function.IntPredicate;
 import java.util.regex.MatchResult;
 
 /**
@@ -27,8 +28,9 @@ public final class RetroNumberSegmentMatcher extends RetroSegmentMatcher {
 
     private final boolean health;
 
-    private RetroNumberSegmentMatcher(ActionBarSegmentMatcher wynntils, boolean health) {
-        super(wynntils, GUARD);
+    private RetroNumberSegmentMatcher(
+            ActionBarSegmentMatcher wynntils, boolean health, SegmentFactory segments) {
+        super(wynntils, GUARD, segments);
         this.health = health;
     }
 
@@ -38,7 +40,8 @@ public final class RetroNumberSegmentMatcher extends RetroSegmentMatcher {
      * @return it
      */
     public static RetroNumberSegmentMatcher health() {
-        return new RetroNumberSegmentMatcher(new HealthTextSegmentMatcher(), true);
+        return new RetroNumberSegmentMatcher(
+                new HealthTextSegmentMatcher(), true, HealthSegment::new);
     }
 
     /**
@@ -47,23 +50,12 @@ public final class RetroNumberSegmentMatcher extends RetroSegmentMatcher {
      * @return it
      */
     public static RetroNumberSegmentMatcher mana() {
-        return new RetroNumberSegmentMatcher(new ManaTextSegmentMatcher(), false);
+        return new RetroNumberSegmentMatcher(new ManaTextSegmentMatcher(), false, ManaSegment::new);
     }
 
     @Override
-    ActionBarSegment find(StyledText actionBar) {
-        return RetroHudGlyphs.findNumber(
-                        actionBar.getStringWithoutFormatting(),
-                        RetroHudGlyphs.indicesIn(actionBar)::get,
-                        health)
-                .map(this::segment)
-                .orElse(null);
-    }
-
-    private ActionBarSegment segment(MatchResult number) {
-        return health
-                ? new HealthSegment(number.group(), number.start(), number.end())
-                : new ManaSegment(number.group(), number.start(), number.end());
+    Optional<MatchResult> find(String actionBar, IntPredicate inFont) {
+        return RetroHudGlyphs.findNumber(actionBar, inFont, health);
     }
 
     /** The health number this matcher found, which Wynntils' models do not read. */

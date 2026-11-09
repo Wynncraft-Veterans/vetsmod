@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
+import java.util.function.Consumer;
 import java.util.function.IntSupplier;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
@@ -24,6 +25,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.util.Util;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 import org.wynnvets.listeners.ServerConnectionListener;
 import org.wynnvets.mixin.client.accessors.GuiAccessor;
 import org.wynnvets.retro.RetroModeManager;
@@ -69,11 +71,10 @@ import org.wynnvets.retro.rules.RetroAssetIds;
  * {@code HudStatusBarHeightRegistry}, since a registered one makes Fabric move the action bar,
  * where Wynncraft draws the rest of its HUD.</p>
  *
- * <p>{@link RetroActionBar} takes out of the action bar what Wynncraft draws where these go and the
- * ornate frame round the hotbar, which the vanilla hotbar the pack restores replaces; the spell
- * inputs stay. Its health and mana numbers would lie over the armour and bubbles, so they are drawn
- * beside the experience bar instead, outside the hotbar on each side, in Wynncraft's own glyphs. It
- * keeps what the rows and numbers draw from the bar in {@link RetroHudReadings}.</p>
+ * <p>{@link RetroActionBar} takes what these replace out of the action bar, and keeps in
+ * {@link RetroHudReadings} what the armour, the bubbles and the numbers draw from it. The health
+ * and mana numbers would lie over the armour and bubbles, so they are drawn outside the hotbar on
+ * each side, by the experience bar, in Wynncraft's own glyphs ({@link #numbersMoved}).</p>
  *
  * <p>Retro draws the HUD while the pack is live, its {@code hud} part is on and the game is on
  * Wynncraft ({@link ServerConnectionListener#onWynncraft()}); elsewhere, such as singleplayer with
@@ -148,7 +149,11 @@ public final class RetroHud {
      */
     private static final int NUMBERS_ABOVE_BOTTOM = 31;
 
-    /** How far below where a string is drawn the numbers' glyphs start: 7 less the ascent. */
+    /**
+     * How far below where a string is drawn the numbers' glyphs start: 7 less the ascent, -19, of
+     * their provider in Wynncraft's {@code bottom_middle} font ({@link RetroHudGlyphs#FONT}), so a
+     * change to that provider in Wynncraft's pack moves the numbers.
+     */
     private static final int NUMBER_GLYPH_DROP = 26;
 
     /** Between the hotbar's edge and a number. */
@@ -168,7 +173,7 @@ public final class RetroHud {
 
     private static final RetroHeartFlash HEART_FLASH = new RetroHeartFlash();
 
-    /** The corrupted bar Wynntils held when the player last left a world; see {@link #hearts}. */
+    /** The corrupted bar that no longer counts ({@link #worldStateChanged}). */
     private static Object staleCorruptedBar;
 
     private RetroHud() {}
@@ -232,31 +237,11 @@ public final class RetroHud {
      * drawing.
      */
     public static void register() {
-        HudElementRegistry.replaceElement(
-                VanillaHudElements.ARMOR_BAR,
-                vanilla ->
-                        (graphics, delta) ->
-                                draw(graphics, delta, vanilla, () -> armour(graphics)));
-        HudElementRegistry.replaceElement(
-                VanillaHudElements.AIR_BAR,
-                vanilla ->
-                        (graphics, delta) ->
-                                draw(graphics, delta, vanilla, () -> bubbles(graphics)));
-        HudElementRegistry.replaceElement(
-                VanillaHudElements.HEALTH_BAR,
-                vanilla ->
-                        (graphics, delta) ->
-                                draw(graphics, delta, vanilla, () -> hearts(graphics)));
-        HudElementRegistry.replaceElement(
-                VanillaHudElements.FOOD_BAR,
-                vanilla ->
-                        (graphics, delta) ->
-                                draw(graphics, delta, vanilla, () -> shanks(graphics)));
-        HudElementRegistry.replaceElement(
-                VanillaHudElements.MOUNT_HEALTH,
-                vanilla ->
-                        (graphics, delta) ->
-                                draw(graphics, delta, vanilla, () -> mountShanks(graphics)));
+        replace(VanillaHudElements.ARMOR_BAR, RetroHud::armour);
+        replace(VanillaHudElements.AIR_BAR, RetroHud::bubbles);
+        replace(VanillaHudElements.HEALTH_BAR, RetroHud::hearts);
+        replace(VanillaHudElements.FOOD_BAR, RetroHud::shanks);
+        replace(VanillaHudElements.MOUNT_HEALTH, RetroHud::mountShanks);
         HudElementRegistry.replaceElement(
                 VanillaHudElements.INFO_BAR,
                 vanilla -> (graphics, delta) -> infoBar(graphics, delta, vanilla));
@@ -265,15 +250,24 @@ public final class RetroHud {
                 vanilla -> (graphics, delta) -> experienceLevel(graphics, delta, vanilla));
     }
 
+    /** Replaces one element with what {@link #draw} picks: vanilla's, {@code retro} or nothing. */
+    private static void replace(Identifier element, Consumer<GuiGraphics> retro) {
+        HudElementRegistry.replaceElement(
+                element, vanilla -> (graphics, delta) -> draw(graphics, delta, vanilla, retro));
+    }
+
     /**
      * Whether retro draws the health and mana numbers, and {@link RetroActionBar} takes them out:
-     * in a world, and while vanilla asks for the hearts and food, which it does not of a player who
-     * cannot be hurt.
+     * in a world, and while vanilla asks for the hearts and food, which it does only while the
+     * player can be hurt and the camera is a player's.
      *
      * @return whether they are moved
      */
     static boolean numbersMoved() {
-        return Models.WorldState.onWorld() && McUtils.mc().gameMode.canHurtPlayer();
+        Minecraft mc = McUtils.mc();
+        return Models.WorldState.onWorld()
+                && mc.gameMode.canHurtPlayer()
+                && mc.getCameraEntity() instanceof Player;
     }
 
     /**
@@ -296,10 +290,13 @@ public final class RetroHud {
 
     /** One replaced element: vanilla's, retro's, or nothing, as {@link #mode()} says. */
     private static void draw(
-            GuiGraphics graphics, DeltaTracker delta, HudElement vanilla, Runnable retro) {
+            GuiGraphics graphics,
+            DeltaTracker delta,
+            HudElement vanilla,
+            Consumer<GuiGraphics> retro) {
         switch (mode()) {
             case VANILLA -> vanilla.render(graphics, delta);
-            case RETRO -> GUARD.run(retro);
+            case RETRO -> GUARD.run(() -> retro.accept(graphics));
             case NONE -> {}
         }
     }
@@ -345,12 +342,10 @@ public final class RetroHud {
 
     /**
      * Wynntils' health as hearts, filled from the left: poisoned while the player has vanilla's
-     * poison effect, which Wynncraft sends, and otherwise withered while Wynntils reads Wynncraft's
-     * corrupted bar from the boss bars, poison first as in vanilla. Wynntils forgets a bar only
-     * when the server removes it, which a dropped connection never does, so a bar from before the
-     * player last left a world does not count ({@link #worldStateChanged}). Overhealth colours over
-     * any of them ({@link #overhealthHalves}), so its amount always shows, though vanilla's
-     * absorption hearts wither. They flash as vanilla's do when the row falls
+     * poison effect, which Wynncraft sends, and otherwise withered while Wynntils reads a current
+     * corrupted bar from the boss bars ({@link #worldStateChanged}), poison first as in vanilla.
+     * Overhealth colours over any of them ({@link #overhealthHalves}), so its amount always shows,
+     * though vanilla's absorption hearts wither. They flash as vanilla's do when the row falls
      * ({@link RetroHeartFlash}), and shake while it is low.
      */
     private static void hearts(GuiGraphics graphics) {
@@ -428,8 +423,9 @@ public final class RetroHud {
 
     /**
      * Forgets what was read from the action bar, and notes the corrupted bar Wynntils holds
-     * whenever the player is not in a world, for {@link #hearts} to ignore. Wynntils posts this on
-     * a disconnect too.
+     * whenever the player is not in a world. Wynntils forgets a bar only when the server removes
+     * it, which a dropped connection never does, so {@link #hearts} counts only a bar Wynncraft has
+     * sent since ({@link #isCurrentBar}). Wynntils posts this on a disconnect too.
      *
      * @param newState the state Wynntils' world state just became
      */
@@ -440,8 +436,8 @@ public final class RetroHud {
     }
 
     /**
-     * Whether Wynntils' corrupted bar is one Wynncraft has sent since the player last left a world.
-     * A new bar is always a new object.
+     * Whether Wynntils' corrupted bar counts: it holds one, and not the one
+     * {@link #worldStateChanged} noted. A new bar is always a new object.
      *
      * @param bar the bar's event, {@code null} while Wynntils holds none
      * @param stale the event it held when the player last left a world

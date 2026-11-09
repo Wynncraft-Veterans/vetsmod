@@ -1,8 +1,10 @@
 package org.wynnvets.retro.render;
 
-import com.wynntils.core.text.StyledText;
 import com.wynntils.handlers.actionbar.ActionBarSegment;
 import com.wynntils.models.characterstats.actionbar.matchers.LevelSegmentMatcher;
+import java.util.Optional;
+import java.util.function.IntPredicate;
+import java.util.regex.MatchResult;
 
 /**
  * Finds Wynncraft's level where Wynntils' {@link LevelSegmentMatcher} does not. That one tries only
@@ -19,16 +21,12 @@ public final class RetroLevelSegmentMatcher extends RetroSegmentMatcher {
                     "Wynncraft's level may show over retro's until the game restarts");
 
     public RetroLevelSegmentMatcher() {
-        super(new LevelSegmentMatcher(), GUARD);
+        super(new LevelSegmentMatcher(), GUARD, Segment::new);
     }
 
     @Override
-    ActionBarSegment find(StyledText actionBar) {
-        return RetroHudGlyphs.findLevel(
-                        actionBar.getStringWithoutFormatting(),
-                        RetroHudGlyphs.indicesIn(actionBar)::get)
-                .map(level -> new Segment(level.group(), level.start(), level.end()))
-                .orElse(null);
+    Optional<MatchResult> find(String actionBar, IntPredicate inFont) {
+        return RetroHudGlyphs.findLevel(actionBar, inFont);
     }
 
     /** The level this matcher found, which Wynntils' models do not read. */
