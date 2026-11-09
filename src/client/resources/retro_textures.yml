@@ -441,7 +441,7 @@ item_models:
   # But the frying pan, which is also the pan on every cooking station, stays Wynncraft's.
   'minecraft:item/wynn/(weapon/\w+/dagger_|skin/dagger/(?!frying_pan$))\w+': 'minecraft:item/shears'
   'minecraft:item/wynn/(weapon/\w+/bow_|skin/bow/)\w+': {texture: 'minecraft:item/bow', parent: bow}
-  'minecraft:item/wynn/(weapon/\w+/relik_|skin/relik/)\w+': {texture: 'minecraft:item/bone', parent: handheld}
+  'minecraft:item/wynn/(weapon/\w+/relik_|skin/relik/)\w+': {texture: 'minecraft:item/iron_pickaxe', parent: handheld}
   # Armour: the vanilla piece of the same material. pale_ is the paler copy of a material.
   'minecraft:item/wynn/armor/\w+/(?:pale_)?gold_(helmet|chestplate|leggings|boots)': 'minecraft:item/golden_$1'
   'minecraft:item/wynn/armor/\w+/(?:pale_)?(chainmail|iron|diamond|netherite)_(helmet|chestplate|leggings|boots)': 'minecraft:item/$1_$2'
@@ -962,7 +962,7 @@ outlined_icons:
       'WAND': 'minecraft:item/stick'
       'DAGGER': 'minecraft:item/shears'
       'BOW': 'minecraft:item/bow'
-      'RELIK': 'minecraft:item/bone'
+      'RELIK': 'minecraft:item/iron_pickaxe'
   # A mastery tome, over its glinting book. The Allegiance tome's shield has no flat art (a special
   # renderer draws it), so it is the real item, in gear_box_icons.
   - scale: 0.375
