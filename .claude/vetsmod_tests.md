@@ -1851,67 +1851,10 @@ Test: [`ExtrasCommandsTest.java`](../src/test/java/org/wynnvets/extras/ExtrasCom
 
 ### `SudokuBoardTest`
 
-Test: [`SudokuBoardTest.java`](../src/test/java/org/wynnvets/extras/sudoku/SudokuBoardTest.java) · Subject: [`SudokuBoard`](../src/client/java/org/wynnvets/extras/sudoku/SudokuBoard.java)
+Test: [`SudokuBoardTest.java`](../src/test/java/org/wynnvets/extras/sudoku/SudokuBoardTest.java) · Subject: [`SudokuBoard`](../src/client/java/org/wynnvets/extras/sudoku/SudokuBoard.java), [`SudokuGrid`](../src/client/java/org/wynnvets/extras/sudoku/SudokuGrid.java)
 
-`SudokuBoard` is one player's board for one day. The suite pins its cells and fills, the rule check, the status line, the stored form, the board a reopen picks, the key mapping and the geometry. `SudokuScreen`, which draws it, cannot load under the harness. `oneBlank()` is a board of a known `SOLUTION` with only the top-left cell, whose digit is 5, left to enter, and `solved()` is that board solved.
+`SudokuBoard` is one player's board for one day, and `SudokuGrid` the rules and solver over its digits, reached through the board. The suite pins the cells and fills, the rule check, pencil marks and hints, the status line, the stored form and the board a reopen picks, with the board it keeps aside. `SudokuScreen`, which draws it and owns the geometry and keys, cannot load under the harness. `oneBlank()` is a board of a known `SOLUTION` with only the top-left cell, whose digit is 5, left to enter, `solved()` is that board solved, `unsentSolve(day)` the same of another day, and `mark(board, cell, digit)` toggles one mark through `toggleNotes`, as a number key does with one cell selected.
 
-- **`toggleNote_marksAndUnmarksABlank`**: A pencil mark toggles, one digit at a time.
-  - After marking 4 and 9 on a blank, `hasNote` is true for both and false for 5; toggling 4 again leaves only 9.
-- **`toggleNote_stampsNoTimeAndLeavesTheCellBlank`**: A mark is not an entry.
-  - With 9000 ms banked, `cell(2)`, `fill(2)` and `seconds()` stay 0.
-- **`toggleNote_ignoresAGivenAnEntryAndASolvedBoard`**: Only a blank takes a mark.
-  - `toggleNote` is false on a given, on an entry and on a solved board, and no mark appears.
-- **`settingADigit_clearsTheCellsNotes`**: A digit replaces a cell's marks.
-  - After `set(2, 1)` the marks are gone, and clearing the digit does not bring them back.
-- **`settingADigit_takesItOutOfTheMarksAroundIt`**: A digit comes out of the marks in its row, column and box.
-  - After `set(2, 4)`, the 4s marked in cells 3, 11 and 29 are gone, the 4 in cell 30 stays, and cell 3's 9 stays.
-- **`toggleNotes_addsToEveryBlankUnlessAllHaveIt`**: Several cells take one mark together.
-  - Over blanks 3 and 30 and given 0, the first call marks both blanks and not the given, the second clears both, and with only one marked a call marks both.
-- **`toggleNotes_withNoBlankOrOnASolvedBoard_changesNothing`**: A mark needs a blank to land on.
-  - `toggleNotes` is false over a given, an entry and a given, and false on a solved board.
-- **`fillNotes_pencilsEachBlankWithItsOpenDigits`**: A fills every blank with its open digits.
-  - Cell 2 ends with exactly 1, 2 and 4 marked, its own 9 replaced; a given gets none; a second call and a solved board change nothing.
-- **`hintCell_pointsAtAWrongEntryFirst`**: A wrong entry is the first hint.
-  - With a wrong 1 at cell 2 and a right 6 at cell 3, `hintCell()` is 2, and `isWrong` is true for 2 only.
-- **`hintCell_pointsAtABlankThatOneDigitFills`**: Otherwise a hint is a blank the solution fills.
-  - The hinted cell is blank and takes its solution digit as a right entry.
-- **`hintCell_isMinusOneOnASolvedBoard`**: A solved board has no hint.
-  - `hintCell()` is -1.
-- **`moved_stepsOneCellAndStopsAtTheEdge`**: An arrow moves the selection one cell.
-  - From none it starts at the centre, 40; from 0, right is 1 and down 9 while left and up stay at 0; from 80, right stays and up is 71; any other key is -1.
-- **`clearingABlank_clearsItsNotes_andOnlyThenChangesTheBoard`**: Backspace on a blank clears its marks.
-  - `set(2, 0)` is false with no marks, true with some, and false again afterwards.
-- **`notes_surviveTheStoredForm`**: Marks survive `toJson` and `fromJson`.
-  - The marked digits read true and an unmarked one false.
-- **`aBoardStoredBeforeNotes_readsWithNone`**: Progress saved before pencil marks still loads.
-  - JSON with no `notes` key reads as the same grid with no marks.
-- **`badNotes_readAsNoBoard`**: Marks the class could not have written drop the board.
-  - The wrong length, a bit that is no digit and a mark on a given each read as null.
-- **`aReplacedPuzzle_startsFreshAndTakesItsResultOffTheStreak`**: The same day with other digits is a new board.
-  - The new board has the new digits and no marks, and its streak is the stored one, less one if that board had a rank.
-- **`anUnsentBoardOfAReplacedPuzzle_doesNotHoldUpTheNewOne`**: The server can never take a replaced puzzle's board, so it is not kept for sending.
-  - A solved, unsent board with other digits on the same day gives a new, unsolved board of the new digits.
-- **`number_countsDaysFromTheFirstPuzzle`**: A puzzle's number counts days from the first.
-  - `2026-11-02` is 1, `2026-12-01` is 30 and a day that is not a date is 0.
-- **`ribbon_showsTheStreakOrThatThePlayerIsUnlinked`**: The ribbon names the number, then the streak or "Unlinked".
-  - `ribbon(true)` equals `No. 12 - Streak 3` and `ribbon(false)` equals `No. 12 - Unlinked`.
-- **`secondsToNextPuzzle_countsToFourInHalifaxAfterItsDay`**: The wait runs to 04:00 Halifax after the board's day, across a clock change.
-  - The day's own 04:00 waits a day, its last minute waits 60 s, and the day the clocks go back waits 25 hours.
-- **`secondsToNextPuzzle_runsLongOnTheFirstPuzzleAndStopsAtZero`**: The first puzzle's longer run shows, and a wait never goes negative.
-  - Day `2026-11-02` at noon on the 1st waits 40 hours, later than its end waits 0, and a day that is not a date waits 0.
-- **`role_withNoSelection_isGivenEntryOrEmpty`**: With nothing selected, a cell is what it holds.
-  - A puzzle digit is `GIVEN`, a set digit `ENTRY` and a blank `EMPTY`.
-- **`role_marksTheSelectionItsPeersAndMatchingDigits`**: The selection lights up its row, column, box and digit.
-  - The selected cell is `SELECTED`, and blanks in its row, box and column are `PEER`; a blank elsewhere stays `EMPTY`.
-  - With a 5 selected, another 5 is `SAME_DIGIT` and a 3 stays `GIVEN`.
-- **`role_marksARepeatedDigitOnBothCells`**: A repeat marks every copy, under the selection.
-  - After `set(2, 5)` beside a given 5, both cells are `CONFLICT`, and cell 2 is `SELECTED` once selected.
-- **`aStoredResult_survivesTheStoredForm`**: The rank and streak survive the stored form.
-  - After `toJson` and `fromJson`, `status()` equals `Solved, rank 4` and `ribbon(true)` equals `No. 0 - Streak 9`.
-- **`aNewBoard_carriesOnlyYesterdaysStreak`**: A streak carries over one day and no further.
-  - From a streak of 5, the next day's ribbon reads `Streak 5`, and the day after that reads `Streak 0`.
-- **`status_namesTheRankOnceTheServerGaveOne`**: A sent board with a rank says so.
-  - After `recordResult(2, 7)`, `status()` equals `Solved, rank 2`.
 - **`aFreshBoard_holdsItsGivensAndNoTimes`**: A new board is its puzzle, with no time on it.
   - `day()` equals `DAY` and `grid()` equals `GIVENS`.
   - `cell(0)` equals 5 and `isGiven(0)` is true.
@@ -1940,19 +1883,81 @@ Test: [`SudokuBoardTest.java`](../src/test/java/org/wynnvets/extras/sudoku/Sudok
   - `trySolve()` and `isSolved()` are true, and `grid()` equals `SOLUTION`.
 - **`aBoardWithABlank_doesNotSolve`**: A blank fails the rule check.
   - `oneBlank().trySolve()` is false.
-- **`aFullBoardThatBreaksARow_doesNotSolve`**: A wrong last digit leaves the board in play.
-  - After `set(0, 4)`, `trySolve()` and `isSolved()` are false.
-  - `status()` equals `Not solved yet`.
+- **`aFullBoardThatBreaksARow_doesNotSolve`**: A wrong last digit leaves the board in play, and the rows are checked on their own.
+  - After `set(0, 4)`, `trySolve()` and `isSolved()` are false, and `status()` equals `Not solved yet`.
+  - A full board whose every row is its solution row's first three digits three times over, so its columns and boxes are whole and only its rows repeat a digit, does not solve.
 - **`aFullBoardWithOnlyItsBoxesBroken_doesNotSolve`**: The boxes are checked on their own.
   - On a Latin square, each row the one above shifted by one, `trySolve()` is false.
 - **`aFullBoardWithOnlyItsColumnsBroken_doesNotSolve`**: The columns are checked on their own.
-  - On nine copies of `123456789`, `trySolve()` is false.
+  - On the solution's top three rows three times over, whose rows and boxes are whole, `trySolve()` is false.
 - **`aSolvedBoard_ignoresInputAndDoesNotSolveTwice`**: A solved board is finished.
   - `set(0, 4)`, `set(0, 0)` and `trySolve()` are false, and `grid()` equals `SOLUTION`.
+- **`aMark_togglesOnABlank`**: A pencil mark toggles, one digit at a time.
+  - After marking 4 and 9 on a blank, `hasNote` is true for both and false for 5; toggling 4 again leaves only 9.
+- **`aMark_stampsNoTimeAndLeavesTheCellBlank`**: A mark is not an entry.
+  - With 9000 ms banked, `cell(2)`, `fill(2)` and `seconds()` stay 0.
+- **`aMark_ignoresAGivenAnEntryAndASolvedBoard`**: Only a blank takes a mark.
+  - A mark is refused on a given, on an entry and on a solved board, and no mark appears.
+- **`settingADigit_clearsTheCellsNotes`**: A digit replaces a cell's marks.
+  - After `set(2, 1)` the marks are gone, and clearing the digit does not bring them back.
+- **`settingADigit_takesItOutOfTheMarksAroundIt`**: A digit comes out of the marks in its row, column and box.
+  - After `set(2, 4)`, the 4s marked in cells 3, 11 and 29 are gone, the 4 in cell 30 stays, and cell 3's 9 stays.
+- **`toggleNotes_addsToEveryBlankUnlessAllHaveIt`**: Several cells take one mark together.
+  - Over blanks 3 and 30 and given 0, the first call marks both blanks and not the given, the second clears both, and with only one marked a call marks both.
+- **`toggleNotes_withNoBlankOrOnASolvedBoard_changesNothing`**: A mark needs a blank to land on.
+  - `toggleNotes` is false over a given, an entry and a given, and false on a solved board.
+- **`fillNotes_pencilsEachBlankWithItsOpenDigits`**: A fills every blank with its open digits.
+  - Cell 2 ends with exactly 1, 2 and 4 marked, its own 9 replaced; a given gets none; a second call and a solved board change nothing.
+- **`hintCell_pointsAtAWrongEntryFirst`**: A wrong entry is the first hint.
+  - With a wrong 1 at cell 2 and a right 6 at cell 3, `hintCell()` is 2, and `isWrong` is true for 2 only.
+- **`hintCell_pointsAtABlankThatOneDigitFills`**: Otherwise a hint is a blank only one digit can fill.
+  - The hinted cell is blank, and once the board is pencilled with its open digits, it has one digit open or a digit noted in no other cell of its row, its column or its box.
+  - `isForced` is true of it, and it takes its solution digit as a right entry.
+- **`hintCell_withNoForcedBlank_pointsAtTheFirstWithFewestDigitsOpen`**: With no such blank, a hint is the first blank with fewest digits open.
+  - On Arto Inkala's puzzle, which no single starts, `hintCell()` is 69, the first blank with two open, and `isForced(69)` is false.
+- **`hintCell_isMinusOneOnASolvedBoard`**: A solved board has no hint.
+  - `hintCell()` is -1.
+- **`clearingABlank_clearsItsNotes_andOnlyThenChangesTheBoard`**: Backspace on a blank clears its marks.
+  - `set(2, 0)` is false with no marks, true with some, and false again afterwards.
+- **`notes_surviveTheStoredForm`**: Marks survive `toJson` and `fromJson`.
+  - The marked digits read true and an unmarked one false.
+- **`aBoardStoredBeforeNotes_readsWithNone`**: Progress saved before pencil marks still loads.
+  - JSON with no `notes` key reads as the same grid with no marks.
+- **`badNotes_readAsNoBoard`**: Marks the class could not have written drop the board.
+  - The wrong length, a bit that is no digit and a mark on a given each read as null.
+- **`aReplacedPuzzle_startsFreshAndTakesItsResultOffTheStreak`**: The same day with other digits is a new board.
+  - The new board has the new digits and no marks, and its streak is the stored one, less one if that board had a rank.
+- **`anUnsentBoardOfAReplacedPuzzle_doesNotHoldUpTheNewOne`**: The server can never take a replaced puzzle's board, so it is not kept for sending.
+  - A solved, unsent board with other digits on the same day gives a new, unsolved board of the new digits, with nothing kept aside.
+- **`aReplacedPuzzle_keepsWhatItHeldAside`**: Replacing today's puzzle does not drop yesterday's result.
+  - A board keeping a `2026-10-31` solve aside, replaced by other digits on its own day, gives a board that keeps the same solve aside.
+- **`number_countsDaysFromTheFirstPuzzle`**: A puzzle's number counts days from the first.
+  - `2026-11-02` is 1, `2026-12-01` is 30 and a day that is not a date is 0.
+- **`ribbon_showsTheStreakOrThatThePlayerIsUnlinked`**: The ribbon names the number, then the streak or "Unlinked".
+  - `ribbon(true)` equals `No. 12 - Streak 3` and `ribbon(false)` equals `No. 12 - Unlinked`.
+- **`secondsToNextPuzzle_countsToFourInHalifaxAfterItsDay`**: The wait runs to 04:00 Halifax after the board's day, across a clock change.
+  - The day's own 04:00 waits a day, its last minute waits 60 s, and the day the clocks go back waits 25 hours.
+- **`secondsToNextPuzzle_runsLongOnTheFirstPuzzleAndStopsAtZero`**: The first puzzle's longer run shows, and a wait never goes negative.
+  - Day `2026-11-02` at noon on the 1st waits 40 hours, later than its end waits 0, and a day that is not a date waits 0.
+- **`role_withNoSelection_isGivenEntryOrEmpty`**: With nothing selected, a cell is what it holds.
+  - A puzzle digit is `GIVEN`, a set digit `ENTRY` and a blank `EMPTY`.
+- **`role_marksTheSelectionItsPeersAndMatchingDigits`**: The selection lights up its row, column, box and digit.
+  - The selected cell is `SELECTED`, and blanks in its row, box and column are `PEER`; a blank elsewhere stays `EMPTY`.
+  - With a 5 selected, another 5 is `SAME_DIGIT` and a 3 stays `GIVEN`.
+- **`role_marksARepeatedDigitOnBothCells`**: A repeat marks every copy, under the selection.
+  - After `set(2, 5)` beside a given 5, both cells are `CONFLICT`, and cell 2 is `SELECTED` once selected.
+- **`aStoredResult_survivesTheStoredForm`**: The rank and streak survive the stored form.
+  - After `toJson` and `fromJson`, `status()` equals `Solved, rank 4` and `ribbon(true)` equals `No. 0 - Streak 9`.
+- **`aNewBoard_carriesOnlyYesterdaysStreak`**: A streak carries over one day and no further.
+  - From a ranked streak of 5, the next day's ribbon reads `Streak 5`, and the day after that reads `Streak 0`.
+- **`aDayWithNoRankedResult_breaksTheStreak`**: A day left unsolved carries nothing on.
+  - The day after a ranked streak of 5 reads `Streak 5`; left unsolved, the day after it reads `Streak 0`.
 - **`status_followsTheBoard`**: The status line tracks the result.
   - A board in play gives an empty status.
   - A solved board has `isUnsent()` true and status `Solved, not sent`.
   - After `markSubmitted()`, `isUnsent()` is false and the status is `Solved`.
+- **`status_namesTheRankOnceTheServerGaveOne`**: A sent board with a rank says so.
+  - After `recordResult(2, 7)`, `status()` equals `Solved, rank 2`.
 - **`anUnsolvedBoard_isNotUnsent`**: Only a solved board can be unsent.
   - `oneBlank().isUnsent()` is false.
 - **`aBoardRoundTrips`**: The stored form keeps a board in play.
@@ -1963,7 +1968,7 @@ Test: [`SudokuBoardTest.java`](../src/test/java/org/wynnvets/extras/sudoku/Sudok
   - A solved board reads back with `isUnsent()` true.
   - After `markSubmitted()` it reads back with `isSolved()` true and `isUnsent()` false.
 - **`theStoredForm_holdsTheDocumentedKeys`**: The stored form is the documented object.
-  - `oneBlank().toJson()` equals `{"day":…,"cells":…,"fills":[…],"activeMs":0,"solved":false,"submitted":false,"rank":0,"streak":0,"notes":[…]}`, keys in that order.
+  - `oneBlank().toJson()` equals `{"day":…,"cells":…,"fills":[…],"activeMs":0,"solved":false,"submitted":false,"rank":0,"streak":0,"notes":[…]}`, keys in that order, with no `aside` while nothing is kept aside.
 - **`nothingStored_readsAsNull`**: Nothing stored is no board.
   - `fromJson(null)` and `fromJson("")` are null.
 - **`textThatIsNoBoard_readsAsNull`**: Text that is not a board is no board.
@@ -1979,32 +1984,24 @@ Test: [`SudokuBoardTest.java`](../src/test/java/org/wynnvets/extras/sudoku/Sudok
 - **`anOlderBoardWithNoUnsentSolve_isDropped`**: An older board with nothing to send gives way.
   - For an older board in play, `forOpening` returns a different board, of `DAY`.
   - For an older board solved and sent, `forOpening` returns a board of `DAY`.
-- **`anOlderUnsentSolve_isKeptOnlyWhileItCanStillGoOut`**: An unsent solve outranks the new day while it can still be sent.
-  - With `canStillSend` true, `forOpening` returns the same instance.
-  - With `canStillSend` false, it returns a board of `DAY`.
+- **`anOlderUnsentSolve_isKeptAsideOnlyWhileItCanStillGoOut`**: An unsent solve never holds up the new day, and waits beside it while it can still be sent.
+  - With `canStillSend` true, `forOpening` returns a board of `DAY` with `GIVENS`, keeping the same instance aside.
+  - With `canStillSend` false, the board it returns keeps nothing aside.
+- **`aBoardKeptAside_dropsWhatItHadKeptAside`**: Only one day waits aside.
+  - Yesterday's board, itself keeping the day before's solve aside, is solved and unsent; today's board keeps yesterday's aside, which no longer keeps anything.
+- **`aBoardKeptAside_survivesTheStoredForm`**: The board kept aside is stored with the board keeping it.
+  - Read back, the board is of `DAY` and keeps an unsent solve of `2026-10-31` with the grid `SOLUTION`.
+- **`aStoredAsideThatIsNotAnUnsentSolve_readsAsNoBoard`**: An aside the class could not have written drops the board.
+  - With an unsent solve spliced in as `aside` the board reads; with an unsolved board or a sent one in its place it reads as null.
+- **`settlingAnAside_carriesOnItsStreakAndLetsItGo`**: Once yesterday's result is in, today's board takes its streak.
+  - Today's board starts at `Streak 0` with yesterday's unsent solve aside, and `settleAside()` keeps it while it is unsent.
+  - After yesterday's board is submitted with `recordResult(2, 6)`, `settleAside()` lets it go and today's ribbon reads `Streak 6`.
+- **`settlingAnAside_takesNoStreakOverTheBoardsOwnResult`**: The board's own result is the newer streak.
+  - With today's `recordResult(1, 9)` and yesterday's `recordResult(2, 6)`, `settleAside()` lets yesterday's go and the ribbon still reads `Streak 9`.
 - **`aStoredBoardOfTheSameDayWithOtherGivens_isDropped`**: A stored board must be of the puzzle on offer.
   - `forOpening` returns a different board, whose `grid()` equals `GIVENS`.
 - **`theGivensOfAStoredBoardWithEntries_stillMatchTheirPuzzle`**: Entries do not count as givens when a stored board is matched against its puzzle.
   - A board with an entry, read back, is returned as the same instance by `forOpening`.
-- **`digitForKey_mapsBothRowsOfNumberKeys`**: Both rows of number keys set digits.
-  - For each digit 1 to 9, `digitForKey` of `GLFW_KEY_0 + digit` and of `GLFW_KEY_KP_0 + digit` equals the digit.
-- **`digitForKey_clearsOnBackspaceAndDelete`**: Two keys clear a cell.
-  - `digitForKey` of Backspace and Delete equals 0.
-- **`digitForKey_ignoresEveryOtherKey`**: No other key is taken, including the zeros.
-  - `digitForKey` of `0`, keypad `0`, Esc, `A` and Up equals -1.
-- **`theBoard_isTheSizeThePageWasMeasuredFor`**: The size the book's page was measured against.
-  - `BOARD_SIZE` equals 156.
-- **`cellOrigin_pitchesAt17WithAnExtraPixelAtEachBox`**: The item squares' origins.
-  - `cellOrigin` of 0 to 8 equals 1, 18, 35, 53, 70, 87, 105, 122 and 139.
-- **`theLinesAndTheCells_tileTheBoardExactly`**: Lines and cells do not overlap and leave no gap.
-  - Adding every pixel of the ten lines and then of the nine cells to a set never meets a duplicate.
-  - The set's size equals `BOARD_SIZE`.
-- **`lineThickness_isTwoBetweenBoxesOnly`**: Only the lines between boxes are thick.
-  - `lineThickness` equals 2 for lines 3 and 6, and 1 for the other eight.
-- **`cellAt_findsEachCellAtItsCorners`**: The hit test agrees with the geometry.
-  - For every cell, `cellAt` of its top-left and bottom-right pixels equals `row * 9 + column`.
-- **`cellAt_missesTheLinesAndOffTheBoard`**: A point off the items is no cell.
-  - `cellAt` equals -1 on the outer line (x 0, y 0), a cell line (x 17), a box line (x 51, 52), the far line (x 155), before the board (x -1) and after it (x 156, y 156).
 
 ### `SudokuClientTest`
 

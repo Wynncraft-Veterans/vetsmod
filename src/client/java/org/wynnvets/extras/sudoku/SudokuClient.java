@@ -10,11 +10,11 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.List;
-import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
+import org.apache.commons.lang3.StringUtils;
 import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.api.VetsApi;
 import org.wynnvets.chat.ChatUtils;
@@ -43,10 +43,10 @@ final class SudokuClient {
     /** Printed for a player whose solve can never go out as things stand. */
     private static final String LINK_LINE = "Link your Discord with ~vetsmod to submit results.";
 
-    /** Printed when a solve stays unsent and goes out at the next open. */
+    /** Printed when a solve stays unsent and goes out at the next open on Wynncraft. */
     private static final String SEND_LATER_LINE = "Results send next time.";
 
-    private static final Pattern GIVENS = Pattern.compile("[0-9]{" + SudokuBoard.CELLS + "}");
+    private static final Pattern GIVENS = Pattern.compile("[0-9]{" + SudokuGrid.CELLS + "}");
 
     /**
      * The day's puzzle, as the server sends it.
@@ -55,12 +55,11 @@ final class SudokuClient {
      * @param givens its digits, {@code 0} for a blank
      * @param difficulty its level
      */
-    // Package-private for unit tests. See SudokuClientTest.
     record Puzzle(String day, String givens, String difficulty) {
 
         /** The level as the book's left page shows it. */
         String difficultyLabel() {
-            return difficulty.substring(0, 1).toUpperCase(Locale.ROOT) + difficulty.substring(1);
+            return StringUtils.capitalize(difficulty);
         }
     }
 
@@ -182,27 +181,61 @@ final class SudokuClient {
      * @param then run on the client thread once that is settled
      */
     static void submit(SudokuBoard board, Runnable then) {
+        submit(board, board, then);
+    }
+
+    /**
+     * Sends what a stored board holds unsent, the board it keeps aside first, as {@link #submit}
+     * does each.
+     *
+     * @param board the stored board
+     * @param then run on the client thread once both are settled, or at once with nothing unsent
+     */
+    static void submitUnsent(SudokuBoard board, Runnable then) {
+        Runnable own = () -> submitIfUnsent(board, board, then);
+        if (board.aside() != null) {
+            submitIfUnsent(board, board.aside(), own);
+        } else {
+            own.run();
+        }
+    }
+
+    private static void submitIfUnsent(SudokuBoard saved, SudokuBoard sent, Runnable then) {
+        if (sent.isUnsent()) {
+            submit(saved, sent, then);
+        } else {
+            then.run();
+        }
+    }
+
+    /**
+     * Sends {@code sent}, which is {@code saved} or the board it keeps aside, and on its reply
+     * saves {@code saved}.
+     */
+    private static void submit(SudokuBoard saved, SudokuBoard sent, Runnable then) {
         SendState state = sendState();
         if (state == SendState.READY) {
             V1ApiManager.sendStaffActionFrame(
                     FRAME_TYPE,
-                    submitFields(board),
-                    ack -> McUtils.mc().execute(() -> settle(board, ack, then)));
+                    submitFields(sent),
+                    ack -> McUtils.mc().execute(() -> settle(saved, sent, ack, then)));
             return;
         }
-        unsentLines(board, state).forEach(ChatUtils::sendLocalMessage);
+        unsentLines(sent, state).forEach(ChatUtils::sendLocalMessage);
         then.run();
     }
 
     /**
-     * Applies a reply to its board, once back on the client thread. The stored copy is rewritten
-     * only while it is still that day's: a slow reply must not put back a board the player has
-     * since moved on from.
+     * Applies a reply to the board sent, once back on the client thread, and lets go of it if it
+     * was kept aside and is finished. The stored copy is rewritten only while it is still that
+     * puzzle's: a slow reply must not put back a board the player has since moved on from, a new
+     * day's or a replaced puzzle's.
      */
-    private static void settle(SudokuBoard board, JsonObject ack, Runnable then) {
-        ackLines(board, ack).forEach(ChatUtils::sendLocalMessage);
+    private static void settle(SudokuBoard saved, SudokuBoard sent, JsonObject ack, Runnable then) {
+        ackLines(sent, ack).forEach(ChatUtils::sendLocalMessage);
+        saved.settleAside();
         SudokuBoard stored = loadProgress();
-        if (stored != null && stored.day().equals(board.day())) saveProgress(board);
+        if (stored != null && stored.samePuzzle(saved)) saveProgress(saved);
         then.run();
     }
 
@@ -213,7 +246,7 @@ final class SudokuClient {
     // Package-private for unit tests. See SudokuClientTest.
     static JsonObject submitFields(SudokuBoard board) {
         JsonArray fills = new JsonArray();
-        for (int i = 0; i < SudokuBoard.CELLS; i++) {
+        for (int i = 0; i < SudokuGrid.CELLS; i++) {
             fills.add(board.fill(i));
         }
         JsonObject fields = new JsonObject();
@@ -246,8 +279,7 @@ final class SudokuClient {
                                     + streak
                                     + " day streak."));
         }
-        // Read through optString because Json has no boolean accessor: it coerces the literal.
-        if ("false".equals(Json.optString(ack, "retry", "true"))) {
+        if (Json.isFalse(ack, "retry")) {
             board.markSubmitted();
             return List.of(
                     line(ChatFormatting.GREEN, solvedIn(board.seconds())),

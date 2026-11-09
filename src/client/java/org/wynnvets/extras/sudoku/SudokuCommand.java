@@ -13,8 +13,8 @@ import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.util.TickDelays;
 
 /**
- * Builds {@code /wv extras sudoku} and runs its open: any solved board still unsent goes first,
- * then the day's puzzle is fetched and the right board opens. See {@code vetsmod_extras.md}.
+ * Builds {@code /wv extras sudoku} and runs its open: any result still unsent goes first, then the
+ * day's puzzle is fetched and its board opens. See {@code vetsmod_extras.md}.
  */
 public final class SudokuCommand {
 
@@ -33,10 +33,8 @@ public final class SudokuCommand {
 
     private static int run(CommandContext<FabricClientCommandSource> ctx) {
         SudokuBoard stored = SudokuClient.loadProgress();
-        if (stored != null
-                && stored.isUnsent()
-                && SudokuClient.sendState() == SudokuClient.SendState.READY) {
-            SudokuClient.submit(stored, SudokuCommand::fetchAndOpen);
+        if (stored != null && SudokuClient.sendState() == SudokuClient.SendState.READY) {
+            SudokuClient.submitUnsent(stored, SudokuCommand::fetchAndOpen);
         } else {
             fetchAndOpen();
         }
@@ -72,8 +70,7 @@ public final class SudokuCommand {
                         puzzle.day(),
                         puzzle.givens(),
                         SudokuClient.sendState() != SudokuClient.SendState.NEVER);
-        SudokuScreen.open(
-                board, board.day().equals(puzzle.day()) ? puzzle.difficultyLabel() : null);
+        SudokuScreen.open(board, puzzle.difficultyLabel());
     }
 
     /** Whether the board may open over {@code screen}. */

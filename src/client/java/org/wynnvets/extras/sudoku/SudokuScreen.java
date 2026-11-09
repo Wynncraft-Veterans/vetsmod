@@ -41,6 +41,15 @@ final class SudokuScreen extends WynntilsMenuScreenBase {
 
     private static final int BOARD_Y = 32;
 
+    /** The side of a cell's item square. */
+    private static final int CELL_SIZE = 16;
+
+    /** From one cell to the next, with the one-pixel line between them. */
+    private static final int PITCH = CELL_SIZE + 1;
+
+    /** The side of the drawn board, outer lines included: 156 px. */
+    private static final int BOARD_SIZE = cellOrigin(SudokuGrid.SIZE - 1) + CELL_SIZE + 1;
+
     /** The left page's text, below the title ribbon. */
     private static final int TEXT_X = 20;
 
@@ -53,6 +62,11 @@ final class SudokuScreen extends WynntilsMenuScreenBase {
     private static final String RULES =
             ChatFormatting.DARK_GRAY + "Fill every row, column, and 3x3 block with 1 to 9.";
 
+    /** What a hint adds to the time, so a hinted solve doesn't outrank a clean one. */
+    private static final long HINT_PENALTY_MS = 30_000L;
+
+    private static final long HINT_PENALTY_SECONDS = HINT_PENALTY_MS / 1000L;
+
     /**
      * One control a line, each short enough not to wrap, with its key picked out, so holding Ctrl
      * and switching with N read as different.
@@ -62,7 +76,7 @@ final class SudokuScreen extends WynntilsMenuScreenBase {
         "- Hold " + key("CTRL") + " to pencil.",
         "- " + key("N") + " toggles pencilling.",
         "- " + key("A") + " notes all candidates.",
-        "- " + key("H") + ": hint (costs 30 sec).",
+        "- " + key("H") + ": hint (costs " + HINT_PENALTY_SECONDS + " sec).",
     };
 
     /** Above the board while numbers make pencil marks, so it shows with nothing selected. */
@@ -77,10 +91,8 @@ final class SudokuScreen extends WynntilsMenuScreenBase {
                     + ChatFormatting.RESET
                     + ChatFormatting.DARK_BLUE;
 
-    private static final String HINT_COST = ChatFormatting.DARK_GRAY + " (+30s)";
-
-    /** What a hint adds to the time, so a hinted solve doesn't outrank a clean one. */
-    private static final long HINT_PENALTY_MS = 30_000L;
+    private static final String HINT_COST =
+            ChatFormatting.DARK_GRAY + " (+" + HINT_PENALTY_SECONDS + "s)";
 
     private static final String NEW_DAILY = ChatFormatting.DARK_GRAY + "New puzzle daily:";
     private static final String NEXT_IN = ChatFormatting.DARK_GRAY + "Next in ";
@@ -123,7 +135,10 @@ final class SudokuScreen extends WynntilsMenuScreenBase {
     private int selected = -1;
 
     /** Every selected cell: the one clicked, and any a drag from it has crossed since. */
-    private final BitSet selection = new BitSet(SudokuBoard.CELLS);
+    private final BitSet selection = new BitSet(SudokuGrid.CELLS);
+
+    /** Whether the last click selected a cell, so a drag from it adds to the selection. */
+    private boolean dragging;
 
     /** Whether numbers make pencil marks, which N switches. */
     private boolean pencil;
@@ -144,7 +159,7 @@ final class SudokuScreen extends WynntilsMenuScreenBase {
      * Opens a board in the book.
      *
      * @param board the board
-     * @param difficulty the difficulty to show, or {@code null} for a board of an earlier day
+     * @param difficulty the puzzle's difficulty, as the left page shows it
      */
     static void open(SudokuBoard board, String difficulty) {
         openBook(new SudokuScreen(board, difficulty));
@@ -187,8 +202,9 @@ final class SudokuScreen extends WynntilsMenuScreenBase {
 
     @Override
     public boolean doMouseClicked(MouseButtonEvent event, boolean isDoubleClick) {
-        int cell = cellAt(event);
-        if (cell >= 0 && !board.isSolved()) {
+        int cell = cellUnder(event);
+        dragging = cell >= 0 && !board.isSolved();
+        if (dragging) {
             hintLine = null;
             select(cell);
             return true;
@@ -198,17 +214,16 @@ final class SudokuScreen extends WynntilsMenuScreenBase {
 
     @Override
     public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
-        int cell = cellAt(event);
-        if (event.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT || selected < 0 || cell < 0) {
+        int cell = cellUnder(event);
+        if (event.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT || !dragging || cell < 0) {
             return super.mouseDragged(event, dragX, dragY);
         }
         selection.set(cell);
         return true;
     }
 
-    private int cellAt(MouseButtonEvent event) {
-        return SudokuBoard.cellAt(
-                (int) event.x() - offsetX - BOARD_X, (int) event.y() - offsetY - BOARD_Y);
+    private int cellUnder(MouseButtonEvent event) {
+        return cellAt((int) event.x() - offsetX - BOARD_X, (int) event.y() - offsetY - BOARD_Y);
     }
 
     /** Selects one cell, or nothing for -1. */
@@ -222,7 +237,7 @@ final class SudokuScreen extends WynntilsMenuScreenBase {
     public boolean keyPressed(KeyEvent event) {
         int key = event.key();
         if (!board.isSolved() && handleTool(key)) return true;
-        int digit = SudokuBoard.digitForKey(key);
+        int digit = digitForKey(key);
         if (digit < 0 || selected < 0) return super.keyPressed(event);
         hintLine = null;
         int[] cells = selection.stream().toArray();
@@ -251,7 +266,7 @@ final class SudokuScreen extends WynntilsMenuScreenBase {
 
     /** The keys that are not numbers: N, A, H and the arrows. */
     private boolean handleTool(int key) {
-        int moved = SudokuBoard.moved(selected, key);
+        int moved = moved(selected, key);
         if (moved >= 0) {
             hintLine = null;
             select(moved);
@@ -278,12 +293,15 @@ final class SudokuScreen extends WynntilsMenuScreenBase {
         board.setActiveMs(board.activeMs() + HINT_PENALTY_MS);
         SudokuClient.saveProgress(board);
         select(cell);
-        hintLine =
-                HINT
-                        + (board.isWrong(cell)
-                                ? "the selected cell is wrong."
-                                : "the selected cell can be filled now.")
-                        + HINT_COST;
+        String finding;
+        if (board.isWrong(cell)) {
+            finding = "the selected cell is wrong.";
+        } else if (board.isForced(cell)) {
+            finding = "the selected cell can be filled now.";
+        } else {
+            finding = "the selected cell has the fewest candidates.";
+        }
+        hintLine = HINT + finding + HINT_COST;
     }
 
     // ── Drawing ──────────────────────────────────────────────────────────
@@ -304,7 +322,7 @@ final class SudokuScreen extends WynntilsMenuScreenBase {
                 .renderText(
                         graphics,
                         StyledText.fromString(PENCIL_MODE),
-                        boardX() + SudokuBoard.BOARD_SIZE / 2f,
+                        boardX() + BOARD_SIZE / 2f,
                         boardY() - 2,
                         CommonColors.BLACK,
                         HorizontalAlignment.CENTER,
@@ -313,9 +331,7 @@ final class SudokuScreen extends WynntilsMenuScreenBase {
     }
 
     private void renderLeftPage(GuiGraphics graphics) {
-        float y = TEXT_Y + offsetY;
-        if (difficulty != null)
-            y = renderParagraph(graphics, "Difficulty: " + value(difficulty), y);
+        float y = renderParagraph(graphics, "Difficulty: " + value(difficulty), TEXT_Y + offsetY);
         // A solved board's time is the one the server works out, not the banked milliseconds.
         long seconds = board.isSolved() ? board.seconds() : activeMs() / 1000L;
         y = renderParagraph(graphics, "Time: " + value(Durations.minutesSeconds(seconds)), y);
@@ -386,18 +402,18 @@ final class SudokuScreen extends WynntilsMenuScreenBase {
     }
 
     private void renderGrid(GuiGraphics graphics) {
-        int size = SudokuBoard.BOARD_SIZE;
-        for (int line = 0; line <= SudokuBoard.SIZE; line++) {
-            int start = SudokuBoard.lineStart(line);
-            int thickness = SudokuBoard.lineThickness(line);
-            CustomColor colour = line % SudokuBoard.BOX == 0 ? BOX_LINE : CELL_LINE;
+        int size = BOARD_SIZE;
+        for (int line = 0; line <= SudokuGrid.SIZE; line++) {
+            int start = lineStart(line);
+            int thickness = lineThickness(line);
+            CustomColor colour = line % SudokuGrid.BOX == 0 ? BOX_LINE : CELL_LINE;
             RenderUtils.drawRect(graphics, colour, boardX() + start, boardY(), thickness, size);
             RenderUtils.drawRect(graphics, colour, boardX(), boardY() + start, size, thickness);
         }
     }
 
     private void renderCells(GuiGraphics graphics) {
-        for (int i = 0; i < SudokuBoard.CELLS; i++) {
+        for (int i = 0; i < SudokuGrid.CELLS; i++) {
             int x = cellX(i);
             int y = cellY(i);
             SudokuBoard.CellRole role = role(i);
@@ -409,8 +425,7 @@ final class SudokuScreen extends WynntilsMenuScreenBase {
                 renderNotes(graphics, i, x, y);
                 continue;
             }
-            RenderUtils.drawRect(
-                    graphics, DIGIT_BACKING, x, y, SudokuBoard.CELL_SIZE, SudokuBoard.CELL_SIZE);
+            RenderUtils.drawRect(graphics, DIGIT_BACKING, x, y, CELL_SIZE, CELL_SIZE);
             // Twice, so the colour holds up over the dark backing.
             graphics.renderFakeItem(glass, x, y);
             graphics.renderFakeItem(glass, x, y);
@@ -420,10 +435,10 @@ final class SudokuScreen extends WynntilsMenuScreenBase {
 
     /** Each mark keeps its digit's place on a number pad's three rows, read from the top. */
     private void renderNotes(GuiGraphics graphics, int index, int x, int y) {
-        for (int digit = 1; digit <= SudokuBoard.SIZE; digit++) {
+        for (int digit = 1; digit <= SudokuGrid.SIZE; digit++) {
             if (!board.hasNote(index, digit)) continue;
-            int column = (digit - 1) % SudokuBoard.BOX;
-            int row = (digit - 1) / SudokuBoard.BOX;
+            int column = (digit - 1) % SudokuGrid.BOX;
+            int row = (digit - 1) / SudokuGrid.BOX;
             FontRenderer.getInstance()
                     .renderText(
                             graphics,
@@ -461,8 +476,8 @@ final class SudokuScreen extends WynntilsMenuScreenBase {
                 .renderText(
                         graphics,
                         StyledText.fromString(Integer.toString(digit)),
-                        x + SudokuBoard.CELL_SIZE / 2f,
-                        y + SudokuBoard.CELL_SIZE / 2f,
+                        x + CELL_SIZE / 2f,
+                        y + CELL_SIZE / 2f,
                         CommonColors.WHITE,
                         HorizontalAlignment.CENTER,
                         VerticalAlignment.MIDDLE,
@@ -478,10 +493,85 @@ final class SudokuScreen extends WynntilsMenuScreenBase {
     }
 
     private int cellX(int index) {
-        return boardX() + SudokuBoard.cellOrigin(index % SudokuBoard.SIZE);
+        return boardX() + cellOrigin(index % SudokuGrid.SIZE);
     }
 
     private int cellY(int index) {
-        return boardY() + SudokuBoard.cellOrigin(index / SudokuBoard.SIZE);
+        return boardY() + cellOrigin(index / SudokuGrid.SIZE);
+    }
+
+    // ── Geometry and keys ────────────────────────────────────────────────
+
+    /** Where a row's or column's item square starts, from the board's edge. */
+    private static int cellOrigin(int line) {
+        return 1 + line * PITCH + line / SudokuGrid.BOX;
+    }
+
+    /**
+     * Where the grid line before a row or column starts, from the board's edge.
+     *
+     * @param line 0 to {@value SudokuGrid#SIZE}, the last being the board's far edge
+     */
+    private static int lineStart(int line) {
+        return line == SudokuGrid.SIZE ? BOARD_SIZE - 1 : cellOrigin(line) - lineThickness(line);
+    }
+
+    /** The thickness of the grid line before a row or column: 2 between boxes, otherwise 1. */
+    private static int lineThickness(int line) {
+        return line % SudokuGrid.BOX == 0 && line % SudokuGrid.SIZE != 0 ? 2 : 1;
+    }
+
+    /**
+     * The cell at a point, from the board's corner.
+     *
+     * @return the cell's index, or -1 off the board or on a grid line
+     */
+    private static int cellAt(int x, int y) {
+        int column = lineAt(x);
+        int row = lineAt(y);
+        return column < 0 || row < 0 ? -1 : row * SudokuGrid.SIZE + column;
+    }
+
+    private static int lineAt(int position) {
+        for (int line = 0; line < SudokuGrid.SIZE; line++) {
+            int offset = position - cellOrigin(line);
+            if (offset >= 0 && offset < CELL_SIZE) return line;
+        }
+        return -1;
+    }
+
+    /**
+     * What a key does to the selected cell.
+     *
+     * @param key a GLFW key code
+     * @return the digit a number key sets, 0 for a key that clears the cell, or -1 for any other
+     */
+    private static int digitForKey(int key) {
+        if (key >= GLFW.GLFW_KEY_1 && key <= GLFW.GLFW_KEY_9) return key - GLFW.GLFW_KEY_0;
+        if (key >= GLFW.GLFW_KEY_KP_1 && key <= GLFW.GLFW_KEY_KP_9) return key - GLFW.GLFW_KEY_KP_0;
+        return key == GLFW.GLFW_KEY_BACKSPACE || key == GLFW.GLFW_KEY_DELETE ? 0 : -1;
+    }
+
+    /**
+     * Where an arrow key moves the selection: one cell over, stopping at the edge.
+     *
+     * @param cell the selected cell, or -1, which starts in the centre
+     * @param key a GLFW key code
+     * @return the new cell, or -1 for a key that is not an arrow
+     */
+    private static int moved(int cell, int key) {
+        int last = SudokuGrid.SIZE - 1;
+        int row = cell < 0 ? SudokuGrid.SIZE / 2 : cell / SudokuGrid.SIZE;
+        int column = cell < 0 ? SudokuGrid.SIZE / 2 : cell % SudokuGrid.SIZE;
+        switch (key) {
+            case GLFW.GLFW_KEY_UP -> row = cell < 0 ? row : Math.max(0, row - 1);
+            case GLFW.GLFW_KEY_DOWN -> row = cell < 0 ? row : Math.min(last, row + 1);
+            case GLFW.GLFW_KEY_LEFT -> column = cell < 0 ? column : Math.max(0, column - 1);
+            case GLFW.GLFW_KEY_RIGHT -> column = cell < 0 ? column : Math.min(last, column + 1);
+            default -> {
+                return -1;
+            }
+        }
+        return row * SudokuGrid.SIZE + column;
     }
 }

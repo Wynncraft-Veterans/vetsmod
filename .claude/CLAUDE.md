@@ -102,8 +102,8 @@ VetsmodClient (entry point)
   │                           icons, single stacks and accessories, the HUD);
   │                           see vetsmod_retro.md
   ├── extras/                 Easter eggs, one sub-package each, under /wv extras
-                              (ExtrasCommands, unlisted in /wv help). sudoku/ is the daily
-                              puzzle in a Wynntils book; see vetsmod_extras.md
+  │                           (ExtrasCommands, unlisted in /wv help). sudoku/ is the daily
+  │                           puzzle in a Wynntils book; see vetsmod_extras.md
   ├── WynntilsEventListener   WorldStateEvent, GuildEvent, ChatMessageEvent
   └── Mixins (21)             Chat (3), Legacy items (3), Command (1 — UnlockCommandMixin),
                                Retro (5 — RetroResourceReloadMixin, RetroHoveredSlotMixin,

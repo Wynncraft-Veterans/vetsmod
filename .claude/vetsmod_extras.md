@@ -17,16 +17,17 @@ type: project
 | Result | the `sudoku_submit` frame on `/v1/inbound`, through `V1ApiManager.sendStaffActionFrame` ([server_api_reference.md](server_api_reference.md)) |
 | Command and open | [`SudokuCommand`](../src/client/java/org/wynnvets/extras/sudoku/SudokuCommand.java) |
 | Fetch, send, reply, stored copy | [`SudokuClient`](../src/client/java/org/wynnvets/extras/sudoku/SudokuClient.java) |
-| Rules, geometry, stored form, reopen choice | [`SudokuBoard`](../src/client/java/org/wynnvets/extras/sudoku/SudokuBoard.java), which touches no Minecraft or Wynntils class, so JUnit covers it |
-| Drawing, input, timer | [`SudokuScreen`](../src/client/java/org/wynnvets/extras/sudoku/SudokuScreen.java), which cannot load under the harness |
+| One player's board: cells and times, marks, hints, stored form, reopen choice | [`SudokuBoard`](../src/client/java/org/wynnvets/extras/sudoku/SudokuBoard.java) |
+| Sudoku's rules over a grid, and its solver | [`SudokuGrid`](../src/client/java/org/wynnvets/extras/sudoku/SudokuGrid.java) |
+| Drawing, geometry, input, timer | [`SudokuScreen`](../src/client/java/org/wynnvets/extras/sudoku/SudokuScreen.java) |
 
 ### Opening
 
 The open runs in this order, and only the first step is skipped when there is nothing to do:
 
-1. A solved board still unsent goes out, if the session is authenticated, and the open waits for the reply.
+1. If the session is authenticated, any result still unsent goes out, the board kept aside first (Stored board), and the open waits for the replies.
 2. The puzzle is fetched. A failure of any kind prints one red line and stops.
-3. `TickDelays.runAfter` waits two ticks, as Wynntils' own command screens do, so the chat screen closing behind the command cannot overwrite the book. It is used rather than `Managers.TickScheduler` because the fetch's reply arrives off the client thread and `TickDelays` is safe from any thread, and closes the scheduler's traps.
+3. `TickDelays.runAfter` waits two ticks, as Wynntils' own command screens do, so the chat screen closing behind the command cannot overwrite the book. It is used rather than `Managers.TickScheduler` because the fetch's reply arrives off the client thread (see `TickDelays`).
 4. On the client thread, the board opens only if `McUtils.screen()` is `null` or a `ChatScreen`; otherwise "Close this menu and run it again." `setScreen` over a server's container sends no close packet, which would leave the server and client out of step, and the check has to be here, after the wait.
 
 ### Board and drawing
@@ -45,11 +46,20 @@ The glass follows the usual way sudoku apps colour cells, by what a cell is show
 | `PEER` | A blank in the selected cell's row, column or box | White |
 | `EMPTY` | Any other blank | Light gray |
 
-The left page has `renderTitle`, then the difficulty, time and status, the rules and controls, and the wait until the next puzzle, with its readings in dark red and the rules and wait in dark gray, each wrapped by `FontRenderer.renderAlignedTextInBox` and stacked by `calculateRenderHeight`. The wait is worked out on the client: the next puzzle comes at 04:00 in `America/Halifax` on the day after the board's. The server dates its very first puzzle a day ahead so that it stays up through the next rollover, which this reads correctly. An earlier day's board has no difficulty line: the fetch only names the current puzzle's.
+The left page has `renderTitle`, then the difficulty and time, the rules, the controls or a status, and the wait until the next puzzle, each wrapped by `FontRenderer.renderAlignedTextInBox` and stacked by `calculateRenderHeight`. The wait is worked out on the client: the next puzzle comes at 04:00 in `America/Halifax` on the day after the board's. The server dates its very first puzzle a day ahead so that it stays up through the next rollover, which this reads correctly.
 
-The bottom ribbon holds the puzzle's number, the days since the first puzzle's day (`SudokuBoard.FIRST_DAY`, 2026-11-02) plus one, then the player's streak, or "Unlinked" when `SendState` is `NEVER`. The streak comes from the last reply: a new board carries on the streak of the day before its own, or of the puzzle it replaced less that puzzle's result, and starts at 0 otherwise, so it can read one lower than the server's until today's result goes out.
+The bottom ribbon holds the puzzle's number, the days since the first puzzle's day (`SudokuBoard.FIRST_DAY`, 2026-11-02) plus one, then the player's streak, or "Unlinked" when `SendState` is `NEVER`. The streak comes from the last reply: a new board carries on the streak of the day before its own if the server ranked that day's result, since a day with none breaks it, or of the puzzle it replaced less that puzzle's result, and starts at 0 otherwise, so it can read one lower than the server's until today's result goes out. A board that keeps yesterday's solve aside takes that solve's streak once the server ranks it (`SudokuBoard.settleAside`).
 
-Clicking selects a cell, a given included, so its matching digits light up; a grid line and a solved board do not. Setting a given does nothing. Number keys (both rows) set the selected cell, Backspace and Delete clear it, and every other key falls through to Wynntils and vanilla, so Esc closes the book. Control with a number key adds or removes a pencil mark on a blank. Not Shift, which Windows hides from the number pad while Num Lock is on. Dragging from a click selects every cell the pointer crosses; with more than one selected, a number is a pencil mark without Control, added to every blank among them unless they all have it, when it comes off them all, and Backspace clears them all. Several selected cells light up alone, without the row, column, box and digit that one lights up. N switches pencil mode, in which a number makes a mark without Control, the selection is orange rather than yellow, and "Pencil mode on" shows in dark red above the board, so it is plain with nothing selected. The mode is off whenever the book opens. The left page lists the controls one a line, each short enough not to wrap, with its key in dark purple, so holding Control and switching with N read as different. A pencils every blank with the digits its row, column and box leave open, replacing its marks. The arrow keys move the selection one cell, stopping at the edge, and start from the centre. H is a hint: it selects the first wrong entry, else a blank one digit can fill, by its own open digits or as the only place for a digit in a unit, else the blank with fewest open; it adds 30 s to the time, so a hinted solve can't outrank a clean one, and its line, a bold dark blue "Hint:" with the cost in dark gray, takes the status's place until the next key or click. The client works the solution out from the givens to spot a wrong entry, and never stores it. Marks draw at half size, each in its digit's place in a three-by-three grid, and stamp no time. A digit replaces its cell's marks and takes itself out of the marks in its row, column and box; Backspace on a blank clears its marks. There are no arrow keys. While a hint or status shows, it takes the controls' place below the rules, so the lines above it stay put and the page doesn't run into the ribbon.
+Clicking selects a cell, a given included, so its matching digits light up; a grid line and a solved board do not. A drag that starts with a click on a cell selects every cell the pointer crosses, and several selected cells light up alone, without the row, column, box and digit that one lights up. The book takes these keys, and every other falls through to Wynntils and vanilla, so Esc closes it:
+
+- **Numbers** (both rows) set the selected cell, and Backspace and Delete clear it; a given ignores both. A digit replaces its cell's pencil marks and takes itself out of the marks in its row, column and box, and Backspace on a blank clears its marks.
+- **A number as a pencil mark**, with Control held, in pencil mode, or with more than one cell selected: it is added to every blank among them unless they all have it, when it comes off them all. Control rather than Shift, which Windows hides from the number pad while Num Lock is on. Marks stamp no time.
+- **N** switches pencil mode, which is off whenever the book opens. While it is on the selection is orange rather than yellow and "Pencil mode on" shows above the board, so it is plain with nothing selected.
+- **A** pencils every blank with the digits its row, column and box leave open, replacing its marks.
+- **The arrow keys** move the selection one cell, stopping at the edge, and start from the centre.
+- **H** is a hint, and adds 30 s to the time so a hinted solve can't outrank a clean one. It selects the first wrong entry, else the first blank only one digit can fill (its one open digit, or the only place for a digit in its row, column or box), else the first blank with fewest digits open, and its line says which of the three. The client works the solution out from the givens to spot a wrong entry, and never stores it.
+
+The left page lists the controls one a line, each short enough not to wrap. A hint's line, until the next key or click, or the board's status takes their place below the rules, so the lines above stay put and the page doesn't run into the ribbon.
 
 ### Timer
 
@@ -57,18 +67,18 @@ Active time is real time while the screen is current, by `System.nanoTime`. It s
 
 ### Stored board
 
-`sudokuProgress` holds `{day, cells, fills, activeMs, solved, submitted, rank, streak, notes}`, like `retroWynntilsSnapshot` a JSON string in the config rather than a file of its own. It is saved on every cell change and in `removed()`. A cell with a digit and no time is a given, so a stored board needs no copy of its puzzle, which also shows when staff have replaced the day's puzzle: the same day with other digits starts a fresh board. An open board of the replaced puzzle gets the server's refusal when it is solved. `notes` holds each blank's pencil marks as bits 1 to 9, and a board stored without it has none. Text that is not a board this class could have written is logged and treated as none.
+`sudokuProgress` holds `{day, cells, fills, activeMs, solved, submitted, rank, streak, notes, aside}`, `aside` being an earlier day's unsent solve in the same form, or absent, like `retroWynntilsSnapshot` a JSON string in the config rather than a file of its own. It is saved on every cell change and in `removed()`. A cell with a digit and no time is a given, so a stored board needs no copy of its puzzle, which also shows when staff have replaced the day's puzzle: the same day with other digits starts a fresh board. An open board of the replaced puzzle gets the server's refusal when it is solved. `notes` holds each blank's pencil marks as bits 1 to 9, and a board stored without it has none. Text that is not a board this class could have written is logged and treated as none.
 
 | Event | What happens |
 |---|---|
 | Esc, restart, world change, or a server menu opens | The time is banked, and the same command resumes. Nothing reopens by itself |
 | Rollover with the screen open | The board keeps its `day` and submits it; the server says if that day has closed |
-| Reopen with a solved, unsent board and an authenticated session | It is sent first (Opening, step 1) |
+| Reopen with a solved, unsent board, or one kept aside, and an authenticated session | It is sent first (Opening, step 1) |
 | Reopen with today's board | It carries on, or shows finished with its time. |
-| Reopen with an older unsent board that can still go out | It stays on screen, finished, until it goes out or the server closes it. There is one stored slot, and a new board would overwrite it |
+| Reopen with an older unsent board that can still go out | It is kept aside in the new day's board, which opens, so it never holds up a puzzle. Once its day has closed the server refuses it with `retry: false`, which finishes it too. Whatever it had kept aside itself is dropped, its day long closed |
 | Reopen with any other older board | It is dropped and a new one starts |
 
-"Can still go out" is `SendState` `READY` or `LATER` below. So a key holder off Wynncraft sees yesterday's finished board until their next Wynncraft join sends it.
+"Can still go out" is `SendState` `READY` or `LATER` below. Nothing sends a board by itself: only the open's first step does, so a key holder off Wynncraft keeps a result aside until they next run `/wv extras sudoku` with their session authenticated.
 
 ### Solving
 
@@ -80,7 +90,7 @@ A full board that breaks the rules shows "Not solved yet" and stays editable. A 
 | `LATER` | A stored key the server has not rejected, with no session yet: the inbound socket is down, as it is off Wynncraft, or up with its auth ack awaited or failed for some other reason | Time, then "Results send next time." The board stays unsent |
 | `NEVER` | No key, or an auth reply rejected it on a live socket (`isStoredKeyRejected()`) | Time, then a line pointing at `~vetsmod`. The board stays unsent, so a key gained the same day still sends it |
 
-Only a verdict on the key makes it `NEVER`, because an older unsent board is dropped at `NEVER` (Stored board): a key still waiting on its ack must not lose a result.
+Only a verdict on the key makes it `NEVER`, because an older unsent board is not kept aside at `NEVER` (Stored board): a key still waiting on its ack must not lose a result.
 
 The frame carries `day`, `grid` and `fills`; the server stamps the identity from the session. The reply is an untyped ack routed by its `req` and arrives off the client thread, so `SudokuClient.submit` hands it over with `McUtils.mc().execute`:
 
@@ -90,4 +100,4 @@ The frame carries `day`, `grid` and `fills`; the server stamps the identity from
 | Error with `retry: false` | Finished, so it does not resend forever | Time, then the server's own `detail` in red, a fixed player-safe line |
 | Error with `retry: true`, or a client-built error ack for a dead socket, a lost socket or no reply (`lostAck`, `timeoutAck`, none of which has `retry`) | Stays unsent | Time, then "Results send next time." |
 
-The reply rewrites the stored copy only while it is still that day's, so a slow reply cannot put back a board the player has moved on from.
+The reply rewrites the stored copy only while it is still that puzzle's, the same day with the same givens, so a slow reply cannot put back a board the player has moved on from. A reply to the board kept aside rewrites the board keeping it, which lets it go once it is finished.

@@ -9,15 +9,14 @@ import java.time.ZoneId;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.regex.Pattern;
-import org.lwjgl.glfw.GLFW;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.util.Json;
 
 /**
- * One player's board for one day: the digits, when each was set, the active time so far and how
- * far its result got. It touches no Minecraft or Wynntils class, so the rules, the geometry and
- * the stored form can all be tested; {@link SudokuScreen} draws it and {@link SudokuClient} sends
- * it. See {@code vetsmod_extras.md}. Client thread only.
+ * One player's board for one day: the digits, when each was set, the pencil marks, the active time
+ * so far and how far its result got. {@link SudokuGrid} holds the rules over its digits,
+ * {@link SudokuScreen} draws it and {@link SudokuClient} sends it. See {@code vetsmod_extras.md}.
+ * Client thread only.
  *
  * <p>A cell is a given when it holds a digit and has no fill time, because an entry's time is
  * always at least 1. That is the shape of the {@code fills} the server takes, and it lets a stored
@@ -51,26 +50,7 @@ final class SudokuBoard {
 
     private static final LocalTime ROLLOVER = LocalTime.of(4, 0);
 
-    /** The cells on a side of the board. */
-    static final int SIZE = 9;
-
-    /** The cells on the board. */
-    static final int CELLS = SIZE * SIZE;
-
-    /** The side of a cell's item square. */
-    static final int CELL_SIZE = 16;
-
-    /** The cells on a side of a box. */
-    static final int BOX = 3;
-
-    /** From one cell to the next, with the one-pixel line between them. */
-    private static final int PITCH = CELL_SIZE + 1;
-
-    /** The side of the drawn board, outer lines included. */
-    static final int BOARD_SIZE = cellOrigin(SIZE - 1) + CELL_SIZE + 1;
-
-    /** Bits 1 to 9: what a row, column or box holds when it is complete. */
-    private static final int ALL_DIGITS = 0b11_1111_1110;
+    private static final int CELLS = SudokuGrid.CELLS;
 
     private static final Pattern DIGITS = Pattern.compile("[0-9]{" + CELLS + "}");
 
@@ -90,7 +70,13 @@ final class SudokuBoard {
     private int rank;
     private int streak;
 
-    /** The stored form, as {@code sudokuProgress} holds it. */
+    /**
+     * An earlier day's solved board whose result is still to go out, kept aside so that it does
+     * not hold up this one, or {@code null}. Never more than one deep.
+     */
+    private SudokuBoard aside;
+
+    /** The stored form, as {@code sudokuProgress} holds it; {@code aside} is in the same form. */
     private record Stored(
             String day,
             String cells,
@@ -100,7 +86,8 @@ final class SudokuBoard {
             boolean submitted,
             int rank,
             int streak,
-            int[] notes) {}
+            int[] notes,
+            Stored aside) {}
 
     private SudokuBoard(String day, int[] cells, int[] fills) {
         this.day = day;
@@ -112,10 +99,11 @@ final class SudokuBoard {
      * A new board for a puzzle.
      *
      * @param day the puzzle's day
-     * @param givens the puzzle's {@value #CELLS} digits, {@code 0} for a blank
+     * @param givens the puzzle's {@value SudokuGrid#CELLS} digits, {@code 0} for a blank
      */
+    // Package-private for unit tests. See SudokuBoardTest.
     static SudokuBoard fresh(String day, String givens) {
-        return new SudokuBoard(day, digitsOf(givens), new int[CELLS]);
+        return new SudokuBoard(day, SudokuGrid.parse(givens), new int[CELLS]);
     }
 
     /**
@@ -149,18 +137,25 @@ final class SudokuBoard {
             return null;
         }
         SudokuBoard board =
-                new SudokuBoard(stored.day(), digitsOf(stored.cells()), stored.fills().clone());
+                new SudokuBoard(
+                        stored.day(), SudokuGrid.parse(stored.cells()), stored.fills().clone());
         for (int i = 0; i < CELLS; i++) {
             if (board.fills[i] < 0 || (board.cells[i] == 0 && board.fills[i] != 0)) return null;
         }
         // A board stored before pencil marks has none.
         if (stored.notes() != null && !board.restoreNotes(stored.notes())) return null;
-        if (stored.solved() && !board.obeysTheRules()) return null;
+        if (stored.solved() && !SudokuGrid.obeysTheRules(board.cells)) return null;
         board.activeMs = stored.activeMs();
         board.solved = stored.solved();
         board.submitted = stored.submitted();
         board.rank = Math.max(0, stored.rank());
         board.streak = Math.max(0, stored.streak());
+        if (stored.aside() != null) {
+            board.aside = fromStored(stored.aside());
+            if (board.aside == null || !board.aside.isUnsent() || board.aside.aside != null) {
+                return null;
+            }
+        }
         return board;
     }
 
@@ -168,27 +163,24 @@ final class SudokuBoard {
     private boolean restoreNotes(int[] stored) {
         if (stored.length != CELLS) return false;
         for (int i = 0; i < CELLS; i++) {
-            if ((stored[i] & ~ALL_DIGITS) != 0 || (cells[i] != 0 && stored[i] != 0)) return false;
+            if ((stored[i] & ~SudokuGrid.ALL_DIGITS) != 0 || (cells[i] != 0 && stored[i] != 0)) {
+                return false;
+            }
             notes[i] = stored[i];
         }
         return true;
     }
 
-    private static int[] digitsOf(String digits) {
-        int[] parsed = new int[CELLS];
-        for (int i = 0; i < CELLS; i++) {
-            parsed[i] = digits.charAt(i) - '0';
-        }
-        return parsed;
-    }
-
     /**
-     * The board a player opens, by the first row that applies: a board with no stored one is new;
-     * today's stored board carries on, finished or not; an older solved board that can still be
-     * sent is kept, since a new one would take its place in the one stored slot before it went
-     * out; anything else older is dropped, and a new board carries on the streak of the day before
-     * its own. A stored board of the same day with other digits means the server replaced the
-     * puzzle: it is dropped too, and with its result wiped the streak goes back to before it.
+     * The board a player opens, always one of the current puzzle: today's stored board carries on,
+     * finished or not, and otherwise a new one starts.
+     *
+     * <p>An older stored board that is solved and can still be sent is kept aside in the new one,
+     * so its result can go out first; what it held aside is dropped, its day long closed. Anything
+     * else older is dropped, and the new board carries on its streak only if it is the day before
+     * and the server ranked its result, since a day with none breaks it. A stored board of the same
+     * day with other digits means the server replaced the puzzle: it is dropped too, its result
+     * with it, so the streak goes back to before it, and what it held aside stays aside.</p>
      *
      * @param stored the stored board, or {@code null}
      * @param day the current puzzle's day
@@ -200,24 +192,48 @@ final class SudokuBoard {
             SudokuBoard stored, String day, String givens, boolean canStillSend) {
         if (stored == null) return fresh(day, givens);
         if (stored.day.equals(day) && stored.givens().equals(givens)) return stored;
-        if (stored.isUnsent() && canStillSend && !stored.day.equals(day)) return stored;
         SudokuBoard next = fresh(day, givens);
-        if (next.number() == stored.number() + 1) next.streak = stored.streak;
-        if (stored.day.equals(day))
+        if (stored.day.equals(day)) {
             next.streak = Math.max(0, stored.streak - (stored.rank > 0 ? 1 : 0));
+            next.aside = stored.aside;
+            return next;
+        }
+        if (next.number() == stored.number() + 1 && stored.rank > 0) next.streak = stored.streak;
+        if (stored.isUnsent() && canStillSend) {
+            stored.aside = null;
+            next.aside = stored;
+        }
         return next;
     }
 
     /** The stored form. */
     String toJson() {
-        return Json.GSON.toJson(
-                new Stored(day, grid(), fills, activeMs, solved, submitted, rank, streak, notes));
+        return Json.GSON.toJson(stored());
+    }
+
+    private Stored stored() {
+        return new Stored(
+                day,
+                grid(),
+                fills,
+                activeMs,
+                solved,
+                submitted,
+                rank,
+                streak,
+                notes,
+                aside == null ? null : aside.stored());
     }
 
     // ── Reading ──────────────────────────────────────────────────────────
 
     String day() {
         return day;
+    }
+
+    /** Whether another board is of the same puzzle: the same day, and the same givens. */
+    boolean samePuzzle(SudokuBoard other) {
+        return day.equals(other.day) && givens().equals(other.givens());
     }
 
     /** The digit in a cell, or 0 for a blank. */
@@ -236,6 +252,7 @@ final class SudokuBoard {
     }
 
     /** Whether a cell came with the puzzle. */
+    // Package-private for unit tests. See SudokuBoardTest.
     boolean isGiven(int index) {
         return cells[index] != 0 && fills[index] == 0;
     }
@@ -254,7 +271,15 @@ final class SudokuBoard {
         return solved && !submitted;
     }
 
-    /** The cells as {@value #CELLS} digits, which on a solved board is the {@code grid} sent. */
+    /** The earlier day's board kept aside until its result goes out, or {@code null}. */
+    SudokuBoard aside() {
+        return aside;
+    }
+
+    /**
+     * The cells as {@value SudokuGrid#CELLS} digits, which on a solved board is the {@code grid}
+     * sent.
+     */
     String grid() {
         StringBuilder grid = new StringBuilder(CELLS);
         for (int digit : cells) {
@@ -289,6 +314,7 @@ final class SudokuBoard {
     }
 
     /** The puzzle's number, counting days from the first; 0 for a day that is not a date. */
+    // Package-private for unit tests. See SudokuBoardTest.
     int number() {
         try {
             return (int) ChronoUnit.DAYS.between(FIRST_DAY, LocalDate.parse(day)) + 1;
@@ -336,7 +362,9 @@ final class SudokuBoard {
         if (index == selected) return CellRole.SELECTED;
         int digit = cells[index];
         if (digit == 0) {
-            return selected >= 0 && sharesAUnit(index, selected) ? CellRole.PEER : CellRole.EMPTY;
+            return selected >= 0 && SudokuGrid.sharesAUnit(index, selected)
+                    ? CellRole.PEER
+                    : CellRole.EMPTY;
         }
         if (isRepeated(index)) return CellRole.CONFLICT;
         if (selected >= 0 && cells[selected] == digit) return CellRole.SAME_DIGIT;
@@ -345,43 +373,18 @@ final class SudokuBoard {
 
     private boolean isRepeated(int index) {
         for (int other = 0; other < CELLS; other++) {
-            if (other != index && cells[other] == cells[index] && sharesAUnit(index, other)) {
+            if (other != index
+                    && cells[other] == cells[index]
+                    && SudokuGrid.sharesAUnit(index, other)) {
                 return true;
             }
         }
         return false;
     }
 
-    private static boolean sharesAUnit(int a, int b) {
-        int rowA = a / SIZE;
-        int columnA = a % SIZE;
-        int rowB = b / SIZE;
-        int columnB = b % SIZE;
-        return rowA == rowB
-                || columnA == columnB
-                || (rowA / BOX == rowB / BOX && columnA / BOX == columnB / BOX);
-    }
-
     private boolean isFull() {
         for (int digit : cells) {
             if (digit == 0) return false;
-        }
-        return true;
-    }
-
-    /** Whether every row, column and box holds each digit once. A blank fails it. */
-    private boolean obeysTheRules() {
-        for (int unit = 0; unit < SIZE; unit++) {
-            int row = 0;
-            int column = 0;
-            int box = 0;
-            int boxOrigin = unit / BOX * BOX * SIZE + unit % BOX * BOX;
-            for (int k = 0; k < SIZE; k++) {
-                row |= 1 << cells[unit * SIZE + k];
-                column |= 1 << cells[k * SIZE + unit];
-                box |= 1 << cells[boxOrigin + k / BOX * SIZE + k % BOX];
-            }
-            if (row != ALL_DIGITS || column != ALL_DIGITS || box != ALL_DIGITS) return false;
         }
         return true;
     }
@@ -414,27 +417,15 @@ final class SudokuBoard {
         notes[index] = 0;
         if (digit != 0) {
             for (int other = 0; other < CELLS; other++) {
-                if (sharesAUnit(index, other)) notes[other] &= ~(1 << digit);
+                if (SudokuGrid.sharesAUnit(index, other)) notes[other] &= ~(1 << digit);
             }
         }
         return true;
     }
 
     /**
-     * Adds or removes a pencil mark on a blank. Everything else ignores it, and it stamps no time.
-     *
-     * @param index the cell
-     * @param digit the digit, 1 to 9
-     * @return whether the board changed
-     */
-    boolean toggleNote(int index, int digit) {
-        return toggleNotes(new int[] {index}, digit);
-    }
-
-    /**
-     * Pencils a digit into several cells at once: takes it out of every blank among them that has
-     * it if they all do, and otherwise adds it to each. Filled cells are skipped, and it stamps no
-     * time.
+     * Pencils a digit into cells: takes it out of every blank among them that has it if they all
+     * do, and otherwise adds it to each. Filled cells are skipped, and it stamps no time.
      *
      * @param indexes the cells
      * @param digit the digit, 1 to 9
@@ -464,19 +455,19 @@ final class SudokuBoard {
      */
     boolean fillNotes() {
         if (solved) return false;
+        int[] open = SudokuGrid.openDigits(cells);
         boolean changed = false;
         for (int i = 0; i < CELLS; i++) {
             if (cells[i] != 0) continue;
-            int open = openDigits(cells, i);
-            changed |= notes[i] != open;
-            notes[i] = open;
+            changed |= notes[i] != open[i];
+            notes[i] = open[i];
         }
         return changed;
     }
 
     /**
-     * A cell worth looking at next: the first entry that is wrong, else a blank only one digit can
-     * fill, by its own marks or by its row, column or box, else the blank with fewest digits open.
+     * A cell worth looking at next: the first entry that is wrong, else the first blank only one
+     * digit can fill ({@link #isForced}), else the first blank with fewest digits open.
      *
      * @return the cell, or -1 on a solved board
      */
@@ -485,14 +476,11 @@ final class SudokuBoard {
         for (int i = 0; i < CELLS; i++) {
             if (isWrong(i)) return i;
         }
-        int[] open = new int[CELLS];
-        for (int i = 0; i < CELLS; i++) {
-            if (cells[i] == 0) open[i] = openDigits(cells, i);
-        }
+        int[] open = SudokuGrid.openDigits(cells);
         int fewest = -1;
         for (int i = 0; i < CELLS; i++) {
             if (cells[i] != 0) continue;
-            if (Integer.bitCount(open[i]) == 1 || hasHiddenSingle(open, i)) return i;
+            if (SudokuGrid.isForced(open, i)) return i;
             if (fewest < 0 || Integer.bitCount(open[i]) < Integer.bitCount(open[fewest])) {
                 fewest = i;
             }
@@ -505,73 +493,18 @@ final class SudokuBoard {
         return cells[index] != 0 && solution() != null && cells[index] != solution()[index];
     }
 
-    /** Whether some open digit of a blank is open nowhere else in one of its units. */
-    private static boolean hasHiddenSingle(int[] open, int index) {
-        for (int digit = 1; digit <= SIZE; digit++) {
-            if ((open[index] & 1 << digit) == 0) continue;
-            for (int unit = 0; unit < 3; unit++) {
-                boolean alone = true;
-                for (int other = 0; other < CELLS && alone; other++) {
-                    if (other != index
-                            && sameUnit(unit, index, other)
-                            && (open[other] & 1 << digit) != 0) {
-                        alone = false;
-                    }
-                }
-                if (alone) return true;
-            }
-        }
-        return false;
-    }
-
-    /** Row, column or box: unit 0, 1 or 2. */
-    private static boolean sameUnit(int unit, int a, int b) {
-        return switch (unit) {
-            case 0 -> a / SIZE == b / SIZE;
-            case 1 -> a % SIZE == b % SIZE;
-            default -> a / SIZE / BOX == b / SIZE / BOX && a % SIZE / BOX == b % SIZE / BOX;
-        };
-    }
-
-    /** The digits, as bits 1 to 9, that a blank's row, column and box leave open. */
-    private static int openDigits(int[] grid, int index) {
-        int used = 0;
-        for (int other = 0; other < CELLS; other++) {
-            if (other != index && sharesAUnit(index, other)) used |= 1 << grid[other];
-        }
-        return ALL_DIGITS & ~used;
+    /**
+     * Whether only one digit can fill a blank, by the digits its row, column and box leave open:
+     * it has one, or one of them fits nowhere else in one of those.
+     */
+    boolean isForced(int index) {
+        return cells[index] == 0 && SudokuGrid.isForced(SudokuGrid.openDigits(cells), index);
     }
 
     /** The solution, or null if the givens have none, which a server puzzle never lacks. */
     private int[] solution() {
-        if (solution == null) {
-            int[] grid = digitsOf(givens());
-            if (fillIn(grid)) solution = grid;
-        }
+        if (solution == null) solution = SudokuGrid.solve(SudokuGrid.parse(givens()));
         return solution;
-    }
-
-    /** Fills a grid, the blank with fewest digits open first; false if it has no answer. */
-    private static boolean fillIn(int[] grid) {
-        int best = -1;
-        int bestOpen = 0;
-        for (int i = 0; i < CELLS; i++) {
-            if (grid[i] != 0) continue;
-            int open = openDigits(grid, i);
-            if (best < 0 || Integer.bitCount(open) < Integer.bitCount(bestOpen)) {
-                best = i;
-                bestOpen = open;
-                if (Integer.bitCount(open) <= 1) break;
-            }
-        }
-        if (best < 0) return true;
-        for (int digit = 1; digit <= SIZE; digit++) {
-            if ((bestOpen & 1 << digit) == 0) continue;
-            grid[best] = digit;
-            if (fillIn(grid)) return true;
-        }
-        grid[best] = 0;
-        return false;
     }
 
     /**
@@ -589,7 +522,7 @@ final class SudokuBoard {
      * @return whether this call solved it
      */
     boolean trySolve() {
-        if (solved || !obeysTheRules()) return false;
+        if (solved || !SudokuGrid.obeysTheRules(cells)) return false;
         solved = true;
         return true;
     }
@@ -605,77 +538,14 @@ final class SudokuBoard {
         this.streak = streak;
     }
 
-    // ── Input and geometry ───────────────────────────────────────────────
-
     /**
-     * What a key does to the selected cell.
-     *
-     * @param key a GLFW key code
-     * @return the digit a number key sets, 0 for a key that clears the cell, or -1 for any other
+     * Lets go of the board kept aside once its result is finished with, and carries on its streak
+     * if it was the day before and this board has no result of its own yet. An aside still unsent
+     * stays.
      */
-    static int digitForKey(int key) {
-        if (key >= GLFW.GLFW_KEY_1 && key <= GLFW.GLFW_KEY_9) return key - GLFW.GLFW_KEY_0;
-        if (key >= GLFW.GLFW_KEY_KP_1 && key <= GLFW.GLFW_KEY_KP_9) return key - GLFW.GLFW_KEY_KP_0;
-        return key == GLFW.GLFW_KEY_BACKSPACE || key == GLFW.GLFW_KEY_DELETE ? 0 : -1;
-    }
-
-    /**
-     * Where an arrow key moves the selection: one cell over, stopping at the edge.
-     *
-     * @param cell the selected cell, or -1, which starts in the centre
-     * @param key a GLFW key code
-     * @return the new cell, or -1 for a key that is not an arrow
-     */
-    static int moved(int cell, int key) {
-        int row = cell < 0 ? SIZE / 2 : cell / SIZE;
-        int column = cell < 0 ? SIZE / 2 : cell % SIZE;
-        switch (key) {
-            case GLFW.GLFW_KEY_UP -> row = cell < 0 ? row : Math.max(0, row - 1);
-            case GLFW.GLFW_KEY_DOWN -> row = cell < 0 ? row : Math.min(SIZE - 1, row + 1);
-            case GLFW.GLFW_KEY_LEFT -> column = cell < 0 ? column : Math.max(0, column - 1);
-            case GLFW.GLFW_KEY_RIGHT -> column = cell < 0 ? column : Math.min(SIZE - 1, column + 1);
-            default -> {
-                return -1;
-            }
-        }
-        return row * SIZE + column;
-    }
-
-    /** Where a row's or column's item square starts, from the board's edge. */
-    static int cellOrigin(int line) {
-        return 1 + line * PITCH + line / BOX;
-    }
-
-    /**
-     * Where the grid line before a row or column starts, from the board's edge.
-     *
-     * @param line 0 to {@value #SIZE}, the last being the board's far edge
-     */
-    static int lineStart(int line) {
-        return line == SIZE ? BOARD_SIZE - 1 : cellOrigin(line) - lineThickness(line);
-    }
-
-    /** The thickness of the grid line before a row or column: 2 between boxes, otherwise 1. */
-    static int lineThickness(int line) {
-        return line % BOX == 0 && line % SIZE != 0 ? 2 : 1;
-    }
-
-    /**
-     * The cell at a point, from the board's corner.
-     *
-     * @return the cell's index, or -1 off the board or on a grid line
-     */
-    static int cellAt(int x, int y) {
-        int column = lineAt(x);
-        int row = lineAt(y);
-        return column < 0 || row < 0 ? -1 : row * SIZE + column;
-    }
-
-    private static int lineAt(int position) {
-        for (int line = 0; line < SIZE; line++) {
-            int offset = position - cellOrigin(line);
-            if (offset >= 0 && offset < CELL_SIZE) return line;
-        }
-        return -1;
+    void settleAside() {
+        if (aside == null || aside.isUnsent()) return;
+        if (rank == 0 && aside.rank > 0 && number() == aside.number() + 1) streak = aside.streak;
+        aside = null;
     }
 }

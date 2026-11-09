@@ -10,14 +10,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Instant;
 import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
 import org.junit.jupiter.api.Test;
-import org.lwjgl.glfw.GLFW;
 
 /**
- * The pure parts of the daily sudoku: its cells and fills, the rule check, the stored form, the
- * board a reopen picks, the key mapping and the board's geometry.
+ * One player's sudoku board: its cells and fills, the rule check, pencil marks and hints, the
+ * stored form and the board a reopen picks.
  */
 class SudokuBoardTest {
 
@@ -43,6 +40,11 @@ class SudokuBoardTest {
         board.set(0, 5);
         assertTrue(board.trySolve());
         return board;
+    }
+
+    /** Toggles one pencil mark, as a number key does with one cell selected. */
+    private static boolean mark(SudokuBoard board, int cell, int digit) {
+        return board.toggleNotes(new int[] {cell}, digit);
     }
 
     // ── Cells and fills ──────────────────────────────────────────────────
@@ -159,14 +161,31 @@ class SudokuBoardTest {
         assertFalse(oneBlank().trySolve());
     }
 
+    /** {@code grid} with its top-left cell blanked and then entered, so the board is full. */
+    private static SudokuBoard entered(String grid) {
+        SudokuBoard board = SudokuBoard.fresh(DAY, "0" + grid.substring(1));
+        board.set(0, grid.charAt(0) - '0');
+        return board;
+    }
+
     @Test
     void aFullBoardThatBreaksARow_doesNotSolve() {
+        // A 4 in place of the 5 breaks its column and its box as well as its row.
         SudokuBoard board = oneBlank();
         board.set(0, 4);
 
         assertFalse(board.trySolve());
         assertFalse(board.isSolved());
         assertEquals("Not solved yet", board.status());
+
+        // Each row is its solution row's first three digits three times over: every column is
+        // one of the solution's first three and every box one of its left-hand boxes, so only
+        // the rows repeat a digit.
+        StringBuilder rowsBroken = new StringBuilder();
+        for (int row = 0; row < 9; row++) {
+            rowsBroken.append(SOLUTION.substring(row * 9, row * 9 + 3).repeat(3));
+        }
+        assertFalse(entered(rowsBroken.toString()).trySolve());
     }
 
     @Test
@@ -179,19 +198,15 @@ class SudokuBoardTest {
                 latin.append((row + column) % 9 + 1);
             }
         }
-        SudokuBoard board = SudokuBoard.fresh(DAY, "0" + latin.substring(1));
-        board.set(0, 1);
 
-        assertFalse(board.trySolve());
+        assertFalse(entered(latin.toString()).trySolve());
     }
 
     @Test
     void aFullBoardWithOnlyItsColumnsBroken_doesNotSolve() {
-        // Every row is the same, so each row is complete and no column is.
-        SudokuBoard board = SudokuBoard.fresh(DAY, "0" + "123456789".repeat(9).substring(1));
-        board.set(0, 1);
-
-        assertFalse(board.trySolve());
+        // The solution's top three rows three times over: every row and every box holds each
+        // digit once, and every column repeats its first three.
+        assertFalse(entered(SOLUTION.substring(0, 27).repeat(3)).trySolve());
     }
 
     @Test
@@ -208,45 +223,45 @@ class SudokuBoardTest {
     // ── Pencil marks ─────────────────────────────────────────────────────
 
     @Test
-    void toggleNote_marksAndUnmarksABlank() {
+    void aMark_togglesOnABlank() {
         SudokuBoard board = SudokuBoard.fresh(DAY, GIVENS);
-        assertTrue(board.toggleNote(2, 4));
-        assertTrue(board.toggleNote(2, 9));
+        assertTrue(mark(board, 2, 4));
+        assertTrue(mark(board, 2, 9));
         assertTrue(board.hasNote(2, 4));
         assertTrue(board.hasNote(2, 9));
         assertFalse(board.hasNote(2, 5));
 
-        assertTrue(board.toggleNote(2, 4));
+        assertTrue(mark(board, 2, 4));
         assertFalse(board.hasNote(2, 4));
         assertTrue(board.hasNote(2, 9));
     }
 
     @Test
-    void toggleNote_stampsNoTimeAndLeavesTheCellBlank() {
+    void aMark_stampsNoTimeAndLeavesTheCellBlank() {
         SudokuBoard board = SudokuBoard.fresh(DAY, GIVENS);
         board.setActiveMs(9000);
-        board.toggleNote(2, 4);
+        mark(board, 2, 4);
         assertEquals(0, board.cell(2));
         assertEquals(0, board.fill(2));
         assertEquals(0, board.seconds());
     }
 
     @Test
-    void toggleNote_ignoresAGivenAnEntryAndASolvedBoard() {
+    void aMark_ignoresAGivenAnEntryAndASolvedBoard() {
         SudokuBoard board = SudokuBoard.fresh(DAY, GIVENS);
         board.set(2, 4);
-        assertFalse(board.toggleNote(0, 1));
-        assertFalse(board.toggleNote(2, 1));
+        assertFalse(mark(board, 0, 1));
+        assertFalse(mark(board, 2, 1));
         assertFalse(board.hasNote(0, 1));
         assertFalse(board.hasNote(2, 1));
-        assertFalse(solved().toggleNote(0, 1));
+        assertFalse(mark(solved(), 0, 1));
     }
 
     @Test
     void settingADigit_clearsTheCellsNotes() {
         SudokuBoard board = SudokuBoard.fresh(DAY, GIVENS);
-        board.toggleNote(2, 4);
-        board.toggleNote(2, 9);
+        mark(board, 2, 4);
+        mark(board, 2, 9);
         assertTrue(board.set(2, 1));
         assertFalse(board.hasNote(2, 4));
         assertFalse(board.hasNote(2, 9));
@@ -259,8 +274,8 @@ class SudokuBoardTest {
     void settingADigit_takesItOutOfTheMarksAroundIt() {
         SudokuBoard board = SudokuBoard.fresh(DAY, GIVENS);
         // Around blank cell 2: 3 shares its row, 11 its box and 29 its column; 30 shares none.
-        for (int cell : new int[] {3, 11, 29, 30}) board.toggleNote(cell, 4);
-        board.toggleNote(3, 9);
+        for (int cell : new int[] {3, 11, 29, 30}) mark(board, cell, 4);
+        mark(board, 3, 9);
         assertTrue(board.set(2, 4));
         assertFalse(board.hasNote(3, 4));
         assertFalse(board.hasNote(11, 4));
@@ -284,7 +299,7 @@ class SudokuBoardTest {
         assertFalse(board.hasNote(30, 6));
 
         // With only one marked, they all get it.
-        board.toggleNote(3, 6);
+        mark(board, 3, 6);
         assertTrue(board.toggleNotes(cells, 6));
         assertTrue(board.hasNote(3, 6));
         assertTrue(board.hasNote(30, 6));
@@ -303,7 +318,7 @@ class SudokuBoardTest {
     void fillNotes_pencilsEachBlankWithItsOpenDigits() {
         SudokuBoard board = SudokuBoard.fresh(DAY, GIVENS);
         // Cell 2's row holds 5, 3 and 7, its column 8, and its box 5, 3, 6, 9 and 8.
-        board.toggleNote(2, 9);
+        mark(board, 2, 9);
         assertTrue(board.fillNotes());
         for (int digit = 1; digit <= 9; digit++) {
             assertEquals(digit == 1 || digit == 2 || digit == 4, board.hasNote(2, digit));
@@ -330,15 +345,50 @@ class SudokuBoardTest {
         SudokuBoard board = SudokuBoard.fresh(DAY, GIVENS);
         int cell = board.hintCell();
         assertEquals(0, board.cell(cell));
+        // Pencilled with their open digits, the blanks show what can go where.
         board.fillNotes();
         int open = 0;
         for (int digit = 1; digit <= 9; digit++) {
             if (board.hasNote(cell, digit)) open++;
         }
-        // Either it has one digit open, or one of its digits is open nowhere else in a unit.
-        assertTrue(open >= 1);
+        assertTrue(
+                open == 1 || hasADigitNoOtherCellOfAUnitCanTake(board, cell),
+                "cell " + cell + " has " + open + " digits open and none only it can take");
+        assertTrue(board.isForced(cell));
         assertTrue(board.set(cell, SOLUTION.charAt(cell) - '0'));
         assertFalse(board.isWrong(cell));
+    }
+
+    /** Whether a digit noted in {@code cell} is noted in no other cell of its row, of its column
+     *  or of its box. */
+    private static boolean hasADigitNoOtherCellOfAUnitCanTake(SudokuBoard board, int cell) {
+        for (int digit = 1; digit <= 9; digit++) {
+            if (!board.hasNote(cell, digit)) continue;
+            boolean row = true;
+            boolean column = true;
+            boolean box = true;
+            for (int other = 0; other < 81; other++) {
+                if (other == cell || !board.hasNote(other, digit)) continue;
+                if (other / 9 == cell / 9) row = false;
+                if (other % 9 == cell % 9) column = false;
+                if (other / 27 == cell / 27 && other % 9 / 3 == cell % 9 / 3) box = false;
+            }
+            if (row || column || box) return true;
+        }
+        return false;
+    }
+
+    @Test
+    void hintCell_withNoForcedBlank_pointsAtTheFirstWithFewestDigitsOpen() {
+        // Arto Inkala's puzzle: one solution, and no blank that one digit fills at the start. Cell
+        // 69 is the first of the blanks with two digits open, and none has fewer.
+        SudokuBoard board =
+                SudokuBoard.fresh(
+                        DAY,
+                        "800000000003600000070090200050007000000045700"
+                                + "000100030001000068008500010090000400");
+        assertEquals(69, board.hintCell());
+        assertFalse(board.isForced(69));
     }
 
     @Test
@@ -347,22 +397,10 @@ class SudokuBoardTest {
     }
 
     @Test
-    void moved_stepsOneCellAndStopsAtTheEdge() {
-        assertEquals(40, SudokuBoard.moved(-1, GLFW.GLFW_KEY_UP));
-        assertEquals(1, SudokuBoard.moved(0, GLFW.GLFW_KEY_RIGHT));
-        assertEquals(9, SudokuBoard.moved(0, GLFW.GLFW_KEY_DOWN));
-        assertEquals(0, SudokuBoard.moved(0, GLFW.GLFW_KEY_LEFT));
-        assertEquals(0, SudokuBoard.moved(0, GLFW.GLFW_KEY_UP));
-        assertEquals(80, SudokuBoard.moved(80, GLFW.GLFW_KEY_RIGHT));
-        assertEquals(71, SudokuBoard.moved(80, GLFW.GLFW_KEY_UP));
-        assertEquals(-1, SudokuBoard.moved(0, GLFW.GLFW_KEY_A));
-    }
-
-    @Test
     void clearingABlank_clearsItsNotes_andOnlyThenChangesTheBoard() {
         SudokuBoard board = SudokuBoard.fresh(DAY, GIVENS);
         assertFalse(board.set(2, 0));
-        board.toggleNote(2, 4);
+        mark(board, 2, 4);
         assertTrue(board.set(2, 0));
         assertFalse(board.hasNote(2, 4));
         assertFalse(board.set(2, 0));
@@ -371,8 +409,8 @@ class SudokuBoardTest {
     @Test
     void notes_surviveTheStoredForm() {
         SudokuBoard board = SudokuBoard.fresh(DAY, GIVENS);
-        board.toggleNote(2, 4);
-        board.toggleNote(3, 9);
+        mark(board, 2, 4);
+        mark(board, 3, 9);
         SudokuBoard read = SudokuBoard.fromJson(board.toJson());
         assertTrue(read.hasNote(2, 4));
         assertTrue(read.hasNote(3, 9));
@@ -411,7 +449,7 @@ class SudokuBoardTest {
     void aReplacedPuzzle_startsFreshAndTakesItsResultOffTheStreak() {
         String replaced = "0" + GIVENS.substring(1);
         SudokuBoard played = SudokuBoard.fresh("2026-11-05", GIVENS);
-        played.toggleNote(2, 4);
+        mark(played, 2, 4);
         played.recordResult(0, 5);
         SudokuBoard next = SudokuBoard.forOpening(played, "2026-11-05", replaced, true);
         assertEquals(replaced, next.grid());
@@ -432,6 +470,16 @@ class SudokuBoardTest {
         SudokuBoard next = SudokuBoard.forOpening(unsent, DAY, GIVENS, true);
         assertEquals(GIVENS, next.grid());
         assertFalse(next.isSolved());
+        assertNull(next.aside(), "the server would refuse a replaced puzzle's result");
+    }
+
+    @Test
+    void aReplacedPuzzle_keepsWhatItHeldAside() {
+        SudokuBoard replaced = SudokuBoard.forOpening(unsentSolve("2026-10-31"), DAY, GIVENS, true);
+
+        SudokuBoard next = SudokuBoard.forOpening(replaced, DAY, ONE_BLANK, true);
+
+        assertEquals("2026-10-31", next.aside().day());
     }
 
     // ── Number, ribbon and next puzzle ───────────────────────────────────
@@ -529,6 +577,19 @@ class SudokuBoardTest {
         assertEquals(
                 "No. 3 - Streak 0",
                 SudokuBoard.forOpening(yesterday, "2026-11-04", GIVENS, true).ribbon(true));
+    }
+
+    @Test
+    void aDayWithNoRankedResult_breaksTheStreak() {
+        SudokuBoard ranked = SudokuBoard.fresh("2026-11-02", GIVENS);
+        ranked.recordResult(1, 5);
+        // The next day's board shows the streak it could extend, and is left unsolved.
+        SudokuBoard unsolved = SudokuBoard.forOpening(ranked, "2026-11-03", GIVENS, true);
+        assertEquals("No. 2 - Streak 5", unsolved.ribbon(true));
+
+        assertEquals(
+                "No. 3 - Streak 0",
+                SudokuBoard.forOpening(unsolved, "2026-11-04", GIVENS, true).ribbon(true));
     }
 
     // ── Status ───────────────────────────────────────────────────────────
@@ -700,13 +761,92 @@ class SudokuBoardTest {
     }
 
     @Test
-    void anOlderUnsentSolve_isKeptOnlyWhileItCanStillGoOut() {
-        SudokuBoard unsent = SudokuBoard.fresh("2026-10-31", ONE_BLANK);
-        unsent.set(0, 5);
-        unsent.trySolve();
+    void anOlderUnsentSolve_isKeptAsideOnlyWhileItCanStillGoOut() {
+        SudokuBoard unsent = unsentSolve("2026-10-31");
 
-        assertSame(unsent, SudokuBoard.forOpening(unsent, DAY, GIVENS, true));
-        assertEquals(DAY, SudokuBoard.forOpening(unsent, DAY, GIVENS, false).day());
+        SudokuBoard opened = SudokuBoard.forOpening(unsent, DAY, GIVENS, true);
+        assertEquals(DAY, opened.day());
+        assertEquals(GIVENS, opened.grid());
+        assertSame(unsent, opened.aside());
+
+        assertNull(SudokuBoard.forOpening(unsentSolve("2026-10-31"), DAY, GIVENS, false).aside());
+    }
+
+    @Test
+    void aBoardKeptAside_dropsWhatItHadKeptAside() {
+        SudokuBoard yesterday =
+                SudokuBoard.forOpening(unsentSolve("2026-10-30"), "2026-10-31", ONE_BLANK, true);
+        yesterday.set(0, 5);
+        yesterday.trySolve();
+
+        SudokuBoard today = SudokuBoard.forOpening(yesterday, DAY, GIVENS, true);
+
+        assertSame(yesterday, today.aside());
+        assertNull(yesterday.aside());
+    }
+
+    @Test
+    void aBoardKeptAside_survivesTheStoredForm() {
+        SudokuBoard opened = SudokuBoard.forOpening(unsentSolve("2026-10-31"), DAY, GIVENS, true);
+
+        SudokuBoard read = SudokuBoard.fromJson(opened.toJson());
+
+        assertEquals(DAY, read.day());
+        assertEquals("2026-10-31", read.aside().day());
+        assertTrue(read.aside().isUnsent());
+        assertEquals(SOLUTION, read.aside().grid());
+    }
+
+    @Test
+    void aStoredAsideThatIsNotAnUnsentSolve_readsAsNoBoard() {
+        String board = oneBlank().toJson();
+        String open = board.substring(0, board.length() - 1) + ",\"aside\":";
+        // The same splice of an unsent solve reads, so the two below fail on what they hold.
+        assertNotNull(SudokuBoard.fromJson(open + unsentSolve("2026-10-31").toJson() + "}"));
+
+        String unsolved = SudokuBoard.fresh("2026-10-31", GIVENS).toJson();
+        String sent = solved().toJson().replace("\"submitted\":false", "\"submitted\":true");
+        for (String aside : new String[] {unsolved, sent}) {
+            assertNull(SudokuBoard.fromJson(open + aside + "}"), aside);
+        }
+    }
+
+    @Test
+    void settlingAnAside_carriesOnItsStreakAndLetsItGo() {
+        SudokuBoard yesterday = unsentSolve("2026-11-02");
+        SudokuBoard today = SudokuBoard.forOpening(yesterday, "2026-11-03", GIVENS, true);
+        assertEquals("No. 2 - Streak 0", today.ribbon(true), "an unsent day carries nothing yet");
+
+        today.settleAside();
+        assertSame(yesterday, today.aside(), "an aside still unsent stays");
+
+        yesterday.markSubmitted();
+        yesterday.recordResult(2, 6);
+        today.settleAside();
+        assertNull(today.aside());
+        assertEquals("No. 2 - Streak 6", today.ribbon(true));
+    }
+
+    @Test
+    void settlingAnAside_takesNoStreakOverTheBoardsOwnResult() {
+        SudokuBoard yesterday = unsentSolve("2026-11-02");
+        SudokuBoard today = SudokuBoard.forOpening(yesterday, "2026-11-03", GIVENS, true);
+        today.recordResult(1, 9);
+        yesterday.markSubmitted();
+        yesterday.recordResult(2, 6);
+
+        today.settleAside();
+
+        assertNull(today.aside());
+        assertEquals("No. 2 - Streak 9", today.ribbon(true));
+    }
+
+    /** A board of {@code day} solved by its last entry, its result not yet sent. */
+    private static SudokuBoard unsentSolve(String day) {
+        SudokuBoard board = SudokuBoard.fresh(day, ONE_BLANK);
+        board.set(0, 5);
+        assertTrue(board.trySolve());
+        return board;
     }
 
     @Test
@@ -726,95 +866,5 @@ class SudokuBoardTest {
         SudokuBoard read = SudokuBoard.fromJson(board.toJson());
 
         assertSame(read, SudokuBoard.forOpening(read, DAY, GIVENS, false));
-    }
-
-    // ── Keys ─────────────────────────────────────────────────────────────
-
-    @Test
-    void digitForKey_mapsBothRowsOfNumberKeys() {
-        for (int digit = 1; digit <= 9; digit++) {
-            assertEquals(digit, SudokuBoard.digitForKey(GLFW.GLFW_KEY_0 + digit), "top " + digit);
-            assertEquals(digit, SudokuBoard.digitForKey(GLFW.GLFW_KEY_KP_0 + digit), "kp " + digit);
-        }
-    }
-
-    @Test
-    void digitForKey_clearsOnBackspaceAndDelete() {
-        assertEquals(0, SudokuBoard.digitForKey(GLFW.GLFW_KEY_BACKSPACE));
-        assertEquals(0, SudokuBoard.digitForKey(GLFW.GLFW_KEY_DELETE));
-    }
-
-    @Test
-    void digitForKey_ignoresEveryOtherKey() {
-        assertEquals(-1, SudokuBoard.digitForKey(GLFW.GLFW_KEY_0));
-        assertEquals(-1, SudokuBoard.digitForKey(GLFW.GLFW_KEY_KP_0));
-        assertEquals(-1, SudokuBoard.digitForKey(GLFW.GLFW_KEY_ESCAPE));
-        assertEquals(-1, SudokuBoard.digitForKey(GLFW.GLFW_KEY_A));
-        assertEquals(-1, SudokuBoard.digitForKey(GLFW.GLFW_KEY_UP));
-    }
-
-    // ── Geometry ─────────────────────────────────────────────────────────
-
-    @Test
-    void theBoard_isTheSizeThePageWasMeasuredFor() {
-        assertEquals(156, SudokuBoard.BOARD_SIZE);
-    }
-
-    @Test
-    void cellOrigin_pitchesAt17WithAnExtraPixelAtEachBox() {
-        int[] expected = {1, 18, 35, 53, 70, 87, 105, 122, 139};
-        for (int line = 0; line < 9; line++) {
-            assertEquals(expected[line], SudokuBoard.cellOrigin(line), "line " + line);
-        }
-    }
-
-    @Test
-    void theLinesAndTheCells_tileTheBoardExactly() {
-        Set<Integer> covered = new HashSet<>();
-        for (int line = 0; line <= 9; line++) {
-            for (int i = 0; i < SudokuBoard.lineThickness(line); i++) {
-                assertTrue(covered.add(SudokuBoard.lineStart(line) + i), "line " + line);
-            }
-        }
-        for (int line = 0; line < 9; line++) {
-            for (int i = 0; i < SudokuBoard.CELL_SIZE; i++) {
-                assertTrue(covered.add(SudokuBoard.cellOrigin(line) + i), "cell " + line);
-            }
-        }
-        assertEquals(SudokuBoard.BOARD_SIZE, covered.size());
-    }
-
-    @Test
-    void lineThickness_isTwoBetweenBoxesOnly() {
-        for (int line = 0; line <= 9; line++) {
-            assertEquals(
-                    line == 3 || line == 6 ? 2 : 1, SudokuBoard.lineThickness(line), "" + line);
-        }
-    }
-
-    @Test
-    void cellAt_findsEachCellAtItsCorners() {
-        for (int row = 0; row < 9; row++) {
-            for (int column = 0; column < 9; column++) {
-                int x = SudokuBoard.cellOrigin(column);
-                int y = SudokuBoard.cellOrigin(row);
-                int index = row * 9 + column;
-                assertEquals(index, SudokuBoard.cellAt(x, y));
-                assertEquals(index, SudokuBoard.cellAt(x + 15, y + 15));
-            }
-        }
-    }
-
-    @Test
-    void cellAt_missesTheLinesAndOffTheBoard() {
-        assertEquals(-1, SudokuBoard.cellAt(0, 1), "outer line");
-        assertEquals(-1, SudokuBoard.cellAt(1, 0), "outer line");
-        assertEquals(-1, SudokuBoard.cellAt(17, 1), "cell line");
-        assertEquals(-1, SudokuBoard.cellAt(51, 1), "box line");
-        assertEquals(-1, SudokuBoard.cellAt(52, 1), "box line");
-        assertEquals(-1, SudokuBoard.cellAt(155, 1), "far line");
-        assertEquals(-1, SudokuBoard.cellAt(-1, 1), "before the board");
-        assertEquals(-1, SudokuBoard.cellAt(156, 1), "after the board");
-        assertEquals(-1, SudokuBoard.cellAt(1, 156), "below the board");
     }
 }

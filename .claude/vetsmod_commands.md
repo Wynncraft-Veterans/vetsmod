@@ -336,7 +336,7 @@ deliberately never listed in `/wv help`. [vetsmod_extras.md](vetsmod_extras.md) 
 | Command | Parse gate | Runtime gate | Handler | What it does | Side effects | Bugs |
 |---|---|---|---|---|---|---|
 | `/wv extras` | none | none | `CommandUsage.usage` | Prints the red usage line `/wv extras sudoku` | none | none |
-| `/wv extras sudoku` | none | none | `SudokuCommand.run` | Sends any solved board still unsent, fetches the day's puzzle and opens the board; red "Close this menu and run it again." over a menu | a `sudoku_submit` frame, `sudokuProgress` | none |
+| `/wv extras sudoku` | none | none | `SudokuCommand.run` | Sends any result still unsent, the one kept aside first, fetches the day's puzzle and opens its board; red "Close this menu and run it again." over a menu | a `sudoku_submit` frame, `sudokuProgress` | none |
 
 ### `/wv retro`
 
