@@ -9,7 +9,7 @@ What each test under [`src/test/java/org/wynnvets/`](../src/test/java/org/wynnve
 
 Each class section names the test file and its subject and says what the suite as a whole pins down. Where the class has assertion helpers, it says what each one checks. Then it lists every `@Test` method in file order: a one-line summary, and beneath it one bullet per assertion statement in source order, giving the expression, the relation and the expected value. Bullets that cover several parallel statements list every input and its expected result. A test with no assertion statement says what makes it pass.
 
-When you add, rename or delete a test, or change what it asserts, update its entry here in the same commit. `tools/check-doc-counts.sh --tests` compares the test names with the entries here in both directions (it also runs as part of the script's default run): every `@Test`, `@ParameterizedTest` and `@RepeatedTest` method has an entry under its class, every entry is a test or a helper the class declares, and every class heading has a test file, an index line and a resolving `Test:` link.
+When you add, rename or delete a test, or change what it asserts, update its entry here in the same commit.
 
 ## Packages
 

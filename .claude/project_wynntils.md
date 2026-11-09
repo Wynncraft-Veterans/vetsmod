@@ -202,8 +202,7 @@ callback hands it the instance (`DebugKeyHandler`'s `END_CLIENT_TICK` `client`).
 exists at Wynntils 4.1.4, the floor `fabric.mod.json` declares, and `McUtils.mc()` for everything else (`execute`,
 `font`, `gui`, `level`, and so on). A site that guards the instance against null, passes it on, or also reads a
 member with no helper keeps a `McUtils.mc()` local and reads every field from it. Never call `McUtils` from a
-static initializer or a static field. `tools/check-doc-counts.sh` pins `Minecraft.getInstance` at zero call sites
-in `src/client/java`, outside static declarations, which its counter skips.
+static initializer or a static field.
 
 The helpers vetsmod calls, unchanged from 4.1.4 through 4.2.16:
 

@@ -74,8 +74,7 @@ public final class AnniAggressiveTicker {
      * testing it at the top of its hot path. <b>Two diagnostic reads</b> also
      * report it: {@link org.wynnvets.debug.DebugCommands DebugCommands}'
      * zone-lines dump ({@code /wv debug trigger zoneLinesDump}) and
-     * {@link GhostsPromptHandler}'s own prompt dump. Six call sites in all,
-     * which is the count the doc-count manifest pins.</p>
+     * {@link GhostsPromptHandler}'s own prompt dump. Six call sites in all.</p>
      */
     public static boolean isAggressiveActive() {
         return aggressiveActive;
