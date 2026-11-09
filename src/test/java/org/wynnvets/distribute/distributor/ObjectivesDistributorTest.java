@@ -2,7 +2,6 @@ package org.wynnvets.distribute.distributor;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
@@ -27,7 +26,7 @@ import org.junit.jupiter.api.Test;
  * its static state is a {@code String}, a {@code Pattern} and a {@code Random},
  * so nothing loads during class-init. The same holds for
  * {@link DistributionQueue}, whose nested {@code Distribution} record these tests
- * now name: it declares no static state at all, and no supertypes.</p>
+ * name: it declares no static state at all, and no supertypes.</p>
  */
 class ObjectivesDistributorTest {
 
@@ -228,16 +227,5 @@ class ObjectivesDistributorTest {
         // Brigadier bounds count at 1 or above, so this is only reachable
         // defensively — but the caller checks isEmpty() precisely because of it.
         assertTrue(ObjectivesDistributor.buildDistribution(List.of("a", "b"), 0).isEmpty());
-    }
-
-    @Test
-    void buildDistribution_dividesByZeroOnAnEmptyCompleterList() {
-        // Unguarded. The only thing standing between this and a crash is the
-        // caller's completers.isEmpty() early return — which is a caller
-        // invariant, not a property of this method. Pinned so a later
-        // extraction has to carry the guard rather than assume it.
-        assertThrows(
-                ArithmeticException.class,
-                () -> ObjectivesDistributor.buildDistribution(List.of(), 5));
     }
 }

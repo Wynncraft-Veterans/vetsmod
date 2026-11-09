@@ -2,8 +2,10 @@ package org.wynnvets.retro.manifest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
@@ -64,7 +66,7 @@ class RetroPartTest {
     void takingPartsLeavesTheRest() {
         Set<RetroPart> rest = RetroPart.allBut(Set.of(RetroPart.WEAPONS));
 
-        assertEquals(RetroPart.values().length - 1, rest.size());
-        assertTrue(!rest.contains(RetroPart.WEAPONS) && rest.contains(RetroPart.ITEMS));
+        assertEquals(EnumSet.complementOf(EnumSet.of(RetroPart.WEAPONS)), rest);
+        assertThrows(UnsupportedOperationException.class, rest::clear, "unmodifiable");
     }
 }

@@ -83,7 +83,7 @@ public final class PartyRosterListener {
      *  if no event comes first. vets-anni expires a member 90 s after the last observation that
      *  listed them, so this outlasts one lost beat; beats land a little over 30 s apart (the
      *  debounce and the render-thread hop), so a second lost one can let the pairing lapse. */
-    static final long HEARTBEAT_MS = 30_000L;
+    private static final long HEARTBEAT_MS = 30_000L;
 
     /** Send {@code anni_party_observation} only when the announced anni
      *  is within this many seconds of {@code now} on either side. Outside

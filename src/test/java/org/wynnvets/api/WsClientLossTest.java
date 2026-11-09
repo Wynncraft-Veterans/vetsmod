@@ -124,8 +124,8 @@ class WsClientLossTest {
 
     @Test
     void aReplacedSocketIsAbortedAndReportedAndItsLateCloseIsNot() {
-        // Before, the late close of a replaced socket also scheduled a reconnect, whose install
-        // aborted the healthy socket.
+        // A replaced socket's late close must not schedule a reconnect: that reconnect's install
+        // would abort the healthy socket.
         StubSocket first = new StubSocket();
         StubSocket second = new StubSocket();
         client.installSocket(first);

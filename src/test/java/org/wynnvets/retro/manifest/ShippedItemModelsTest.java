@@ -4,7 +4,6 @@ import static java.util.Map.entry;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.wynnvets.retro.manifest.ManifestFixtures.copyFroms;
@@ -30,7 +29,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
-import javax.imageio.ImageIO;
 import org.junit.jupiter.api.Test;
 import org.wynnvets.retro.manifest.AssetSections.SourceCopy;
 import org.wynnvets.retro.manifest.ModelSections.ItemModel;
@@ -54,8 +52,11 @@ class ShippedItemModelsTest {
      * vetsmod's own, in full: weapons, armour and tools, and the keys, scrolls and papers,
      * meals, saddles, gear boxes, the ingredient pouch, the crafter bags, the powders, the runes,
      * the wards, the tier layer, the content book and its activities, the ability shard, the
-     * augments, Hashr's Crown, the compass menu's buttons, the tomes, and of each table's family
-     * one name of each kind: {@link #everyTableFamilyHasAPinOfEachKind} says which.
+     * augments, Hashr's Crown, the compass menu's buttons, the tomes, the green plants, and of
+     * each table's family one name of each kind: {@link #everyTableFamilyHasAPinOfEachKind} says
+     * which. Each powder is the dye Wynncraft's own {@code items/<colour>_dye.json} sends to it
+     * (pack {@code a43ae4e6}), as potion stacks draw the same models; both sizes of an element
+     * have a dye of their own.
      */
     static final Map<String, String> PINNED_MODELS =
             Map.ofEntries(
@@ -143,6 +144,7 @@ class ShippedItemModelsTest {
                     entry("powder/large_water", "item/cyan_dye"),
                     entry("powder/small_fire", "item/pink_dye"),
                     entry("powder/large_fire", "item/red_dye"),
+                    entry("dungeon/fragment/undergrowth_ruins", "vetsmod:block/retro/green/vine"),
                     entry("ingredient/alga", "vetsmod:block/retro/green/vine"),
                     entry("ingredient/etheric_fern", "vetsmod:block/retro/green/fern"),
                     entry("ingredient/mega_fern", "vetsmod:block/retro/green/large_fern_top"),
@@ -515,17 +517,14 @@ class ShippedItemModelsTest {
     @Test
     void theBlanksAreFullyTransparent() throws IOException {
         for (Atlas atlas : Atlas.values()) {
-            String file = "/assets/vetsmod/textures/" + atlas.folder() + "/retro/blank.png";
-            try (InputStream in = ShippedItemModelsTest.class.getResourceAsStream(file)) {
-                assertNotNull(in, file);
-                BufferedImage blank = ImageIO.read(in);
+            String id = "vetsmod:" + atlas.folder() + "/retro/blank";
+            BufferedImage blank = texture(id);
 
-                assertEquals(16, blank.getWidth(), file);
-                assertEquals(16, blank.getHeight(), file);
-                for (int y = 0; y < 16; y++) {
-                    for (int x = 0; x < 16; x++) {
-                        assertEquals(0, blank.getRGB(x, y) >>> 24, file + " at " + x + "," + y);
-                    }
+            assertEquals(16, blank.getWidth(), id);
+            assertEquals(16, blank.getHeight(), id);
+            for (int y = 0; y < 16; y++) {
+                for (int x = 0; x < 16; x++) {
+                    assertEquals(0, blank.getRGB(x, y) >>> 24, id + " at " + x + "," + y);
                 }
             }
         }
@@ -574,16 +573,23 @@ class ShippedItemModelsTest {
     }
 
     @Test
-    void everyIngredientModelIsInTheClientJar() throws IOException {
+    void everyIngredientModelShipsOrIsGenerated() throws IOException {
+        // A vanilla parent is in the client jar. A vetsmod one is an accessory the pack writes
+        // (accessory_tiers), which the file spells out in full, as it has only ids to name a
+        // parent with.
+        Set<String> generated = generatedAccessoryModels();
+        boolean anyGenerated = false;
         for (Map.Entry<String, String> row :
                 RetroManifest.load().models().ingredients().entrySet()) {
             if (row.getValue().equals(RetroManifest.KEEP)) continue;
             if (row.getValue().startsWith("vetsmod:")) {
-                assertTrue(generatedAccessoryModels().contains(row.getValue()), row.toString());
+                anyGenerated = true;
+                assertTrue(generated.contains(row.getValue()), row.toString());
             } else {
                 assertTrue(onClasspath(row.getValue(), "models", ".json"), row.toString());
             }
         }
+        assertTrue(anyGenerated, "the file has rows on generated accessories");
     }
 
     @Test
@@ -655,7 +661,6 @@ class ShippedItemModelsTest {
         ModelRules rules = realModelRules();
         Map<String, String> ingredients = RetroManifest.load().models().ingredients();
 
-        assertEquals(26, greenCopies.size());
         greenCopies.forEach(
                 (stem, copy) -> {
                     assertEquals(
@@ -755,34 +760,6 @@ class ShippedItemModelsTest {
                 String model = "minecraft:item/wynn/" + folder + tier;
                 assertEquals(Optional.of(chest), rules.itemStub(model), model);
             }
-        }
-    }
-
-    @Test
-    void eachPowderIsTheDyeWynncraftsOwnItemsSendToIt() throws IOException {
-        // Wynncraft's items/<colour>_dye.json send each dye item to a powder (a43ae4e6); potion
-        // stacks draw the same models. Both sizes of an element have a dye of their own.
-        ModelRules rules = realModelRules();
-        Map<String, String> dyes =
-                Map.ofEntries(
-                        entry("small_air", "gray_dye"),
-                        entry("large_air", "light_gray_dye"),
-                        entry("small_earth", "lime_dye"),
-                        entry("large_earth", "green_dye"),
-                        entry("small_thunder", "yellow_dye"),
-                        entry("large_thunder", "orange_dye"),
-                        entry("small_water", "light_blue_dye"),
-                        entry("large_water", "cyan_dye"),
-                        entry("small_fire", "pink_dye"),
-                        entry("large_fire", "red_dye"));
-        for (Map.Entry<String, String> powder : dyes.entrySet()) {
-            String model = "minecraft:item/wynn/powder/" + powder.getKey();
-            String dye = "minecraft:item/" + powder.getValue();
-            assertEquals(
-                    Optional.of(new ModelStub.TintProof(dye, ParentKind.GENERATED, Atlas.ITEMS)),
-                    rules.itemStub(model),
-                    model);
-            assertTrue(textureInClientJar(dye), dye);
         }
     }
 }

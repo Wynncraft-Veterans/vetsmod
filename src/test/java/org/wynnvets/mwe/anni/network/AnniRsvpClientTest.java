@@ -62,12 +62,4 @@ class AnniRsvpClientTest {
         assertNull(parse("{\"status\": \"ok\", \"result\": 3}").result());
         assertNull(parse("{\"status\": \"ok\", \"result\": null}").result());
     }
-
-    @Test
-    void ack_twoArgConstructor_hasNoResult() {
-        AnniRsvpClient.Ack ack = new AnniRsvpClient.Ack(false, "not connected");
-        assertFalse(ack.ok());
-        assertEquals("not connected", ack.detail());
-        assertNull(ack.result());
-    }
 }

@@ -34,8 +34,6 @@ import org.wynnvets.retro.manifest.AssetSections.Fill;
 import org.wynnvets.retro.manifest.AssetSections.Frame;
 import org.wynnvets.retro.rules.Atlas;
 import org.wynnvets.retro.rules.KeepReason;
-import org.wynnvets.retro.rules.ModelRules;
-import org.wynnvets.retro.rules.ModelStub;
 import org.wynnvets.retro.rules.RetroAssetIds;
 import org.wynnvets.retro.rules.TextureDecision;
 import org.wynnvets.retro.rules.TextureRules;
@@ -49,7 +47,7 @@ import org.wynnvets.util.Json;
 class ShippedAssetsTest {
 
     @Test
-    void anOilTintsOnlyTheWater() throws IOException {
+    void oilsAndGemsTakeAHueRecipeAndIngotsDoNot() throws IOException {
         Set<String> hueOnly = copyHueOnly(RetroManifest.load());
 
         assertTrue(hueOnly.contains("vetsmod:item/retro/material/oil_salmon"));
@@ -108,53 +106,8 @@ class ShippedAssetsTest {
             assertEquals("minecraft:block/" + name, copySources(manifest).get(copy), copy);
         }
 
-        ModelRules rules = new ModelRules(manifest.models());
-        Map<String, List<String>> plants =
-                Map.of(
-                        "vine",
-                        List.of(
-                                "dungeon/fragment/undergrowth_ruins",
-                                "ingredient/alga",
-                                "ingredient/algae_mat",
-                                "ingredient/ancient_moss",
-                                "ingredient/bioluminescent_moss",
-                                "ingredient/creepvine_cluster",
-                                "ingredient/thick_vines"),
-                        "fern",
-                        List.of(
-                                "ingredient/decomposing_snapdragon",
-                                "ingredient/etheric_fern",
-                                "ingredient/munched_grass",
-                                "ingredient/secret_herb",
-                                "ingredient/sticky_fern",
-                                "ingredient/undiscovered_plant",
-                                "ingredient/viral_tentacle"),
-                        "large_fern_top",
-                        List.of(
-                                "ingredient/canyon_parsley",
-                                "ingredient/illicit_helmlock",
-                                "ingredient/mega_fern",
-                                "ingredient/water_dropwort"),
-                        "short_grass",
-                        List.of("ingredient/hunters_disguise", "ingredient/waterfall_thyme"),
-                        "lily_pad",
-                        List.of(
-                                "ingredient/gert_skin",
-                                "ingredient/green_fin",
-                                "ingredient/green_foot",
-                                "ingredient/green_scale",
-                                "ingredient/sludge_parasite"));
-        for (Map.Entry<String, List<String>> plant : plants.entrySet()) {
-            for (String stem : plant.getValue()) {
-                ModelStub stub = rules.itemStub("minecraft:item/wynn/" + stem).orElseThrow();
-                ModelStub.TintProof tintProof = assertInstanceOf(ModelStub.TintProof.class, stub);
-                assertEquals("vetsmod:block/retro/green/" + plant.getKey(), tintProof.art(), stem);
-            }
-        }
-
-        assertEquals(
-                new ModelStub.ItemParent("vetsmod:item/retro/arable_chunk"),
-                rules.itemStub("minecraft:item/wynn/outer_void/drop/arable_chunk").orElseThrow());
+        // Which items draw each copy is ShippedItemModelsTest's: PINNED_MODELS and the plant
+        // ingredients. The arable chunk's own model draws two of them.
         JsonObject arable = model("vetsmod:item/retro/arable_chunk").getAsJsonObject("textures");
         for (String texture : List.of("top", "overlay")) {
             assertTrue(

@@ -11,16 +11,15 @@ import org.junit.jupiter.api.Test;
  * Tests for {@link StaffRankChecker}'s three response predicates and its flag-clearing decision —
  * the pure half of the {@code /gu rank} handshake.
  *
- * <p>All three are unordered substring tests, not a parse: three fragments for the
- * unauthorized reply, two for the authorized one, one for the not-in-a-guild one, each checked
- * with {@code contains} against the whole lower-cased line. Nothing constrains
- * their order or adjacency, so the false-positive surface pinned below is real
- * behaviour rather than a hypothetical.</p>
+ * <p>All three are substring tests, not a parse: three fragments for the unauthorized reply,
+ * two for the authorized one, one for the not-in-a-guild one, each checked with
+ * {@code contains} against the whole lower-cased line. What is pinned is that the real server
+ * lines match, that each fragment is needed, and that no two predicates fire on one real
+ * line.</p>
  *
- * <p>Both fold case with {@link Locale#ROOT}. With the JVM's default locale instead, a
- * Turkish or Azeri default turned the server's real "Invalid" into "ınvalid", so a staff
- * player was never recognised — the locale section at the bottom pins that it no longer
- * does.</p>
+ * <p>Both fold case with {@link Locale#ROOT}. With the JVM's default locale, a Turkish or
+ * Azeri default turns the server's real "Invalid" into "ınvalid", so a staff player would
+ * never be recognised; the locale section at the bottom pins that.</p>
  *
  * <p>NOTE: only the predicates are exercised. {@code processMessage},
  * {@code reset} and {@code loadPersistedState} all reach {@code VetsConfig},
@@ -85,16 +84,6 @@ class StaffRankCheckerTest {
                 StaffRankChecker.isStaffRankUnauthorizedResponse(
                         "Captain Holidaze asked you to use this command"),
                 "without the opening clause either");
-    }
-
-    @Test
-    void unauthorized_fragmentsAreUnorderedSoAnyLineCarryingAllThreeMatches() {
-        // A live false-positive surface: three independent contains() calls
-        // impose no order and no adjacency. A guild-chat line that happens to
-        // quote the refusal backwards is accepted as the server's own reply.
-        assertTrue(
-                StaffRankChecker.isStaffRankUnauthorizedResponse(
-                        "to use this command captain says you must be a member"));
     }
 
     @Test
@@ -195,17 +184,17 @@ class StaffRankCheckerTest {
     @Test
     void authorized_survivesATurkishDefaultLocaleOnTheRealServerLine() {
         // "Invalid" starts with an uppercase I, which a Turkish default folds to
-        // the dotless U+0131. Folding with the default locale left the line
-        // without "invalid arguments, try:", so a staff player was never
-        // recognised as staff. Locale.ROOT keeps the I an i.
+        // the dotless U+0131. Folding with the default locale would leave the
+        // line without "invalid arguments, try:", so a staff player would never
+        // be recognised as staff. Locale.ROOT keeps the I an i.
         Locale.setDefault(TURKISH);
         assertTrue(StaffRankChecker.isStaffRankAuthorizedResponse(AUTHORIZED));
     }
 
     @Test
     void unauthorized_survivesATurkishDefaultLocaleEvenShouted() {
-        // Every I in the refusal is already lowercase, so this one survived the
-        // default-locale fold too. Its upper-cased form did not.
+        // Every I in the refusal is already lowercase, so a default-locale fold
+        // leaves the line as it is. Its upper-cased form would not survive one.
         Locale.setDefault(TURKISH);
         assertTrue(StaffRankChecker.isStaffRankUnauthorizedResponse(UNAUTHORIZED));
         assertTrue(

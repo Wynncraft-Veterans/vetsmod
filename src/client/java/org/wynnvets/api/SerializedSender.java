@@ -25,7 +25,7 @@ import org.wynnvets.logging.VetsLogger;
 final class SerializedSender {
 
     /** The most writes that may be queued or in progress at once. */
-    static final int MAX_IN_FLIGHT = 64;
+    private static final int MAX_IN_FLIGHT = 64;
 
     private final String label;
     private final Function<String, CompletionStage<?>> writer;

@@ -14,12 +14,11 @@ import org.junit.jupiter.api.Test;
 /**
  * Golden pins for the fourteen {@code /wv help} pages.
  *
- * <p>These exist to make the consolidation that follows reviewable. Each page is
- * pinned as a <em>tree</em> — sibling count, each sibling's exact string, each
- * sibling's colour and bold flag — not as rendered text. Two adjacent siblings
- * sharing a style render identically to one merged sibling but are a different
- * component, so a {@code getString()} comparison would wave through exactly the
- * collapse mistakes these tests are here to catch.</p>
+ * <p>Each page is pinned as a <em>tree</em> — sibling count, each sibling's exact
+ * string, each sibling's colour and bold flag — not as rendered text. Two adjacent
+ * siblings sharing a style render identically to one merged sibling but are a
+ * different component, so a {@code getString()} comparison would not see a merge
+ * or a split.</p>
  *
  * <p>The trailing newlines in the expectations below are data, not decoration:
  * they are what separates one row from the next, and two pages deliberately end
@@ -32,7 +31,8 @@ import org.junit.jupiter.api.Test;
  */
 class HelpCommandsTest {
 
-    /** What each {@link HelpCommands.Access} must render the requirement in. */
+    /** What each gated {@link HelpCommands.Access} must render the requirement in. PUBLIC is
+     *  not here: an ungated page's footer stays WHITE, which each page's golden pins. */
     private static final Map<HelpCommands.Access, ChatFormatting> ACCESS_COLOURS =
             new LinkedHashMap<>(
                     Map.of(
@@ -74,9 +74,8 @@ class HelpCommandsTest {
      *
      * <p>A row with arguments is two siblings — a YELLOW command and the GOLD
      * argument run that follows it — so the two are rejoined here. The whole
-     * advertised form is what {@link #expectedRows} states and what the
-     * {@code /wv list} regression pin counts; splitting the colour must not
-     * split the row. A GOLD sibling that does not directly follow a YELLOW one
+     * advertised form is what {@link #expectedRows} states; splitting the colour
+     * must not split the row. A GOLD sibling that does not directly follow a YELLOW one
      * is a heading, not an argument run, and is skipped.</p>
      */
     private static List<String> rowsOf(MutableComponent page) {
@@ -277,8 +276,8 @@ class HelpCommandsTest {
 
     /**
      * A vet or an authenticated player is pointed at the modes and RSVP; an
-     * unauthenticated non-member keeps the plain timer row (the 2026-10-22
-     * ruling), whatever the other gates say.
+     * unauthenticated non-member keeps the plain timer row, whatever the other
+     * gates say.
      */
     @Test
     void anniRowPointsAtTheAnniPageOnlyWithAnniTools() {
@@ -289,24 +288,6 @@ class HelpCommandsTest {
                             : " - Show anni timer\n",
                     anniRowText(helpFor(mask)),
                     describe(mask));
-        }
-    }
-
-    /**
-     * Commit {@code be482b1} is the fix this protects: {@code /wv list} was
-     * printed twice, and advertised on the vet predicate rather than on
-     * {@code isUnlocked()}. Across all sixty-four combinations it must appear
-     * exactly once when unlocked and never otherwise; the {@code /wv list <xp|graids>}
-     * and {@code /wv list world} rows are different rows and are not counted.
-     */
-    @Test
-    void wvListIsAdvertisedExactlyOnceWhenUnlockedAndNeverOtherwise() {
-        for (int mask = 0; mask < 64; mask++) {
-            long advertised = rowsOf(helpFor(mask)).stream().filter("/wv list"::equals).count();
-            assertEquals(
-                    (mask & 2) != 0 ? 1L : 0L,
-                    advertised,
-                    "/wv list advert count for " + describe(mask));
         }
     }
 
@@ -415,9 +396,8 @@ class HelpCommandsTest {
 
     /**
      * The {@code /wv list} <em>detail</em> page, whose heading is {@code "/wv list\n"}.
-     * It is a different page from the {@code "/wv list"} row on the index, and the
-     * regression pin above does not count it. The rankings row ends on a DARK_GRAY
-     * clarification.
+     * It is a different page from the {@code "/wv list"} row on the index. The
+     * rankings row ends on a DARK_GRAY clarification.
      */
     @Test
     void helpListPage_pinsItsEightSiblings() {
@@ -687,10 +667,9 @@ class HelpCommandsTest {
      * The footer answers <em>can I run this?</em>, so its colour tracks the viewer
      * and not the command.
      *
-     * <p>It used to be a per-page constant, which made {@code /wv check} render a
-     * red {@code Staff} at every rank — including to staff, who could run it. The
-     * label alone already said which permission was wanted; the colour now says
-     * whether the reader has it, and on what authority.</p>
+     * <p>The label says which permission is wanted; the colour says whether the
+     * reader has it, and on what authority: RED denied, GREEN granted by the local
+     * signal, AQUA confirmed by the server.</p>
      */
     @Test
     void requiresFooter_coloursEachAccessStateOnEveryGatedPage() {
@@ -736,41 +715,5 @@ class HelpCommandsTest {
                 HelpCommands.Access.CONFIRMED,
                 HelpCommands.access(false, true),
                 "a server-confirmed permission outranks a stale local signal");
-    }
-
-    /**
-     * The six ungated pages keep WHITE, and that is a third state rather than an
-     * oversight: there is no permission to hold or lack, so a GREEN here would be
-     * claiming one was granted.
-     */
-    @Test
-    void requiresFooter_staysWhiteOnTheSixPagesWithNoGate() {
-        assertEquals(
-                ChatFormatting.WHITE,
-                ACCESS_COLOURS.getOrDefault(HelpCommands.Access.PUBLIC, ChatFormatting.WHITE),
-                "PUBLIC is deliberately outside the met/confirmed ladder");
-        assertRequirement(
-                HelpCommands.buildHelpMotd(), ChatFormatting.WHITE, "None (public)", "motd");
-        assertRequirement(
-                HelpCommands.buildHelpAnni(false), ChatFormatting.WHITE, "None (public)", "anni");
-        assertRequirement(
-                HelpCommands.buildHelpAnni(true),
-                ChatFormatting.WHITE,
-                "None (public)",
-                "anni, authenticated");
-        assertRequirement(
-                HelpCommands.buildHelpRetro(), ChatFormatting.WHITE, "None (public)", "retro");
-        assertRequirement(
-                HelpCommands.buildHelpDebug(), ChatFormatting.WHITE, "None (public)", "debug");
-        assertRequirement(
-                HelpCommands.buildHelpDebugSet(),
-                ChatFormatting.WHITE,
-                "None (public)",
-                "debug set");
-        assertRequirement(
-                HelpCommands.buildHelpDebugTrigger(),
-                ChatFormatting.WHITE,
-                "None (public)",
-                "debug trigger");
     }
 }

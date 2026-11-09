@@ -3,10 +3,10 @@ package org.wynnvets.retro.manifest;
 import static java.util.Map.entry;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.wynnvets.retro.manifest.ShippedFiles.CLIENT_JAR;
 import static org.wynnvets.retro.manifest.ShippedFiles.clientJarSource;
+import static org.wynnvets.retro.manifest.ShippedFiles.json;
 import static org.wynnvets.retro.manifest.ShippedFiles.model;
 import static org.wynnvets.retro.manifest.ShippedFiles.realModelRules;
 import static org.wynnvets.retro.manifest.ShippedFiles.realTextureRules;
@@ -14,11 +14,7 @@ import static org.wynnvets.retro.manifest.ShippedFiles.textureInClientJar;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -69,22 +65,6 @@ class ShippedEquipmentTest {
                     entry("gendarme", RetroManifest.KEEP),
                     entry("phantom", RetroManifest.KEEP),
                     entry("wings", RetroManifest.KEEP));
-
-    /** The client jar's equipment asset {@code assetId}, as JSON. */
-    private static JsonObject equipment(String assetId) throws IOException {
-        int colon = assetId.indexOf(':');
-        String file =
-                "/assets/"
-                        + assetId.substring(0, colon)
-                        + "/equipment/"
-                        + assetId.substring(colon + 1)
-                        + ".json";
-        try (InputStream in = ShippedEquipmentTest.class.getResourceAsStream(file)) {
-            assertNotNull(in, file);
-            return JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8))
-                    .getAsJsonObject();
-        }
-    }
 
     @Test
     void everyArmourMaterialWithAVanillaPieceShowsOneThatExists() throws IOException {
@@ -206,7 +186,7 @@ class ShippedEquipmentTest {
                         "minecraft:netherite"),
                 targets);
         for (String target : targets) {
-            JsonObject layers = equipment(target).getAsJsonObject("layers");
+            JsonObject layers = json(target, "equipment").getAsJsonObject("layers");
             assertFalse(layers.isEmpty(), target);
             for (String layer : layers.keySet()) {
                 for (JsonElement entry : layers.getAsJsonArray(layer)) {

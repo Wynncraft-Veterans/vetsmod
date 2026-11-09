@@ -41,7 +41,9 @@ class ShippedTexturesTest {
     /**
      * Textures the {@code tints} rows replace, each with the decision
      * {@link ShippedFiles#CLIENT_JAR} gives it: where only vanilla has anything, every tint reads
-     * its textures from vanilla.
+     * its textures from vanilla. Wynncraft's dark variants (pack {@code a43ae4e6}) are each their
+     * stone darkened as Wynncraft darkened it, against its own copy of that stone, and its molten
+     * rock is the 2013 magma.
      */
     static final Map<String, TextureDecision> PINNED_TINTS =
             Map.ofEntries(
@@ -66,14 +68,30 @@ class ShippedTexturesTest {
                             "block/variants/dark_stone",
                             tint("block/stone", relative("block/stone"))),
                     entry(
+                            "block/variants/dark_stone_0",
+                            tint("block/stone", relative("block/stone"))),
+                    entry(
                             "block/variants/dark_stone_1",
                             tint("block/stone", relative("block/stone"))),
+                    entry(
+                            "block/variants/dark_cobblestone",
+                            tint("block/cobblestone", relative("block/cobblestone"))),
                     entry(
                             "block/variants/dark_cobblestone_0",
                             tint("block/cobblestone", relative("block/cobblestone"))),
                     entry(
                             "block/variants/dark_stone_bricks",
                             tint("block/stone_bricks", relative("block/stone_bricks"))),
+                    entry(
+                            "block/variants/dark_cracked_stone_bricks",
+                            tint(
+                                    "block/cracked_stone_bricks",
+                                    relative("block/cracked_stone_bricks"))),
+                    entry(
+                            "block/variants/dark_cracked_stone_bricks_0",
+                            tint(
+                                    "block/cracked_stone_bricks",
+                                    relative("block/cracked_stone_bricks"))),
                     entry(
                             "block/variants/dark_cracked_stone_bricks_1",
                             tint(
@@ -84,6 +102,12 @@ class ShippedTexturesTest {
                             tint(
                                     "block/chiseled_stone_bricks",
                                     relative("block/chiseled_stone_bricks"))),
+                    entry(
+                            "block/variants/dark_mossy_stone_bricks",
+                            tint("block/mossy_stone_bricks", relative("block/mossy_stone_bricks"))),
+                    entry(
+                            "block/variants/dark_mossy_stone_bricks_1",
+                            tint("block/mossy_stone_bricks", relative("block/mossy_stone_bricks"))),
                     entry(
                             "block/variants/dark_mossy_stone_bricks_2",
                             tint("block/mossy_stone_bricks", relative("block/mossy_stone_bricks"))),
@@ -96,6 +120,12 @@ class ShippedTexturesTest {
                                     0.7,
                                     1)),
                     entry("block/variants/molten_rock", tint("block/magma", new TintFactor.Auto())),
+                    entry(
+                            "block/variants/molten_rock_0",
+                            tint("block/magma", new TintFactor.Auto())),
+                    entry(
+                            "block/variants/molten_rock_1",
+                            tint("block/magma", new TintFactor.Auto())),
                     entry(
                             "block/variants/molten_rock_2",
                             tint("block/magma", new TintFactor.Auto())),
@@ -547,11 +577,15 @@ class ShippedTexturesTest {
         // them all here; a relative_to texture is read from Wynncraft's pack or, without it,
         // vanilla's. A like also reads what the row it names reads for the texture it names.
         // Every one is in the blocks atlas, as the tinted textures are.
-        for (TextureDecision decision : PINNED_TINTS.values()) {
+        TextureRules rules = realTextureRules();
+        for (String pinned : PINNED_TINTS.keySet()) {
+            TextureDecision.Tint decision =
+                    assertInstanceOf(
+                            TextureDecision.Tint.class,
+                            rules.decide("minecraft:" + pinned, CLIENT_JAR),
+                            pinned);
             List<String> read = new ArrayList<>();
-            for (TextureDecision.Tint tint = (TextureDecision.Tint) decision;
-                    tint != null;
-                    tint = tint.like()) {
+            for (TextureDecision.Tint tint = decision; tint != null; tint = tint.like()) {
                 read.add(tint.from());
                 switch (tint.factor()) {
                     case TintFactor.Match match -> read.add(match.texture());
@@ -563,29 +597,10 @@ class ShippedTexturesTest {
                 }
             }
             for (String texture : read) {
-                assertTrue(textureInClientJar(texture), texture);
-                assertEquals(Optional.of(Atlas.BLOCKS), Atlas.of(texture), texture);
+                assertTrue(textureInClientJar(texture), pinned + " reads " + texture);
+                assertEquals(
+                        Optional.of(Atlas.BLOCKS), Atlas.of(texture), pinned + " reads " + texture);
             }
-        }
-    }
-
-    @Test
-    void theDarkStoneVariantsAreTheirStoneDarkenedAsWynncraftDarkenedIt() throws IOException {
-        // Every dark variant of pack a43ae4e6, against Wynncraft's own copy of its stone.
-        TextureRules rules = realTextureRules();
-        Map<String, String> variants =
-                Map.of(
-                        "dark_stone_0", "stone",
-                        "dark_cobblestone", "cobblestone",
-                        "dark_cracked_stone_bricks_0", "cracked_stone_bricks",
-                        "dark_cracked_stone_bricks", "cracked_stone_bricks",
-                        "dark_mossy_stone_bricks", "mossy_stone_bricks",
-                        "dark_mossy_stone_bricks_1", "mossy_stone_bricks");
-        for (Map.Entry<String, String> variant : variants.entrySet()) {
-            assertEquals(
-                    tint("block/" + variant.getValue(), relative("block/" + variant.getValue())),
-                    rules.decide("minecraft:block/variants/" + variant.getKey(), CLIENT_JAR),
-                    variant.getKey());
         }
     }
 
@@ -812,17 +827,10 @@ class ShippedTexturesTest {
     }
 
     @Test
-    void moltenRockIsTheAnimated2013MagmaTintedLikeWynncrafts() throws IOException {
+    void theMagmaTheMoltenRockReadsIsAnAnimatedStrip() throws IOException {
         // The double petrified oak slab and the old double wood slab draw Wynncraft's
-        // variants/molten_rock(_0 to _2), animated strips; the tint reads magma, whose .mcmeta
-        // goes with it, and keeps the strip whole.
-        TextureRules rules = realTextureRules();
-        for (String variant : List.of("molten_rock", "molten_rock_0", "molten_rock_1")) {
-            assertEquals(
-                    tint("block/magma", new TintFactor.Auto()),
-                    rules.decide("minecraft:block/variants/" + variant, CLIENT_JAR),
-                    variant);
-        }
+        // variants/molten_rock(_0 to _2), animated strips; their tint (PINNED_TINTS) reads magma,
+        // whose .mcmeta goes with it, and keeps the strip whole.
         assertTrue(onClasspath("minecraft:block/magma", "textures", ".png.mcmeta"));
         BufferedImage magma = texture("minecraft:block/magma");
         assertEquals(0, magma.getHeight() % magma.getWidth(), "a strip of square frames");

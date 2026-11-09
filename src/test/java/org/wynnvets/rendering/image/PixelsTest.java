@@ -64,6 +64,7 @@ class PixelsTest {
 
         assertEquals(2, copy.width());
         assertEquals(1, copy.height());
+        assertArrayEquals(new int[] {9, 2}, copy.argb(), "the original's pixels, then the write");
         assertEquals(1, image.get(0, 0));
     }
 

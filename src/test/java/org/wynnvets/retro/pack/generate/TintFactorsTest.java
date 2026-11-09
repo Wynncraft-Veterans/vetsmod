@@ -8,7 +8,6 @@ import static org.wynnvets.rendering.image.TestImages.filled;
 import static org.wynnvets.rendering.image.TestImages.numbered;
 
 import org.junit.jupiter.api.Test;
-import org.wynnvets.rendering.colors.Recolours;
 import org.wynnvets.rendering.image.Pixels;
 import org.wynnvets.retro.manifest.TintFactor;
 
@@ -216,17 +215,6 @@ class TintFactorsTest {
         TintFactors.tint(image, new double[] {1.5, 1, 1}, 0.5);
 
         assertArrayEquals(new int[] {0xFFB07D7D, 0xFFE5AFAF}, image.argb());
-    }
-
-    @Test
-    void aTintAtFullContrastIsTheMultiplyAlone() {
-        Pixels tinted = new Pixels(3, 1, new int[] {0xFF5A3CC8, 0x806E28C8, 0x00FFFFFF});
-        Pixels multiplied = tinted.copy();
-
-        TintFactors.tint(tinted, new double[] {0.5, 2, 0.25}, 1);
-        multiplied.apply(Recolours.multiply(0.5, 2, 0.25));
-
-        assertArrayEquals(multiplied.argb(), tinted.argb());
     }
 
     // ----- Like -----

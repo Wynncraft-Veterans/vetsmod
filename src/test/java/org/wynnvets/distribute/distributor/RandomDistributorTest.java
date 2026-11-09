@@ -1,8 +1,6 @@
 package org.wynnvets.distribute.distributor;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotSame;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -22,12 +20,6 @@ import org.junit.jupiter.api.Test;
  * and the send loop lives in {@link DistributionQueue}. What is left is a
  * list, a set, and a predicate.</p>
  *
- * <p>The identity return is pinned deliberately. {@code filterNames} hands the
- * caller's own list back when nothing is excluded, and a later "always defensive
- * copy" tidy-up would change that silently — no signature moves, no test fails,
- * unless one asserts on the reference. {@link GraidsDistributorTest} pins the
- * same property on {@code filterIndex}.</p>
- *
  * <p>NOTE: {@link RandomDistributor} imports Wynntils {@code Managers} and the
  * mod's own {@code GuildStateManager}, but its entire static state is one
  * {@code Random} and it has no supertypes, so nothing loads during
@@ -37,26 +29,12 @@ class RandomDistributorTest {
 
     private static final List<String> ROSTER = List.of("Metrafish", "Holidaze", "Wenweia");
 
-    // ----- The empty-exclude fast path -----
-
-    @Test
-    void anEmptyExcludeSetHandsBackTheCallerSOwnList() {
-        assertSame(
-                ROSTER,
-                RandomDistributor.filterNames(ROSTER, Set.of()),
-                "no copy is made when there is nothing to filter");
-    }
-
-    @Test
-    void anExcludeSetThatMatchesNothingStillCopies() {
-        List<String> out = RandomDistributor.filterNames(ROSTER, Set.of("Nobody"));
-
-        assertEquals(ROSTER, out);
-        assertNotSame(
-                ROSTER, out, "the fast path is keyed on the set being empty, not on the outcome");
-    }
-
     // ----- The filtering -----
+
+    @Test
+    void anEmptyExcludeSetKeepsEveryName() {
+        assertEquals(ROSTER, RandomDistributor.filterNames(ROSTER, Set.of()));
+    }
 
     @Test
     void anExcludedNameIsDroppedAndTheRestKeepTheirOrder() {

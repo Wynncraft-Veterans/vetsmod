@@ -1,7 +1,6 @@
 package org.wynnvets.laurels;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertSame;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -62,7 +61,7 @@ class LaurelCommandsTest {
     void beforeTheFirstFetchEveryStepRuns() {
         List<LaurelCommands.Step> steps = List.of(XP_STEP, STREAK_STEP);
 
-        assertSame(steps, LaurelCommands.selectSteps(steps, null));
+        assertEquals(steps, LaurelCommands.selectSteps(steps, null));
     }
 
     @Test

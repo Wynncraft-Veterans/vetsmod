@@ -17,9 +17,8 @@ import org.junit.jupiter.api.Test;
  * are not covered — they reach {@code GuildStateManager} and Wynntils
  * {@code Models.Guild} — but every extractor takes a response body as a plain
  * string, and the whole class's static state is one {@code HttpClient}, taken
- * from {@link org.wynnvets.util.HttpClients HttpClients}. (It held a
- * {@code Gson} of its own too, until that was replaced by the shared
- * {@link org.wynnvets.util.Json Json#GSON}.)</p>
+ * from {@link org.wynnvets.util.HttpClients HttpClients}; it parses through the
+ * shared {@link org.wynnvets.util.Json Json#GSON}.</p>
  *
  * <p>The three deliberate asymmetries pinned here are the ones a "these all
  * walk the same payload, share one helper" pass would flatten:</p>
@@ -77,31 +76,17 @@ class NameResolverTest {
 
     @Test
     void extractAllLegacyNames_prefersLegacyAndFallsBackToCurrent() {
+        // Two asymmetries sit in this list. "Broken", whose JSON value is not an object, still
+        // contributes its current name, because Json.stringOrNull tolerates a null receiver
+        // (answering null, with a warn) and the handler has no null guard of its own. And two
+        // distinct members both display as "Holidaze": the list is not deduplicated here, and
+        // RandomDistributor dedupes it before picking.
         List<String> names = NameResolver.extractAllLegacyNames(ROSTER);
 
         assertEquals(
                 List.of("Holidaze", "Holidaze", "Metrafish", "OldNazzae", "Broken"),
                 names,
                 "Wenweia and Nazzae renamed; Holidaze, Metrafish and Broken fall back to their key");
-    }
-
-    @Test
-    void extractAllLegacyNames_keepsMalformedEntriesUnderTheirCurrentName() {
-        // The asymmetry: a member whose JSON value is not an object still
-        // contributes a name here, because Json.stringOrNull tolerates a null
-        // receiver (answering null, with a warn) and the handler has no null
-        // guard of its own.
-        assertTrue(
-                NameResolver.extractAllLegacyNames(ROSTER).contains("Broken"),
-                "a malformed entry is not skipped by this extractor");
-    }
-
-    @Test
-    void extractAllLegacyNames_canProduceDuplicates() {
-        // Two distinct members both display as "Holidaze". The list is not
-        // deduplicated here; RandomDistributor dedupes it before picking.
-        List<String> names = NameResolver.extractAllLegacyNames(ROSTER);
-        assertEquals(2, names.stream().filter("Holidaze"::equals).count());
     }
 
     // ----- extractUuidToLegacyName -----
@@ -154,16 +139,19 @@ class NameResolverTest {
 
     @Test
     void extractNameIndex_foldsWithLocaleRootSoATurkishClientIndexesTheSameKeys() {
-        // The argument to toLowerCase is load-bearing and several neighbours in
-        // this repo omit it. "Metrafish" contains a capital I, which a default-locale
-        // fold would turn into the dotless U+0131 — so the key would be "metrafısh"
-        // and every lookup for "metrafish" would miss.
+        // "Ironclad" starts with a capital I, which a default-locale fold under Turkish
+        // turns into the dotless U+0131, so the key would be "ıronclad" and every lookup
+        // for "ironclad" would miss.
         Locale.setDefault(TURKISH);
 
-        Map<String, String> index = NameResolver.extractNameIndex(ROSTER);
+        Map<String, String> index =
+                NameResolver.extractNameIndex(
+                        """
+                        {"members": {"chief": {"Ironclad": {"uuid": "x"}}}}
+                        """);
 
-        assertEquals("Metrafish", index.get("metrafish"), "ASCII i, not the dotless one");
-        assertTrue(!index.containsKey("metrafısh"), "the default-locale key is never produced");
+        assertEquals("Ironclad", index.get("ironclad"), "ASCII i, not the dotless one");
+        assertTrue(!index.containsKey("ıronclad"), "the default-locale key is never produced");
     }
 
     @Test
@@ -191,13 +179,18 @@ class NameResolverTest {
 
     @Test
     void findLegacyName_payloadOrderDecidesACollisionBetweenALegacyAndACurrentName() {
-        // "Holidaze" is Wenweia's legacy name and also another member's current name.
-        // The walk returns on the first hit and Gson preserves document order,
-        // so the owner bucket's legacy match wins over the chief bucket's
-        // current-name match. Both happen to answer "Holidaze" here, which is why
-        // the collision is invisible in production — and why it needs pinning
-        // before anything reorders the walk.
-        assertEquals("Holidaze", NameResolver.findLegacyName(ROSTER, "holidaze"));
+        // "Holidaze" is Wenweia's legacy name and also the current name of a member who has a
+        // legacy name of their own. The walk returns on the first hit and Gson preserves
+        // document order, so the owner bucket's legacy match wins; the chief bucket's
+        // current-name match would answer "OldHolidaze".
+        String collision =
+                """
+                {"members": {
+                  "owner": {"Wenweia": {"legacyName": "Holidaze"}},
+                  "chief": {"Holidaze": {"legacyName": "OldHolidaze"}}}}
+                """;
+
+        assertEquals("Holidaze", NameResolver.findLegacyName(collision, "holidaze"));
     }
 
     @Test

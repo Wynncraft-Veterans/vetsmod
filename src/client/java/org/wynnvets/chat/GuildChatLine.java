@@ -11,14 +11,15 @@ package org.wynnvets.chat;
  * header scan is shared, and the private {@code rankIndicatorEnd} is the only
  * copy of it.</p>
  *
- * <h2>Two parsers, four deliberate differences</h2>
+ * <h2>Two parsers, three deliberate differences</h2>
  *
  * <p>{@link #parse} serves the rewriters that only need the name and the body
  * text ({@code EncourageUpdateRewriter}, {@code StaffGuildAlertRewriter}).
  * {@link #parseServerLine} serves {@code ServerGuildChatRewriter}, which
  * rebuilds the line from the original {@code Component} tree and therefore needs
  * an offset into the untouched string rather than a cleaned-up copy. The two are
- * <b>not</b> interchangeable, and every cell below is load-bearing:</p>
+ * <b>not</b> interchangeable, and each of the last three rows below is
+ * load-bearing:</p>
  *
  * <table border="1">
  *   <caption>Where the two parsers disagree</caption>
@@ -26,8 +27,8 @@ package org.wynnvets.chat;
  *   <tr>
  *     <td>{@code null} input</td>
  *     <td>returns {@code null}</td>
- *     <td>throws {@code NullPointerException} from its own
- *         {@code message.indexOf(':')} — there is no guard</td>
+ *     <td>not accepted: its one caller never passes {@code null}, so it takes no
+ *         guard</td>
  *   </tr>
  *   <tr>
  *     <td>the body</td>
@@ -50,9 +51,10 @@ package org.wynnvets.chat;
  *   </tr>
  * </table>
  *
- * <p>The missing null guard reads as an oversight sitting next to a method that
- * has one. It is not: {@code ServerGuildChatRewriter} reaches this only from the
- * mixin, with a string it has already dereferenced. The row above and
+ * <p>The null row is not one of the differences anything relies on:
+ * {@code ServerGuildChatRewriter} reaches {@link #parseServerLine} only from the
+ * mixin, with a string it has already dereferenced, so it needs no guard and
+ * would behave the same with one. The other three rows and
  * {@code GuildChatLineTest} are what stop a future "helpful" fix from quietly
  * unifying the two.</p>
  */

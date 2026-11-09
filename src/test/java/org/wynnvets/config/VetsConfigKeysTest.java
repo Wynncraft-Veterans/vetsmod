@@ -28,7 +28,9 @@ import org.junit.jupiter.api.Test;
  */
 class VetsConfigKeysTest {
 
-    private static final Map<String, String> EXPECTED = new LinkedHashMap<>();
+    /** Constant name to on-disk name, in declaration order. {@code VetsConfigSchemaTest} reads
+     *  the on-disk names from here. */
+    static final Map<String, String> EXPECTED = new LinkedHashMap<>();
 
     static {
         EXPECTED.put("VETS_AUTOMESSAGE", "vetsAutomessage");

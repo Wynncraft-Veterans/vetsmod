@@ -20,8 +20,8 @@ import org.junit.jupiter.api.Test;
 import org.wynnvets.retro.manifest.RetroPart;
 
 /**
- * The {@code /wv retro} tree builds with the shape {@link RetroCommands#buildCommandTree()}'s
- * Javadoc gives it, and what its parts commands work out. The commands themselves are not run: an
+ * The {@code /wv retro} tree builds with the shape {@link RetroCommands}' class Javadoc gives it,
+ * and what its parts commands work out. The commands themselves are not run: an
  * answer goes through Wynntils' chat and a stored setting through {@code VetsConfig}.
  */
 class RetroCommandsTest {

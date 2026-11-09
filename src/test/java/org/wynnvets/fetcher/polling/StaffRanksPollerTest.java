@@ -60,7 +60,8 @@ class StaffRanksPollerTest {
     @Test
     void aLiveEntryAppliedBeforeTheFetchAndAbsentFromItIsDropped() {
         StaffRanksPoller.applyLiveStaffEvent("Metrafish", UUID, "chief", true);
-        long started = System.nanoTime();
+        // A second on, so a coarse clock cannot read the same tick for the entry and the start.
+        long started = System.nanoTime() + 1_000_000_000L;
         StaffRanksPoller.parseStaffRanks("[]", started);
         assertEquals(Optional.empty(), StaffRanksPoller.confirmedRankFor("Metrafish"));
     }

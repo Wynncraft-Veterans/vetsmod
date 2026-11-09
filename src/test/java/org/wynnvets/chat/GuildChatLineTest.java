@@ -3,50 +3,39 @@ package org.wynnvets.chat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.Test;
 
 /**
- * Tests for {@link GuildChatLine} — one shared header scan, one shared parser,
- * one deliberate variant, and here is what separates them.
+ * Tests for {@link GuildChatLine}'s two parsers: the header scan they share, and the cells where
+ * they deliberately differ.
  *
- * <p>{@link GuildChatLine#parse} is what two rewriters used to keep a copy of
- * each; {@link GuildChatLine#parseServerLine} is a different function that
- * happened to wear the same name. Everything above the first divergence heading
- * exercises the header scan they share: find the last custom glyph before the
- * first colon, take the trimmed run between it and the colon as the display
- * name. A "custom glyph" is {@link org.wynnvets.chat.PillCodec#isCustomGlyph(int)
- * PillCodec.isCustomGlyph}, and the supplementary bound in it is what these cases
- * exercise from the caller's side —
+ * <p>Everything above the first divergence heading exercises the shared header scan: find the
+ * last custom glyph before the first colon, take the trimmed run between it and the colon as the
+ * display name. A "custom glyph" is {@link org.wynnvets.chat.PillCodec#isCustomGlyph(int)
+ * PillCodec.isCustomGlyph}, and these cases exercise the supplementary bound in it from the
+ * caller's side;
  * {@link PillCodecTest#isCustomGlyph_acceptsSupplementaryUnassignedButNotBmpUnassigned()}
- * pins the same bound at the predicate itself.</p>
+ * pins the same bound at the predicate itself. {@link GuildChatLine#parse} also returns
+ * {@code null} for {@code null} and empty input, as its parameter documentation says.</p>
  *
- * <p>Everything below pins the four cells where the two disagree:</p>
+ * <p>Everything below pins the three cells where the two parsers disagree:</p>
  *
  * <ol>
- *   <li>{@code parseServerLine} has no null guard, so it throws where
- *       {@code parse} returns null;</li>
- *   <li>it returns a char <em>index</em> into the original string, not a body
- *       substring;</li>
+ *   <li>{@code parseServerLine} returns a char <em>index</em> into the original string, not a
+ *       body substring;</li>
  *   <li>it keeps the rank indicator, which {@code parse} discards;</li>
- *   <li>it advances past <b>literal spaces only</b> where {@code parse}
- *       {@code trim()}s — so the body offset differs whenever the character after
- *       the colon is a tab or a newline. ({@code trim()} cuts at {@code U+0020},
- *       not at {@code Character.isWhitespace}; neither method removes an EM
- *       SPACE.)</li>
+ *   <li>it advances past <b>literal spaces only</b> where {@code parse} {@code trim()}s, so the
+ *       body offset differs whenever the character after the colon is a tab or a newline.
+ *       ({@code trim()} cuts at {@code U+0020}, not at {@code Character.isWhitespace}; neither
+ *       method removes an EM SPACE.)</li>
  * </ol>
  *
- * <p>(4) is the one a collapse of the two would flatten without anyone
- * noticing, because it needs a body that starts with whitespace that is not a
- * space. Now that both bodies sit in one file, these four cases and the class's
- * own divergence table are what stop that collapse from looking obvious.</p>
+ * <p>(3) is the cell a merge of the two parsers would flatten without anyone noticing, because
+ * it needs a body that starts with whitespace that is not a space.</p>
  *
- * <p>NOTE: this class used to be {@code chat.rewriter.GuildChatParseTest} and
- * loaded three rewriters to reach three copies of the parser, two of which
- * import Wynntils. {@link GuildChatLine} has no static state and no Wynntils
- * import, so the class-init fragility that sat behind the parse coverage is
- * gone.</p>
+ * <p>{@link GuildChatLine} has no static state and no Wynntils import, so it loads without a
+ * running client.</p>
  */
 class GuildChatLineTest {
 
@@ -152,28 +141,22 @@ class GuildChatLineTest {
         assertEquals("Metrafish", server.username(), "both trim the name identically");
     }
 
-    // ----- Divergence 1: the null guard -----
+    // ----- Null and empty input -----
 
     @Test
-    void nullIsRejectedByParseAndThrowsInParseServerLine() {
+    void nullIsRejectedByParse() {
         assertNull(GuildChatLine.parse(null));
-        assertThrows(
-                NullPointerException.class,
-                () -> GuildChatLine.parseServerLine(null),
-                "no guard — it goes straight to message.indexOf(':')");
     }
 
     @Test
     void emptyInputIsRejectedByBothButByDifferentRoutes() {
-        // parse short-circuits on isEmpty(); parseServerLine gets
-        // colonIndex == -1 and fails the <= 0 check. Same answer, so a collapse
-        // onto either body would be safe here — which is exactly why the null
-        // case above has to be checked separately.
+        // parse short-circuits on isEmpty(); parseServerLine gets colonIndex == -1 and fails the
+        // <= 0 check.
         assertNull(GuildChatLine.parse(""));
         assertNull(GuildChatLine.parseServerLine(""));
     }
 
-    // ----- Divergences 2 and 3: what comes back -----
+    // ----- Divergences 1 and 2: what comes back -----
 
     @Test
     void parseServerLineReturnsAnIndexAndKeepsTheRankIndicator() {
@@ -192,13 +175,12 @@ class GuildChatLineTest {
         assertEquals("hello", shared.message(), "parse hands back the substring");
     }
 
-    // ----- Divergence 4: the cell a three-way collapse would flatten -----
+    // ----- Divergence 3: the cell a merge would flatten -----
 
     @Test
     void bodyOffsetDivergesWhenTheCharacterAfterTheColonIsNotASpace() {
-        // The whole reason this test class exists. parse trim()s the body,
-        // which removes tabs and newlines; parseServerLine advances only past
-        // literal ' ', so it stops on the first tab or newline and the caller
+        // parse trim()s the body, which removes tabs and newlines; parseServerLine advances
+        // only past literal ' ', so it stops on the first tab or newline and the caller
         // renders it.
         String line = PUA + " Metrafish: \n hello";
 

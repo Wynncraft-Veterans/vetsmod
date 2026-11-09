@@ -1,8 +1,6 @@
 package org.wynnvets.distribute.distributor;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotSame;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
@@ -32,17 +30,12 @@ import org.junit.jupiter.api.Test;
  * here, because extracting one is precisely the change being protected.</p>
  *
  * <p>{@code filterIndex} is a third pure, Wynntils-free method, covered at the
- * foot of this class. The round of tests that created this class missed it, and that
- * round had closed by the time its verify pass caught it; a later sweep added the cases. Its
- * identity return is pinned deliberately — the method hands the caller's own map
- * back when nothing is excluded, and a later "always take a defensive copy"
- * tidy-up would change that with no signature move and nothing else failing.
- * {@link RandomDistributorTest} pins the same property on {@code filterNames}.</p>
+ * foot of this class.</p>
  *
  * <p>NOTE: {@link GraidsDistributor} imports Wynntils, but its static state is
  * a {@code String}, a {@code Pattern} and a {@code Random}, so nothing loads
  * during class-init. The same holds for {@link DistributionQueue}, whose nested
- * {@code Distribution} record these tests now name: it declares no static state
+ * {@code Distribution} record these tests name: it declares no static state
  * at all, and no supertypes.</p>
  */
 class GraidsDistributorTest {
@@ -190,12 +183,20 @@ class GraidsDistributorTest {
     @Test
     void aParticipantWithAZeroShareDisappearsWhileTheRestKeepTheirOrder() {
         // 3 rewards over 12 participations: a floors to 2, b to 0, and the one
-        // leftover goes to a random one of the two.
-        Deque<DistributionQueue.Distribution> queue =
-                GraidsDistributor.buildDistribution(freq("a", 11, "b", 1), 3);
-
-        assertEquals(3, sum(queue));
-        assertEquals("a", names(queue).get(0), "the high-frequency participant is always first");
+        // leftover goes to a random one of the two. Either b draws it and follows
+        // a, or a draws it and b, left with nothing, is not queued. Repeated so
+        // that a's draw, the one that shows the zero share dropped, comes up.
+        List<DistributionQueue.Distribution> aDrew =
+                List.of(new DistributionQueue.Distribution("a", 3));
+        List<DistributionQueue.Distribution> bDrew =
+                List.of(
+                        new DistributionQueue.Distribution("a", 2),
+                        new DistributionQueue.Distribution("b", 1));
+        for (int trial = 0; trial < 50; trial++) {
+            List<DistributionQueue.Distribution> queue =
+                    List.copyOf(GraidsDistributor.buildDistribution(freq("a", 11, "b", 1), 3));
+            assertTrue(queue.equals(aDrew) || queue.equals(bDrew), "got " + queue);
+        }
     }
 
     // ----- Degenerate input -----
@@ -232,20 +233,10 @@ class GraidsDistributorTest {
     }
 
     @Test
-    void filterIndex_anEmptyExcludeSetHandsBackTheCallerSOwnMap() {
+    void filterIndex_anEmptyExcludeSetKeepsEveryEntry() {
         Map<String, String> idx = index("oldname", "OldName", "newname", "OldName");
 
-        assertSame(idx, GraidsDistributor.filterIndex(idx, Set.of()));
-    }
-
-    @Test
-    void filterIndex_anExcludeSetThatMatchesNothingStillCopies() {
-        Map<String, String> idx = index("solo", "Solo");
-
-        Map<String, String> out = GraidsDistributor.filterIndex(idx, Set.of("Nobody"));
-
-        assertEquals(idx, out);
-        assertNotSame(idx, out, "the fast path reads the set, not the outcome");
+        assertEquals(idx, GraidsDistributor.filterIndex(idx, Set.of()));
     }
 
     @Test

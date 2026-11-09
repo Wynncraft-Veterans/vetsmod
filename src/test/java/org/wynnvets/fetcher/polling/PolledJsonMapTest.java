@@ -12,14 +12,12 @@ import org.junit.jupiter.api.Test;
 import org.wynnvets.api.VetsApi;
 
 /**
- * Normalizer symmetry and the cold-cache contract for {@link PolledJsonMap}.
+ * Normalizer symmetry, the cold-cache contract and the snapshot rules of {@link PolledJsonMap}.
  *
- * <p>The parse body itself is carried-across code and is not what this pins. What is new is
- * that one field now decides how keys are spelled on <em>both</em> sides of the map, and the
- * two instances disagree about what that field should be: {@link PolledJsonMap#WYNN_ALIASES}
- * folds case, {@link PolledJsonMap#GUILD_ROSTER} does not. Get that asymmetric and stale-named
- * players stop resolving in {@code /wv list} with no failed fetch and no log line to point at
- * it, so it is worth a test even though the code around it is unchanged.</p>
+ * <p>One field decides how keys are spelled on <em>both</em> sides of the map, and the two
+ * instances disagree about what that field should be: {@link PolledJsonMap#WYNN_ALIASES} folds
+ * case, {@link PolledJsonMap#GUILD_ROSTER} does not. Get that asymmetric and stale-named players
+ * stop resolving in {@code /wv list} with no failed fetch and no log line to point at it.</p>
  *
  * <p>Only {@link PolledJsonMap#parse(String)} is exercised. The network half is the same
  * untestable shape the rest of the fetcher tree has — no {@code mockwebserver}-class

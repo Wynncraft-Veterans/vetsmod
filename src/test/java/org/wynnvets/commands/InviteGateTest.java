@@ -13,7 +13,8 @@ import org.wynnvets.util.Json;
  * Pins the parts of the {@code /gu invite} gate that decide from temporary-server's
  * {@code check_membership} reply: a non-staff member's invite verdict (no Discord blob) is
  * usable and a {@code may_invite: false} verdict blocks, while a staff snapshot still needs its
- * Discord blob and blocks on {@code blocklisted}; and the two lines a non-staff player sees.
+ * Discord blob and blocks on {@code blocklisted}; and which verdict a player gets before any
+ * lookup, from staff status, session auth, the stored key and the member tier.
  */
 class InviteGateTest {
 
@@ -117,19 +118,5 @@ class InviteGateTest {
         assertEquals(
                 EntryVerdict.UNAUTHENTICATED,
                 InviteGate.entryVerdict(false, true, true, false, false, false));
-    }
-
-    @Test
-    void theNonStaffLinesAreTheUsersWording() {
-        assertEquals(
-                "This user is not eligible to join the guild, ask a Steward.",
-                InviteGate.GENERIC_REJECTION);
-        assertEquals(
-                "Unable to handle /gu invite: vetsmod is running unauthenticated."
-                        + " For more details, use ~vetsmod in #bot-commands on vetscord.",
-                InviteGate.UNAUTHENTICATED);
-        assertEquals(
-                "We are still checking your permissions, please retry in a moment.",
-                InviteGate.STILL_CHECKING);
     }
 }

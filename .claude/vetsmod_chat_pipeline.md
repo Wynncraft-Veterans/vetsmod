@@ -83,12 +83,12 @@ the colon is the name — and two public entry points over it:
 | | `parse` | `parseServerLine` |
 |---|---|---|
 | callers | `EncourageUpdateRewriter`, `StaffGuildAlertRewriter` | `ServerGuildChatRewriter` |
-| `null` input | returns `null` | throws, no guard |
+| `null` input | returns `null` | not accepted: its one caller never passes `null` |
 | the body | trimmed substring | char offset the caller slices |
 | rank indicator | discarded | returned, carries the pill |
 | after the colon | `trim()`, so `<= U+0020` at both ends — not `strip()` | past literal `' '` only, leading only |
 
-The four differences are deliberate, not drift, and the class Javadoc carries
+The last three differences are deliberate, not drift, and the class Javadoc carries
 the same table. `ServerGuildChatRewriter` rebuilds its line from the original
 `Component` tree, so it needs an offset that still lines up with the tree's own
 character positions — which a trimmed substring cannot give it. Pinned by

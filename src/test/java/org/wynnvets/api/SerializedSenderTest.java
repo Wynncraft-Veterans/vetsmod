@@ -12,9 +12,9 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Pins {@link SerializedSender}: one write at a time in submit order, a failed write that does
- * not block the next, and the in-flight bound. A fake writer records each text it is asked to
- * write and returns a future the test completes by hand, standing in for the JDK socket's
- * {@code sendText}.
+ * not block the next, and the in-flight bound, 64 by default. A fake writer records each text it
+ * is asked to write and returns a future the test completes by hand, standing in for the JDK
+ * socket's {@code sendText}.
  */
 class SerializedSenderTest {
 
@@ -129,7 +129,16 @@ class SerializedSenderTest {
     }
 
     @Test
-    void theBoundIsSixtyFourByDefault() {
-        assertEquals(64, SerializedSender.MAX_IN_FLIGHT);
+    void aDefaultSenderTakesSixtyFourWritesAndRefusesTheNext() {
+        // No write ever completes, so the first stays in progress and the rest queue behind it.
+        // Nothing here waits on a future that is not already done.
+        List<CompletableFuture<Boolean>> taken = new ArrayList<>();
+        for (int i = 0; i < 64; i++) taken.add(sender.submit("f" + i));
+        CompletableFuture<Boolean> refused = sender.submit("over");
+
+        assertTrue(refused.isDone(), "past the bound a submit completes at once");
+        assertFalse(refused.join());
+        assertTrue(taken.stream().noneMatch(CompletableFuture::isDone), "the 64 are still queued");
+        assertEquals(List.of("f0"), writer.written, "one write at a time, the refused one never");
     }
 }

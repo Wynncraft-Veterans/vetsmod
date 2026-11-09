@@ -1,6 +1,5 @@
 package org.wynnvets.chat.spoiler;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -50,14 +49,9 @@ class SpoilerCodecTest {
 
     @Test
     void encodeSpoilers_wrapsContentWithVisiblePrefix() {
-        String encoded = SpoilerCodec.encodeSpoilers("a ||x|| b");
-        assertTrue(
-                encoded.contains(SpoilerCodec.WRAPPER_PREFIX),
-                "expected visible wrapper prefix in: " + encoded);
-        assertTrue(
-                encoded.contains(SpoilerCodec.WRAPPER_SUFFIX),
-                "expected visible wrapper suffix in: " + encoded);
-        assertTrue(SpoilerCodec.containsEncodedSpoiler(encoded));
+        // The wire form, written numerically: the visible wrapper around SPOILER_START (U+F600),
+        // 'x' encoded directly as U+F602 + 0x78, and SPOILER_END (U+F601).
+        assertEquals("a [Spoiler: \uF600\uF67A\uF601] b", SpoilerCodec.encodeSpoilers("a ||x|| b"));
     }
 
     @Test
@@ -79,10 +73,11 @@ class SpoilerCodecTest {
     }
 
     @Test
-    void decodeContent_truncatedEscapeDoesNotThrow() {
-        // A lone ESCAPE char (U+F700) at the end with no following 3 digits must not throw.
-        String truncated = "";
-        assertDoesNotThrow(() -> SpoilerCodec.decodeContent(truncated));
+    void decodeContent_truncatedEscapeIsDroppedAlone() {
+        // An ESCAPE (U+F700) with fewer than three digits after it is skipped by itself, so what
+        // follows it still decodes: U+F643 is a direct 'A'.
+        assertEquals("", SpoilerCodec.decodeContent("\uF700"));
+        assertEquals("A", SpoilerCodec.decodeContent("\uF700\uF643"));
     }
 
     @Test
@@ -138,8 +133,8 @@ class SpoilerCodecTest {
         assertEquals("", SpoilerCodec.decodeContent("\uF6C3"));
         // U+E080 by the escape encodeContent itself writes: digits 68, 225, 0.
         assertEquals("", SpoilerCodec.decodeContent("\uF700\uF646\uF6E3\uF602"));
-        // Printable ASCII after the escape used to wrap round to U+E080 and U+00C1. The range
-        // check drops these, and the decode-side strip would drop the result anyway.
+        // Printable ASCII after an escape would otherwise wrap round to U+E080 and U+00C1.
+        // The range check drops these, and the decode-side strip would drop the result anyway.
         assertEquals("", SpoilerCodec.decodeContent("\uF700d\"Z"));
         assertEquals("", SpoilerCodec.decodeContent("\uF700!|("));
     }

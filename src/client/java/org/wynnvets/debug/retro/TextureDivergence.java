@@ -127,7 +127,7 @@ final class TextureDivergence {
      *     same picture in other colours), near 0 for unrelated pictures, -1 for a negative; when an
      *     image is a single brightness throughout, 1 if the other is too and 0 if not
      */
-    static double brightnessCorrelation(Pixels first, Pixels second) {
+    private static double brightnessCorrelation(Pixels first, Pixels second) {
         double[] a = brightness(first);
         double[] b = brightness(second);
         double meanA = Arrays.stream(a).average().orElse(0);

@@ -40,7 +40,9 @@ Those classes are the only builders. The classes their nodes call into, such as 
 `AnniHighlightDebugCommands` and `AnniDebugSuggestions`, register nothing.
 
 `VetsmodClient.onInitializeClient` only adds `register` as a `ClientCommandRegistrationCallback`. Fabric
-calls it on every login, with a new dispatcher, so the whole tree is rebuilt on each server join. It also
+calls it on every login, with a new dispatcher, so the whole tree is rebuilt on each server join, for every
+user. `CommandRegistryTest` builds it the same way, so a throw anywhere in it, debug subtrees included,
+fails the tests. `onInitializeClient` also
 registers `CommandCompletionSync`'s tick listener, which keeps tab completion in step with the tree's
 gates (see Gates).
 
@@ -288,10 +290,10 @@ The trigger leaves:
   built this session."), a gray "Parts off: <part>, …" line while any is off, and, while retro has switched any,
   a gray "Wynntils settings switched: <feature> <setting> <value>, …" line read from `retroWynntilsSnapshot`.
 
-**The anni debug harness** under `/wv debug tree anni` has 11 literals (`snapshot`, `guess`, `external`,
-`time`, `zone`, `flash`, `mode`, `scrollspot`, `alert`, `rsvp` and `registry`) and 24 executable leaves,
-both pinned by `AnniDebugCommandsTest`, as are the 18 nodes above a required argument that print a red
-"Usage: /wv debug tree anni …" line when typed bare (rather than going to the server as "Invalid command"). Every leaf refuses without debug logging ("anni debug commands require debug
+**The anni debug harness** under `/wv debug tree anni` has the literals `snapshot`, `guess`, `external`,
+`time`, `zone`, `flash`, `mode`, `scrollspot`, `alert`, `rsvp` and `registry`. Every node above a required
+argument prints a red "Usage: /wv debug tree anni …" line when typed bare (rather than going to the server
+as "Invalid command"). Every leaf refuses without debug logging ("anni debug commands require debug
 logging - run /wv debug true first"). The `scrollspot` leaves also refuse a player who is neither staff nor
 an organiser ("scrollspot is for party hosts / staff only."), and the ones that write to the server
 (`set`, `here` and `clear`) also need an authenticated session. The leaves with effects outside the client's memory are `snapshot dump` (writes a
@@ -300,8 +302,8 @@ and `clear` (`anni_scrollspot_set`), `rsvp hard`, `soft` and `revoke` (the same 
 `mode set` (writes `vetsAnniMode`, bypassing the `/stream` mutex). Each leaf is described in
 [vetsmod_mwe_anni.md](vetsmod_mwe_anni.md) §Debug harness.
 
-**The retro report** under `/wv debug tree retro` has two leaves, pinned by `RetroDebugCommandsTest`:
-`report` and `report ingredients`. Each refuses in red unless the retro pack is drawn now ("The retro
+**The retro report** under `/wv debug tree retro` has two leaves, `report` and `report ingredients`.
+Each refuses in red unless the retro pack is drawn now ("The retro
 report is about the retro pack drawn now, and none is; /wv debug trigger retroDump says why."), and in yellow
 while another report is being written. Otherwise it prints a gray "Writing the retro report…", builds
 the report on a thread of its own and writes it to a new `report-<yyyyMMdd-HHmmss>.txt` (or

@@ -46,18 +46,21 @@ final class ShippedFiles {
         return new ModelRules(RetroManifest.load().models());
     }
 
-    /** Whether the test classpath has {@code assets/<namespace>/<folder>/<path><suffix>}. */
-    static boolean onClasspath(String id, String folder, String suffix) {
+    /** The classpath file of {@code id}: {@code /assets/<namespace>/<folder>/<path><suffix>}. */
+    static String assetFile(String id, String folder, String suffix) {
         int colon = id.indexOf(':');
-        String file =
-                "/assets/"
-                        + id.substring(0, colon)
-                        + "/"
-                        + folder
-                        + "/"
-                        + id.substring(colon + 1)
-                        + suffix;
-        return ShippedFiles.class.getResource(file) != null;
+        return "/assets/"
+                + id.substring(0, colon)
+                + "/"
+                + folder
+                + "/"
+                + id.substring(colon + 1)
+                + suffix;
+    }
+
+    /** Whether the test classpath has {@code id}'s {@link #assetFile}. */
+    static boolean onClasspath(String id, String folder, String suffix) {
+        return ShippedFiles.class.getResource(assetFile(id, folder, suffix)) != null;
     }
 
     static boolean textureInClientJar(String textureId) {
@@ -76,23 +79,12 @@ final class ShippedFiles {
 
     /** The classpath file of {@code textureId} in the Vanilla Tweaks art. */
     static String vanillaTweaksFile(String textureId) {
-        int colon = textureId.indexOf(':');
-        return "/retro/vanilla_tweaks/assets/"
-                + textureId.substring(0, colon)
-                + "/textures/"
-                + textureId.substring(colon + 1)
-                + ".png";
+        return "/retro/vanilla_tweaks" + assetFile(textureId, "textures", ".png");
     }
 
     /** The texture {@code textureId} names, read from the test classpath. */
     static BufferedImage texture(String textureId) throws IOException {
-        int colon = textureId.indexOf(':');
-        String file =
-                "/assets/"
-                        + textureId.substring(0, colon)
-                        + "/textures/"
-                        + textureId.substring(colon + 1)
-                        + ".png";
+        String file = assetFile(textureId, "textures", ".png");
         try (InputStream in = ShippedFiles.class.getResourceAsStream(file)) {
             assertNotNull(in, file);
             return ImageIO.read(in);
@@ -157,13 +149,12 @@ final class ShippedFiles {
 
     /** The model {@code modelId} names, read from the test classpath. */
     static JsonObject model(String modelId) throws IOException {
-        int colon = modelId.indexOf(':');
-        String file =
-                "/assets/"
-                        + modelId.substring(0, colon)
-                        + "/models/"
-                        + modelId.substring(colon + 1)
-                        + ".json";
+        return json(modelId, "models");
+    }
+
+    /** The JSON file {@code id} names under {@code folder}, read from the test classpath. */
+    static JsonObject json(String id, String folder) throws IOException {
+        String file = assetFile(id, folder, ".json");
         try (InputStream in = ShippedFiles.class.getResourceAsStream(file)) {
             assertNotNull(in, file);
             return JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8))

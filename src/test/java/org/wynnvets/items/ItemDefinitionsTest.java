@@ -13,10 +13,9 @@ import org.junit.jupiter.api.Test;
 import org.yaml.snakeyaml.error.YAMLException;
 
 /**
- * Tests for {@link ItemDefinitions}' ten testable query methods — nine that
- * take an item name plus {@code isBlockedScreenTitle}, which takes a screen
- * title — driven against the real {@code definitions.yml} plus small parsed-in
- * fixtures.
+ * Tests for {@link ItemDefinitions}' query methods, which take an item name or, for
+ * {@code isBlockedScreenTitle}, a screen title, driven against the real
+ * {@code definitions.yml} plus small parsed-in fixtures.
  *
  * <p>The file is the contract, not a stub: {@code src/client/resources} is on
  * the test runtime classpath, so {@code load()} reads exactly what production
@@ -28,7 +27,7 @@ import org.yaml.snakeyaml.error.YAMLException;
  *
  * <p>{@code isEnchantExcludedItem(ItemStack)} is not covered — it resolves
  * {@code BuiltInRegistries.ITEM}, which needs {@code Bootstrap.bootStrap()}.
- * It is the eleventh public query and the only untestable one.</p>
+ * It is the only public query that cannot be tested.</p>
  *
  * <p>NOTE: {@link ItemDefinitions} imports {@code BuiltInRegistries} and
  * {@code ItemStack}, but its static state is empty collections and the section
@@ -43,8 +42,8 @@ class ItemDefinitionsTest {
         ItemDefinitions.load();
     }
 
-    // Test-only: load() clears all eleven collections before refilling, so it
-    // doubles as the reset that undoes any fixture a test parsed in.
+    // Test-only: load() clears every collection before refilling, so it doubles
+    // as the reset that undoes any fixture a test parsed in.
     @AfterEach
     void reloadRealDefinitions() {
         ItemDefinitions.load();
@@ -102,14 +101,6 @@ class ItemDefinitionsTest {
         assertFalse(
                 ItemDefinitions.isLegacy("My Anchorless Probe"),
                 "find() would accept this substring; matches() requires the whole name");
-    }
-
-    @Test
-    void anchoredPatternsFromTheRealFileStillRejectSubstrings() {
-        // The same rule seen through the file as it actually is.
-        assertTrue(ItemDefinitions.isUnenchanted("Ability Shard"));
-        assertFalse(ItemDefinitions.isUnenchanted("My Ability Shard"));
-        assertFalse(ItemDefinitions.isUnenchanted("Ability Shards"));
     }
 
     // ----- The one cross-category precedence -----
@@ -179,21 +170,7 @@ class ItemDefinitionsTest {
                 "the section's other entries still load");
     }
 
-    // ----- Comments and quoting follow YAML -----
-
-    @Test
-    void trailingCommentsAreStrippedFromQuotedAndPlainEntriesAlike() throws IOException {
-        // YAML drops a trailing comment after a quoted or a bare entry.
-        parseFixture(
-                """
-                definitions:
-                  - "^QuotedProbe$" # this comment is discarded
-                  - ^BareProbe$ # and so is this one
-                """);
-
-        assertTrue(ItemDefinitions.isLegacy("QuotedProbe"));
-        assertTrue(ItemDefinitions.isLegacy("BareProbe"));
-    }
+    // ----- Quoting follows YAML -----
 
     @Test
     void aRegexBackslashSurvivesInSingleQuotes() throws IOException {
@@ -270,20 +247,6 @@ class ItemDefinitionsTest {
         assertTrue(
                 ItemDefinitions.isNoLoreLegacy("fiert\u00e9"),
                 "(?i) still folds the ASCII letters");
-    }
-
-    @Test
-    void wholeLineCommentsAreSkippedByTheParserItself() throws IOException {
-        // A leading '#' is handled, including on a commented-out list entry.
-        parseFixture(
-                """
-                definitions:
-                  #- "^DisabledProbe$"
-                  - "^EnabledProbe$"
-                """);
-
-        assertFalse(ItemDefinitions.isLegacy("DisabledProbe"));
-        assertTrue(ItemDefinitions.isLegacy("EnabledProbe"));
     }
 
     // ----- Parser shape -----

@@ -29,44 +29,20 @@ class AnniWindowsTest {
         -1801L, -1800L, -1799L, 0L, 5399L, 5400L, 5401L, 7199L, 7200L, 7201L,
     };
 
-    // ── The constants themselves ──────────────────────────────────────
+    // ── The bar window ────────────────────────────────────────────────
 
+    /**
+     * {@link AnniWindows#BAR_WINDOW_SECONDS} has no predicate, so its value is all there is to
+     * pin. Its two comparisons stay at their call sites, each with a floor of its own that a
+     * test here cannot reach: {@code AnniSnapshotPoller} checks {@code secondsUntilAnni > 0},
+     * and {@code VetsBossBarManager} returns at 20 seconds earlier in the same method.
+     */
     @Test
-    void constantsHoldTheValuesTheCallSitesUsedToDeclare() {
-        assertEquals(
-                7200L,
-                AnniWindows.HOT_WINDOW_BEFORE_SECONDS,
-                "2 h open edge. Three constants hold 7200 today: this one, plus "
-                        + "PartyRosterListener.ACTIVE_WINDOW_SEC (a symmetric +/-2h, a "
-                        + "different shape) and AnniCommandRenderer.TWO_HOURS_SECONDS (a "
-                        + "render-branch selector, not a window) — both deliberate "
-                        + "non-residents");
-        assertEquals(
-                1800L,
-                AnniWindows.HOT_WINDOW_AFTER_SECONDS,
-                "30 m AFTER the stamp (T+30m, not T-30m) — the close edge. Three call "
-                        + "sites declared it before the collapse; this is the only constant now");
+    void barWindowIsNinetyMinutes() {
         assertEquals(
                 5400L,
                 AnniWindows.BAR_WINDOW_SECONDS,
-                "90 m. Two call sites declared it before the collapse; this is the only "
-                        + "constant now");
-    }
-
-    /**
-     * {@link AnniWindows#BAR_WINDOW_SECONDS} deliberately has no predicate, so
-     * there is nothing here to assert beyond its value — pinned above.
-     *
-     * <p>Stated rather than tested, because a test cannot pin a comparison it
-     * does not own: {@code AnniSnapshotPoller} floors its 90-minute check at
-     * {@code secondsUntilAnni > 0} and {@code VetsBossBarManager} floors its at
-     * a 20-second hard return earlier in the same method. Both comparisons stay
-     * at their call sites. Writing a case here that looked like it covered them
-     * would be worse than writing none.</p>
-     */
-    @Test
-    void barWindowIsAConstantAndNotAPredicate() {
-        assertEquals(90L * 60L, AnniWindows.BAR_WINDOW_SECONDS);
+                "the boss bar and the snapshot poll start 90 m before the stamp");
     }
 
     // ── inHotWindow, at every boundary value ──────────────────────────
@@ -93,37 +69,26 @@ class AnniWindowsTest {
         assertTrue(AnniWindows.inHotWindow(5401L));
     }
 
-    @Test
-    void inHotWindow_isFalseOnlyOutsideBothEdges() {
-        for (long secondsUntil : BOUNDARY) {
-            boolean expected = secondsUntil >= -1800L && secondsUntil <= 7200L;
-            assertEquals(
-                    expected,
-                    AnniWindows.inHotWindow(secondsUntil),
-                    "boundary value " + secondsUntil);
-        }
-    }
-
     // ── hotWindowClosed, the watcher's inverted arrangement ───────────
 
     @Test
     void hotWindowClosed_agreesWithInHotWindowsCloseEdge() {
-        // The only executable evidence that collapsing three declarations of
-        // 1800 into one was safe: the watcher compares now against
-        // anchor + WINDOW, the tickers compare stamp - now against -WINDOW, and
-        // the two arrangements have to break at the same second.
+        // The watcher compares now against anchor + WINDOW, the tickers compare
+        // stamp - now against -WINDOW, and the two arrangements have to break at
+        // the same second.
         assertFalse(AnniWindows.hotWindowClosed(NOW - 1799L, NOW), "T+29m59s — still open");
         assertFalse(AnniWindows.hotWindowClosed(NOW - 1800L, NOW), "T+30m exactly — still open");
         assertTrue(AnniWindows.hotWindowClosed(NOW - 1801L, NOW), "T+30m01s — closed");
     }
 
     @Test
-    void hotWindowClosed_isTheComplementOfTheCloseEdgeAtEveryBoundaryValue() {
+    void hotWindowClosed_isTheComplementOfInHotWindowOnceTheWindowHasOpened() {
         for (long secondsUntil : BOUNDARY) {
-            long anchor = NOW + secondsUntil;
+            // Before the open edge the window is neither open nor closed: it has yet to open.
+            boolean opened = secondsUntil <= AnniWindows.HOT_WINDOW_BEFORE_SECONDS;
             assertEquals(
-                    secondsUntil < -1800L,
-                    AnniWindows.hotWindowClosed(anchor, NOW),
+                    opened && !AnniWindows.inHotWindow(secondsUntil),
+                    AnniWindows.hotWindowClosed(NOW + secondsUntil, NOW),
                     "boundary value " + secondsUntil);
         }
     }

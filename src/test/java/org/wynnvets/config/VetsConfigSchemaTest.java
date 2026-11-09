@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -23,62 +24,20 @@ import org.junit.jupiter.api.Test;
  * plus a debug key ({@code itemDump}) and an unknown name, so a predicate pointed at the wrong
  * array fails here. The string-key guard reads {@code STRING_CONFIG_KEYS} so that a new string
  * key that is neither a colour key nor the sprite key fails until it declares a fixed value list,
- * instead of being validated as a colour name.</p>
+ * instead of being validated as a colour name. The key names are {@code VetsConfigKeysTest}'s frozen on-disk names, so a key
+ * is checked here as soon as it is pinned there.</p>
  */
 class VetsConfigSchemaTest {
 
-    private static final List<String> ALL_NAMES =
-            List.of(
-                    "vetsAutomessage",
-                    "vetsIsStaff",
-                    "vetsLastStaffCheck",
-                    "vetsGuildCheckResult",
-                    "vetsLastGuildCheck",
-                    "vetsGuildCheckOwner",
-                    "vetsDebugEnabledAt",
-                    "vetsAuthKey",
-                    "vetsAuthTier",
-                    "vetsAuthVerifiedAt",
-                    "retroTextures",
-                    "retroWynntilsSnapshot",
-                    "retroPartsOff",
-                    "sudokuProgress",
-                    "legacyItemHighlighting",
-                    "legacyItemShowEnchantments",
-                    "legacyItemUnderrolling",
-                    "printMOTD",
-                    "printANNI",
-                    "vetsAnniShowHoverDetails",
-                    "vetsAnniPromptRsvp",
-                    "vetsAnniShowPrediction",
-                    "vetsAnniMode",
-                    "vetsAnniModeUserSet",
-                    "vetsAnniUserMode",
-                    "vetsAnniRoleStyle",
-                    "vetsAnniBossbarEnabled",
-                    "vetsAnniFlashIntensity",
-                    "vetsAnniFlashSound",
-                    "vetsAnniOutlinesEnabled",
-                    "vetsAnniNametagsEnabled",
-                    "vetsAnniZoneLines",
-                    "vetsAnniScrollWaypoint",
-                    "vetsAnniChatAlerts",
-                    "vetsAnniGhostsPrompt",
-                    "vetsAnniGhostsPromptShownForStamp",
-                    "printBridgeMessages",
-                    "showSupporterGlints",
-                    "colorBlindMode",
-                    "handleSpoilers",
-                    "moreReliableGuildCheck",
-                    "printSuccessfulAuth",
-                    "legacyItemBackgroundGradientTop",
-                    "legacyItemBackgroundGradientBottom",
-                    "legacyItemBackgroundGradientTopOpacity",
-                    "legacyItemBackgroundGradientBottomOpacity",
-                    "legacyItemForegroundSprite",
-                    "legacyItemForegroundColor",
-                    "itemDump",
-                    "noSuchKey");
+    /** Every on-disk key name, then a debug key and a name that is no key at all. */
+    private static final List<String> ALL_NAMES = allNames();
+
+    private static List<String> allNames() {
+        List<String> names = new ArrayList<>(VetsConfigKeysTest.EXPECTED.values());
+        names.add("itemDump");
+        names.add("noSuchKey");
+        return List.copyOf(names);
+    }
 
     @Test
     void userConfigKeys_inPrintOrder() {

@@ -42,7 +42,8 @@ class UserTest {
 
     @Test
     void isInVets_guildWithoutUuid() {
-        // A partial payload: the guild object is there and its uuid is not. This threw before.
+        // A partial payload: the guild object is there and its uuid is not. It reads as not in
+        // the guild rather than throwing.
         assertFalse(parse("{\"guild\": {\"name\": \"Returners\"}}").isInVets());
         assertFalse(parse("{\"guild\": {\"uuid\": null}}").isInVets());
     }

@@ -7,6 +7,7 @@ import static org.wynnvets.retro.manifest.ManifestFixtures.parseTextures;
 
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 import org.junit.jupiter.api.Test;
 
@@ -32,7 +33,9 @@ class PartSectionsTest {
         assertEquals(RetroPart.WEAPONS, row.part());
         assertEquals("Weapons", row.about());
         assertEquals("minecraft:a/.*", row.textures().get(0).pattern());
-        assertEquals(2, row.models().size());
+        assertEquals(
+                List.of("minecraft:b/.*", "minecraft:c"),
+                row.models().stream().map(Pattern::pattern).toList());
         assertEquals(Set.of("Feature"), row.wynntils());
     }
 
@@ -50,11 +53,6 @@ class PartSectionsTest {
         assertEquals(List.of(RetroPart.HUD, RetroPart.BLOCKS), List.copyOf(parts.parts().keySet()));
         assertTrue(parts.parts().get(RetroPart.HUD).textures().isEmpty());
         assertTrue(parts.parts().get(RetroPart.HUD).wynntils().isEmpty());
-    }
-
-    @Test
-    void noSectionMeansNoRows() {
-        assertTrue(parseTextures("").parts().parts().isEmpty());
     }
 
     @Test

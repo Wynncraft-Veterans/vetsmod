@@ -65,8 +65,8 @@ public final class AnniHoverBuilder {
      *  NametagMixin} behind it — through here to reach a switch statement would be
      *  the wrong dependency edge. Kept as a method rather than removed: it has two
      *  callers of its own ({@link #roleChip} and
-     *  {@link AnniMotdRenderer#assignedToPartyLine}) plus its own test coverage, and
-     *  chat code should not have to know which package owns the outline palette.</p>
+     *  {@link AnniMotdRenderer#assignedToPartyLine}), and chat code should not have
+     *  to know which package owns the outline palette.</p>
      *
      *  <p>The boss bar's {@code VetsBossBarContentBuilder.roleColor} is a third
      *  role table and is <em>deliberately</em> not this one — it maps

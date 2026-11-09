@@ -1,6 +1,5 @@
 package org.wynnvets.retro.manifest;
 
-import static java.util.Map.entry;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -101,8 +100,9 @@ class ManifestParserTest {
 
     @Test
     void emptyFilesGiveAnEmptyManifest() {
-        RetroManifest manifest = parse("", "");
+        RetroManifest manifest = RetroManifest.empty();
 
+        assertTrue(manifest.parts().parts().isEmpty());
         assertTrue(manifest.textures().sources().isEmpty());
         assertTrue(manifest.textures().keepWynncraft().isEmpty());
         assertTrue(manifest.textures().tints().isEmpty());
@@ -118,9 +118,12 @@ class ManifestParserTest {
         assertTrue(copySources(manifest).isEmpty());
         assertTrue(manifest.assets().wynntilsTextures().isEmpty());
         assertTrue(manifest.stacks().gearBoxIcons().isEmpty());
+        assertTrue(manifest.stacks().accessoryTiers().tiers().isEmpty());
         assertTrue(manifest.assets().lang().locales().isEmpty());
         assertTrue(manifest.assets().lang().strings().isEmpty());
         assertTrue(manifest.models().ingredients().isEmpty());
+        assertTrue(manifest.screens().slotFills().isEmpty());
+        assertTrue(manifest.wynntilsConfig().isEmpty());
     }
 
     @Test
@@ -173,18 +176,6 @@ class ManifestParserTest {
                 IllegalArgumentException.class,
                 () -> parseTextures("potions:\n  x: empty\n"),
                 "every potion row is a liquid's colour");
-    }
-
-    @Test
-    void theEmptyManifestHasNoRows() {
-        RetroManifest empty = RetroManifest.empty();
-
-        assertTrue(empty.textures().sources().isEmpty());
-        assertTrue(empty.models().ingredients().isEmpty());
-        assertTrue(empty.assets().lang().strings().isEmpty());
-        assertTrue(empty.stacks().accessoryTiers().tiers().isEmpty());
-        assertTrue(empty.screens().slotFills().isEmpty());
-        assertTrue(empty.wynntilsConfig().isEmpty());
     }
 
     @Test

@@ -7,9 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import org.junit.jupiter.api.AfterEach;
@@ -23,9 +21,9 @@ import org.wynnvets.fetcher.polling.StaffRanksPoller;
  * never with {@code expectingAuthAck} set, and its untyped ack goes to {@link OutboundAckRouter}
  * without touching the outbound listeners or {@link SessionAuthState}.
  *
- * <p>A recording socket stands in for the outbound connection, as in
- * {@code V1ApiManagerFramesTest}. No test reads the stored key ({@code VetsConfig}): the sends
- * go through {@link V1ApiManager#sendOutboundAuth(String)}, and every frame routed through
+ * <p>A {@link RecordingWsClient} stands in for the outbound connection. No test reads the stored
+ * key ({@code VetsConfig}): the sends go through {@link V1ApiManager#sendOutboundAuth(String)},
+ * and every frame routed through
  * {@link V1ApiManager#handleOutboundFrame(JsonObject)} leaves at least one of the two flags
  * unset, so the key is never read. No test routes a transient error ack, whose retry needs the
  * Wynntils tick scheduler.</p>
@@ -34,28 +32,8 @@ class V1ApiManagerOutboundAuthTest {
 
     private static final String KEY = "k".repeat(43);
 
-    /** A socket that never connects: it records frames and reports {@link #connected}. */
-    private static final class RecordingWsClient extends WsClient {
-        final List<String> wire = new ArrayList<>();
-        volatile boolean connected = true;
-
-        RecordingWsClient() {
-            super(URI.create("wss://wynnvets.org/v1/outbound"), "test", json -> {});
-        }
-
-        @Override
-        public CompletableFuture<Boolean> sendAsync(JsonObject json) {
-            wire.add(WsClient.toWire(json));
-            return CompletableFuture.completedFuture(true);
-        }
-
-        @Override
-        public boolean isConnected() {
-            return connected;
-        }
-    }
-
-    private final RecordingWsClient socket = new RecordingWsClient();
+    private final RecordingWsClient socket =
+            new RecordingWsClient(URI.create("wss://wynnvets.org/v1/outbound"));
     private final AtomicInteger authenticated = new AtomicInteger();
     private final Runnable realOnAuthenticated = OutboundAckRouter.onAuthenticated;
 

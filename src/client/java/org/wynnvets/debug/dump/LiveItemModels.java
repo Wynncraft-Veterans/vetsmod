@@ -178,8 +178,7 @@ public final class LiveItemModels {
      * @return the index of the highest threshold at or below {@code value}, the later of equal
      *     thresholds; {@code -1} when none is, or {@code value} is not a number
      */
-    // Package-private for unit tests. See LiveItemModelsTest.
-    static int pickedEntry(float[] thresholds, float value) {
+    private static int pickedEntry(float[] thresholds, float value) {
         int picked = -1;
         if (!Float.isNaN(value)) {
             for (int i = 0; i < thresholds.length; i++) {

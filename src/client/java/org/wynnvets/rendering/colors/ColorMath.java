@@ -48,8 +48,8 @@ public final class ColorMath {
 
     /**
      * Packs three channels into {@code 0xRRGGBB}. The channels are not masked: one outside {@code
-     * 0..255} bleeds into its neighbour, which {@link #interpolateRgb(int, int, float)}'s contract
-     * relies on.
+     * 0..255} bleeds into its neighbour, as {@link #interpolateRgb(int, int, float)} does for a
+     * {@code t} outside {@code [0, 1]}.
      */
     public static int rgb(int red, int green, int blue) {
         return red << 16 | green << 8 | blue;
@@ -83,12 +83,11 @@ public final class ColorMath {
     /**
      * Linearly interpolates each of the three 8-bit channels of two {@code 0xRRGGBB} colours.
      *
-     * <p><b>{@code t} is not clamped</b>, and that is the contract. Outside {@code [0, 1]} a
-     * channel rounds past {@code 0..255}, and the shift-and-or recombination lets it bleed into the
-     * neighbouring channel or, for a negative {@code t}, into the sign bit: {@code t = 1.5} on
-     * black&rarr;white gives {@code 0x017F7F7F}, {@code t = 2} gives {@code 0x01FFFFFE}, and {@code
-     * t = -0.5} gives {@code 0xFFFFFF81}. {@code ColorMathTest} pins these literals, and every
-     * caller feeds a normalised {@code t}.
+     * <p><b>{@code t} is not clamped</b>, and every caller feeds a normalised one. Outside
+     * {@code [0, 1]} a channel rounds past {@code 0..255}, and the shift-and-or recombination lets
+     * it bleed into the neighbouring channel or, for a negative {@code t}, into the sign bit:
+     * {@code t = 1.5} on black&rarr;white gives {@code 0x017F7F7F}, {@code t = 2} gives
+     * {@code 0x01FFFFFE}, and {@code t = -0.5} gives {@code 0xFFFFFF81}.
      *
      * <p>An alpha byte on either input is discarded.
      *

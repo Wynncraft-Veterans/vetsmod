@@ -15,8 +15,8 @@ import org.junit.jupiter.api.Test;
 /**
  * Lifecycle contract for {@link PollingService}.
  *
- * <p>This is the repo's first concurrent test and the {@code test} Gradle task carries no
- * timeout, so an unbounded {@code await()} would hang the build rather than fail it. Every
+ * <p>The tests run real threads and the {@code test} Gradle task carries no timeout, so an
+ * unbounded {@code await()} would hang the build rather than fail it. Every
  * wait here is therefore bounded and asserted on, every service is stopped in
  * {@link #stopService()}, and nothing asserts on elapsed wall-clock time &mdash; only on
  * ordering and on latch outcomes. Periods are tens of milliseconds so the class runs in well

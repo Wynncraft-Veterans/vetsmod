@@ -169,6 +169,10 @@ class AssetSectionsTest {
         assertEquals(
                 Recolours.hueOnly(0x102030, 0x48B518).applyAsInt(0xFF102030),
                 new SourceCopy(hue, 0x48B518).recolour().applyAsInt(0xFF102030));
+        assertEquals(
+                pixel,
+                new SourceCopy(hue, 0x48B518).recolour().applyAsInt(pixel),
+                "a pixel off the recipe's hue is left as it is");
     }
 
     @Test

@@ -90,25 +90,7 @@ class GenerationStepsTest {
     // ----- The order -----
 
     @Test
-    void theStepsRunInTheirStatedOrder() {
-        assertEquals(
-                List.of(
-                        TextureStep.class,
-                        WynncraftCopyStep.class,
-                        SourceCopyStep.class,
-                        BlankTextureStep.class,
-                        WynntilsTextureStep.class,
-                        AccessoryTierStep.class,
-                        ModelStubStep.class,
-                        BlockModelStep.class,
-                        EquipmentStep.class,
-                        ItemDefinitionStep.class,
-                        OutlinedIconStep.class),
-                RetroPackGenerator.STEPS.stream().map(GenerationStep::getClass).toList());
-    }
-
-    @Test
-    void everyStepThatWritesWhatAStubNamesComesBeforeTheStubs() {
+    void theStepsRunInTheOrderTheirFilesNeed() {
         List<Class<?>> order =
                 RetroPackGenerator.STEPS.stream().<Class<?>>map(GenerationStep::getClass).toList();
         int firstStub = order.indexOf(ModelStubStep.class);
@@ -120,9 +102,25 @@ class GenerationStepsTest {
                         BlankTextureStep.class,
                         WynntilsTextureStep.class,
                         AccessoryTierStep.class)) {
+            assertTrue(order.contains(writer), writer.getSimpleName() + " runs");
             assertTrue(order.indexOf(writer) < firstStub, writer.getSimpleName());
         }
         assertTrue(firstStub < order.indexOf(BlockModelStep.class));
+        assertTrue(
+                order.containsAll(
+                        List.of(
+                                EquipmentStep.class,
+                                ItemDefinitionStep.class,
+                                OutlinedIconStep.class)),
+                "the steps that read no other step's files run too");
+        // A later step's file replaces an earlier one's at the same path.
+        int textures = order.indexOf(TextureStep.class);
+        assertTrue(
+                textures < order.indexOf(BlankTextureStep.class),
+                "a blank texture outranks the texture rules' file");
+        assertTrue(
+                textures < order.indexOf(WynntilsTextureStep.class),
+                "a Wynntils texture outranks the texture rules' file");
     }
 
     /** An ingredient that parents a generated accessory, and that accessory's art. */

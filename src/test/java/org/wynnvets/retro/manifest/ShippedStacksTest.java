@@ -12,7 +12,6 @@ import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.wynnvets.retro.rules.ModelRules;
-import org.wynnvets.retro.rules.RetroAssetIds;
 
 /**
  * Tests for the shipped stack rows ({@link StackSections}): that every outlined icon has art,
@@ -86,10 +85,6 @@ class ShippedStacksTest {
         // The pack copies each item's vanilla definition, so the jar must have it.
         for (String item : icons.values()) {
             assertTrue(onClasspath(item, "items", ".json"), item);
-            assertEquals(
-                    "vetsmod:retro/" + item.replace(":", "/"),
-                    RetroAssetIds.itemDefinitionCopy(item),
-                    item);
         }
     }
 }

@@ -9,6 +9,7 @@ import static org.wynnvets.rendering.image.TestImages.filled;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import net.minecraft.resources.Identifier;
@@ -18,6 +19,7 @@ import org.wynnvets.retro.RetroReport.Count;
 import org.wynnvets.retro.manifest.ManifestFixtures;
 import org.wynnvets.retro.manifest.RetroManifest;
 import org.wynnvets.retro.manifest.RetroPart;
+import org.wynnvets.retro.manifest.RetroSource;
 import org.wynnvets.retro.pack.MemoryPack;
 import org.wynnvets.retro.rules.KeepReason;
 import org.wynnvets.retro.rules.RetroAssetIds;
@@ -426,8 +428,11 @@ class DrawnArtTest {
 
         assertEquals(List.of(), gen.out.skipped, "no model was read");
         assertEquals(
-                gen.textureRules.decideAll(Set.of("minecraft:item/feather"), gen.facts),
-                gen.out.decisions);
+                Map.of(
+                        "minecraft:item/feather",
+                        new TextureDecision.Copy("minecraft:item/feather", RetroSource.VANILLA)),
+                gen.out.decisions,
+                "the same_name copy, with no part's decision over it");
         assertFalse(gen.out.counts.containsKey(Count.PARTS_OFF));
         assertNotNull(file(gen, "minecraft:textures/item/feather.png"));
     }

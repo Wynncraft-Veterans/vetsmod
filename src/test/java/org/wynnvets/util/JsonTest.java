@@ -12,23 +12,21 @@ import com.google.gson.JsonObject;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tests for {@link Json}'s four field accessors, in sixteen tests, then for its two strict
- * boolean tests, {@code isTrue} and {@code isFalse}.
+ * Tests for {@link Json}'s field accessors: {@code optString}, its two conveniences
+ * {@code stringOrNull} and {@code stringOrEmpty}, and {@code optInt}; and its strict boolean
+ * tests, {@code isTrue} and {@code isFalse}, which answer only for a JSON boolean.
  *
- * <p>This is the sole survivor of five {@code JsonAccessorTest} classes — in {@code chat},
- * {@code chat.dispatcher}, {@code chat.rewriter}, {@code commands} and
- * {@code fetcher.ondemand} — that between them pinned seven hand-rolled accessors with 36 test
- * methods. Sixteen here is not a coverage cut: the five were deliberately worded line for line
- * alike so their disagreements would be legible side by side, and once there is one policy the
- * per-site restatements are restatements of each other. What the five pinned that survives is
- * every <i>axis</i> and every <i>literal</i>, and all of both are below.</p>
+ * <p>Each answers its fallback on three axes: a missing key or a JSON null, a wrong-typed value
+ * (an object or a two-element array) and a {@code null} receiver. The Gson leniencies that
+ * {@link Json}'s Javadoc lists are pinned too, because each looks as if it should fall back and
+ * does not: a primitive read as a string, a singleton array, and for {@code optInt} a numeric
+ * string, a decimal and an out-of-range literal.</p>
  *
  * <p>⚠️ <b>The warn is not asserted, and cannot be.</b> Every case here that falls back on a
  * wrong-typed value (an object or a two-element array), on a {@code null} receiver, or, for
- * {@code optInt}, on an unparseable string also emits a {@code VetsLogger.warn}, and that warn is
- * half of why the tolerant body was acceptable at all. No log-capture library is on the test
- * classpath and there is no
- * precedent for adding one ({@code VetsLoggerTest} only toggles a flag); a capture seam would
+ * {@code optInt}, on an unparseable string also emits a {@code VetsLogger.warn}, which is what
+ * keeps a defaulted field visible. No log-capture library is on the test classpath and there is
+ * no precedent for adding one ({@code VetsLoggerTest} only reads the debug flag); a capture seam would
  * be a structural change made for a test, which {@code CLAUDE.md} forbids. So these methods are
  * specified here by return value only, and the warn is verified by reading. Said out loud so
  * the gap does not read as an oversight.</p>
@@ -105,19 +103,16 @@ class JsonTest {
 
     @Test
     void optString_aWrongTypedValueGivesTheFallback() {
-        // Axis 2, and the behaviour change the tolerant rewrite actually made:
-        // before it, four of the six string accessors let this escape as an
-        // UnsupportedOperationException or an IllegalStateException. Both shapes
-        // are probed — an object and a TWO-element array, because a singleton is
-        // unwrapped (below).
+        // Axis 2: Gson's UnsupportedOperationException or IllegalStateException
+        // does not escape. Both shapes are probed — an object and a TWO-element
+        // array, because a singleton is unwrapped (below).
         assertEquals("fb", Json.optString(withValue(new JsonObject()), "k", "fb"), "object");
         assertEquals("fb", Json.optString(withValue(array("a", "b")), "k", "fb"), "2-array");
     }
 
     @Test
     void optString_aNullReceiverGivesTheFallback() {
-        // Axis 3. Five of the six string accessors NPE'd here. The one site
-        // that needs the tolerance is NameResolver.forEachGuildMember, whose
+        // Axis 3: no NullPointerException. NameResolver.forEachGuildMember's
         // MemberHandler.accept genuinely receives null for a malformed entry.
         assertEquals("fb", Json.optString(null, "k", "fb"));
     }
@@ -126,7 +121,6 @@ class JsonTest {
     void optString_aSingletonArrayIsUnwrappedByGsonRatherThanRejected() {
         // Gson delegates getAsString on a one-element array to that element, so
         // the fallback never fires and a shape error passes through as a value.
-        // True at all seven original sites too; none rejected the shape.
         assertEquals("inner", Json.optString(withValue(array("inner")), "k", "fb"));
     }
 
@@ -140,29 +134,10 @@ class JsonTest {
     // ----- The two conveniences -----
 
     @Test
-    void stringOrNull_isOptStringWithANullFallback() {
-        assertEquals("value", Json.stringOrNull(withString("value"), "k"));
-        assertNull(Json.stringOrNull(new JsonObject(), "k"), "missing");
-        assertNull(Json.stringOrNull(withValue(JsonNull.INSTANCE), "k"), "json null");
-        assertNull(Json.stringOrNull(withValue(new JsonObject()), "k"), "wrong type");
-        assertNull(Json.stringOrNull(null, "k"), "null receiver");
-    }
-
-    @Test
-    void stringOrEmpty_isOptStringWithAnEmptyStringFallback() {
-        assertEquals("value", Json.stringOrEmpty(withString("value"), "k"));
-        assertEquals("", Json.stringOrEmpty(new JsonObject(), "k"), "missing");
-        assertEquals("", Json.stringOrEmpty(withValue(JsonNull.INSTANCE), "k"), "json null");
-        assertEquals("", Json.stringOrEmpty(withValue(new JsonObject()), "k"), "wrong type");
-        assertEquals("", Json.stringOrEmpty(null, "k"), "null receiver");
-    }
-
-    @Test
     void theThreeStringEntryPointsDifferOnlyOnWhatTheMissAnswers() {
-        // The whole justification for having three names for one function: the
-        // conveniences exist so that 40 of the 82 call sites do not grow an
-        // argument. If they ever diverge on anything but the fallback, that
-        // justification is gone — so pin it.
+        // The conveniences are optString with a fixed fallback and nothing more, so
+        // the three are pinned side by side: each reads a present value the same
+        // way, and each miss gives that entry point's own fallback.
         JsonObject present = withString("value");
         assertEquals("value", Json.optString(present, "k", "fb"));
         assertEquals("value", Json.stringOrNull(present, "k"));
@@ -223,9 +198,7 @@ class JsonTest {
         // fires and an out-of-range value arrives silently wrong. Pinned
         // because "unparseable gives the fallback" reads like it covers this.
         assertEquals(
-                (int) 4_294_967_298L,
-                Json.optInt(withNumber(4_294_967_298L), "k", -1),
-                "narrowed, not rejected");
+                2, Json.optInt(withNumber(4_294_967_298L), "k", -1), "2^32 + 2, narrowed to 2");
     }
 
     @Test

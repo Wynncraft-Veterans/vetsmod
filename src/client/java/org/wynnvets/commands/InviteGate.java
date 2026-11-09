@@ -77,23 +77,20 @@ public final class InviteGate {
     private static final LocalDate VET_JOIN_CUTOFF = LocalDate.of(2020, 1, 1);
 
     /** Every non-staff refusal, whichever check failed, so it does not reveal the blocklist. */
-    // Package-private for unit tests. See InviteGateTest.
-    static final String GENERIC_REJECTION =
+    private static final String GENERIC_REJECTION =
             "This user is not eligible to join the guild, ask a Steward.";
 
     /** A non-staff player temporary-server will not answer and who is not about to be (no key
      *  stored, the stored one rejected, or authenticated without the member tier). Printed in red
      *  with {@link SessionAuthWarning#withDiscordLink}'s link after it. */
-    // Package-private for unit tests. See InviteGateTest.
-    static final String UNAUTHENTICATED =
+    private static final String UNAUTHENTICATED =
             "Unable to handle /gu invite: vetsmod is running unauthenticated."
                     + " For more details, use ~vetsmod in #bot-commands on vetscord.";
 
     /** A non-staff player whose stored key has not been confirmed yet (its ack is pending, or the
      *  last check failed transiently), or an authenticated non-member while a Returners join's
      *  re-auth is in progress; the same line {@code /wv list world} prints. */
-    // Package-private for unit tests. See InviteGateTest.
-    static final String STILL_CHECKING =
+    private static final String STILL_CHECKING =
             "We are still checking your permissions, please retry in a moment.";
 
     /** What {@link #entryVerdict} decides before any lookup. */

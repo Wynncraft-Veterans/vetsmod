@@ -10,16 +10,17 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tests for the package-private {@link RankChangeListener#classify(String, String)}
- * rules.
+ * Tests for the pure parts of {@link RankChangeListener}: the
+ * {@link RankChangeListener#classify(String, String)} rules that name a rank change, and the dedup
+ * helpers ({@code wasRecent}, {@code recordRecent}, {@code prune}) that remember the changes
+ * recently sent, for a TTL and up to a capacity, so a repeat is not sent twice. The dedup state is
+ * static, so every test ends with {@code clearForTesting()}.
  *
- * <p>NOTE: {@code classify} is pure — it touches no Minecraft or Wynntils API. The
- * surrounding {@link RankChangeListener} class does import Wynntils / event-bus
- * types, but those are only resolved by the JVM, never executed, because
- * {@code classify} has no static initializer dependencies on them. If a future
- * contributor adds a class-level static initializer that loads MC/Wynntils
- * classes, this test will start failing at class-init time — the fix is to
- * extract {@code classify} into its own pure utility class.</p>
+ * <p>NOTE: neither part touches a Minecraft or Wynntils API. {@link RankChangeListener} imports
+ * Wynntils and event-bus types, but its static fields are a regex, a TTL, a capacity, a deque, a
+ * lock and its own instance, so loading it needs no running client. If a future contributor adds
+ * a static initializer that loads MC or Wynntils classes, this test starts failing at class-init
+ * time, and the fix is to extract these parts into a pure class.</p>
  */
 class RankChangeListenerTest {
 

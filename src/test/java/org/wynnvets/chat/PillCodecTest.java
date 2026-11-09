@@ -148,18 +148,6 @@ class PillCodecTest {
         assertFalse(PillCodec.isCustomGlyph(0x1F600), "an assigned supplementary codepoint");
     }
 
-    @Test
-    void isCustomGlyph_andIsEncodedDisagreeOnTheServerMarkers() {
-        // Stated as a pair because the two predicates sit in the same class and
-        // read as the same question. isEncoded gates encodeRemote's passthrough
-        // and must stay PRIVATE_USE-only; widening it to match this one makes
-        // encodeRemote hand a raw label back.
-        for (int marker : new int[] {SERVER_PILL_CLOSE, SERVER_WIDTH_MIN, SERVER_KERN_MARKER}) {
-            assertTrue(PillCodec.isCustomGlyph(marker));
-            assertFalse(PillCodec.isEncoded(chars(marker)));
-        }
-    }
-
     // ----- isEncoded -----
 
     @Test

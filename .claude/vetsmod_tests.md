@@ -16,14 +16,11 @@ When you add, rename or delete a test, or change what it asserts, update its ent
 - [`org.wynnvets`](#orgwynnvets) — [`LocaleFoldTripwireTest`](#localefoldtripwiretest)
 - [`org.wynnvets.api`](#orgwynnvetsapi) — [`InboundAckRouterTest`](#inboundackroutertest), [`MojangApiTest`](#mojangapitest), [`PendingAcksTest`](#pendingackstest), [`SerializedSenderTest`](#serializedsendertest), [`V1ApiManagerFramesTest`](#v1apimanagerframestest), [`V1ApiManagerOutboundAuthTest`](#v1apimanageroutboundauthtest), [`WsClientLossTest`](#wsclientlosstest)
 - [`org.wynnvets.chat`](#orgwynnvetschat) — [`BannedCharsTest`](#bannedcharstest), [`ChatHookGateTest`](#chathookgatetest), [`GuildChatLineTest`](#guildchatlinetest), [`LegacyTextParserTest`](#legacytextparsertest), [`MessageBodyFormatterTest`](#messagebodyformattertest), [`NickResolverTest`](#nickresolvertest), [`OutboundDisplayHandlerTest`](#outbounddisplayhandlertest), [`PillCodecTest`](#pillcodectest), [`PrependTest`](#prependtest), [`RankDisplayMapTest`](#rankdisplaymaptest)
-- [`org.wynnvets.chat.dispatcher`](#orgwynnvetschatdispatcher) — [`DispatchCoordinatorTest`](#dispatchcoordinatortest), [`FindDispatcherTest`](#finddispatchertest), [`GuildChatDispatcherTest`](#guildchatdispatchertest), [`MessageFanoutDispatcherTest`](#messagefanoutdispatchertest)
+- [`org.wynnvets.chat.dispatcher`](#orgwynnvetschatdispatcher) — [`FindDispatcherTest`](#finddispatchertest), [`GuildChatDispatcherTest`](#guildchatdispatchertest), [`MessageFanoutDispatcherTest`](#messagefanoutdispatchertest)
 - [`org.wynnvets.chat.spoiler`](#orgwynnvetschatspoiler) — [`SpoilerCodecTest`](#spoilercodectest)
-- [`org.wynnvets.commands`](#orgwynnvetscommands) — [`CautionCommandsTest`](#cautioncommandstest), [`CommandCompletionSyncTest`](#commandcompletionsynctest), [`HelpCommandsTest`](#helpcommandstest), [`InviteGateTest`](#invitegatetest)
+- [`org.wynnvets.commands`](#orgwynnvetscommands) — [`CautionCommandsTest`](#cautioncommandstest), [`CommandCompletionSyncTest`](#commandcompletionsynctest), [`CommandRegistryTest`](#commandregistrytest), [`HelpCommandsTest`](#helpcommandstest), [`InviteGateTest`](#invitegatetest)
 - [`org.wynnvets.config`](#orgwynnvetsconfig) — [`NamedColorTest`](#namedcolortest), [`ShippedConfigTest`](#shippedconfigtest), [`VetsConfigDefaultsTest`](#vetsconfigdefaultstest), [`VetsConfigKeysTest`](#vetsconfigkeystest), [`VetsConfigSchemaTest`](#vetsconfigschematest)
 - [`org.wynnvets.datamodels`](#orgwynnvetsdatamodels) — [`UserTest`](#usertest)
-- [`org.wynnvets.debug.anni`](#orgwynnvetsdebuganni) — [`AnniDebugCommandsTest`](#annidebugcommandstest)
-- [`org.wynnvets.debug.dump`](#orgwynnvetsdebugdump) — [`LiveItemModelsTest`](#liveitemmodelstest)
-- [`org.wynnvets.debug.retro`](#orgwynnvetsdebugretro) — [`AuditModelsTest`](#auditmodelstest), [`RetroDebugCommandsTest`](#retrodebugcommandstest), [`TextureDivergenceTest`](#texturedivergencetest)
 - [`org.wynnvets.distribute`](#orgwynnvetsdistribute) — [`DistributeRunsTest`](#distributerunstest), [`MembersGuiTest`](#membersguitest)
 - [`org.wynnvets.distribute.command`](#orgwynnvetsdistributecommand) — [`NameOrSelectorArgumentTest`](#nameorselectorargumenttest)
 - [`org.wynnvets.distribute.distributor`](#orgwynnvetsdistributedistributor) — [`GraidsDistributorTest`](#graidsdistributortest), [`MemberSlotPresserTest`](#memberslotpressertest), [`ObjectivesDistributorTest`](#objectivesdistributortest), [`RandomDistributorTest`](#randomdistributortest), [`SplitDistributorTest`](#splitdistributortest)
@@ -46,7 +43,7 @@ When you add, rename or delete a test, or change what it asserts, update its ent
 - [`org.wynnvets.mwe.anni.mode`](#orgwynnvetsmweannimode) — [`AnniModeTest`](#annimodetest)
 - [`org.wynnvets.mwe.anni.network`](#orgwynnvetsmweanninetwork) — [`AnniRsvpClientTest`](#annirsvpclienttest)
 - [`org.wynnvets.mwe.anni.outline`](#orgwynnvetsmweannioutline) — [`AnniOutlinePaletteTest`](#annioutlinepalettetest)
-- [`org.wynnvets.mwe.anni.render`](#orgwynnvetsmweannirender) — [`AnniCommandRendererTest`](#annicommandrenderertest), [`AnniHoverBuilderTest`](#annihoverbuildertest), [`AnniOnboardingBlocksTest`](#annionboardingblockstest), [`AnniStatusSectionsTest`](#annistatussectionstest)
+- [`org.wynnvets.mwe.anni.render`](#orgwynnvetsmweannirender) — [`AnniCommandRendererTest`](#annicommandrenderertest), [`AnniOnboardingBlocksTest`](#annionboardingblockstest), [`AnniStatusSectionsTest`](#annistatussectionstest)
 - [`org.wynnvets.mwe.anni.state`](#orgwynnvetsmweannistate) — [`AnniSnapshotsTest`](#annisnapshotstest), [`AnniWindowsTest`](#anniwindowstest)
 - [`org.wynnvets.rendering.colors`](#orgwynnvetsrenderingcolors) — [`ColorMathTest`](#colormathtest), [`RecoloursTest`](#recolourstest), [`VanillaGuiColorsTest`](#vanillaguicolorstest)
 - [`org.wynnvets.rendering.image`](#orgwynnvetsrenderingimage) — [`PixelDrawingTest`](#pixeldrawingtest), [`PixelsTest`](#pixelstest), [`PngCodecTest`](#pngcodectest)
@@ -54,7 +51,7 @@ When you add, rename or delete a test, or change what it asserts, update its ent
 - [`org.wynnvets.retro.manifest`](#orgwynnvetsretromanifest) — [`AssetSectionsTest`](#assetsectionstest), [`ManifestParserTest`](#manifestparsertest), [`ModelSectionsTest`](#modelsectionstest), [`PartSectionsTest`](#partsectionstest), [`RetroPartTest`](#retroparttest), [`ScreenSectionsTest`](#screensectionstest), [`ShippedAssetsTest`](#shippedassetstest), [`ShippedEquipmentTest`](#shippedequipmenttest), [`ShippedItemModelsTest`](#shippeditemmodelstest), [`ShippedManifestTest`](#shippedmanifesttest), [`ShippedPartsTest`](#shippedpartstest), [`ShippedPotionsTest`](#shippedpotionstest), [`ShippedScreensTest`](#shippedscreenstest), [`ShippedStacksTest`](#shippedstackstest), [`ShippedTexturesTest`](#shippedtexturestest), [`ShippedVanillaTweaksTest`](#shippedvanillatweakstest), [`StackSectionsTest`](#stacksectionstest), [`TextureSectionsTest`](#texturesectionstest)
 - [`org.wynnvets.retro.pack`](#orgwynnvetsretropack) — [`PackFilesTest`](#packfilestest), [`RetroPackInjectorTest`](#retropackinjectortest), [`RetroPackResourcesTest`](#retropackresourcestest)
 - [`org.wynnvets.retro.pack.generate`](#orgwynnvetsretropackgenerate) — [`DrawnArtTest`](#drawnarttest), [`GenerationStepsTest`](#generationstepstest), [`ModelJsonTest`](#modeljsontest), [`PackOutputTest`](#packoutputtest), [`RetroPackGeneratorTest`](#retropackgeneratortest), [`RetroSourcesTest`](#retrosourcestest), [`TintFactorsTest`](#tintfactorstest), [`VanillaTweaksPackTest`](#vanillatweakspacktest)
-- [`org.wynnvets.retro.render`](#orgwynnvetsretrorender) — [`IdentityMemoTest`](#identitymemotest), [`RetroAccessoriesTest`](#retroaccessoriestest), [`RetroContainerTitlesTest`](#retrocontainertitlestest), [`RetroGuardTest`](#retroguardtest), [`RetroHeartFlashTest`](#retroheartflashtest), [`RetroHudGlyphsTest`](#retrohudglyphstest), [`RetroHudReadingsTest`](#retrohudreadingstest), [`RetroHudTest`](#retrohudtest), [`RetroInventoryEffectsTest`](#retroinventoryeffectstest), [`RetroSlotIconsTest`](#retrosloticonstest), [`RetroSlotValuesTest`](#retroslotvaluestest), [`RetroSlotsTest`](#retroslotstest), [`RetroStackModelsTest`](#retrostackmodelstest), [`RetroStacksTest`](#retrostackstest)
+- [`org.wynnvets.retro.render`](#orgwynnvetsretrorender) — [`IdentityMemoTest`](#identitymemotest), [`RetroAccessoriesTest`](#retroaccessoriestest), [`RetroContainerTitlesTest`](#retrocontainertitlestest), [`RetroGuardTest`](#retroguardtest), [`RetroHeartFlashTest`](#retroheartflashtest), [`RetroHudGlyphsTest`](#retrohudglyphstest), [`RetroHudReadingsTest`](#retrohudreadingstest), [`RetroHudTest`](#retrohudtest), [`RetroInventoryEffectsTest`](#retroinventoryeffectstest), [`RetroSlotIconsTest`](#retrosloticonstest), [`RetroSlotValuesTest`](#retroslotvaluestest), [`RetroSlotsTest`](#retroslotstest), [`RetroStackModelsTest`](#retrostackmodelstest)
 - [`org.wynnvets.retro.rules`](#orgwynnvetsretrorules) — [`ModelRulesTest`](#modelrulestest), [`PartFilterTest`](#partfiltertest), [`RetroAssetIdsTest`](#retroassetidstest), [`RuleUsageTest`](#ruleusagetest), [`TextureRulesTest`](#texturerulestest)
 - [`org.wynnvets.util`](#orgwynnvetsutil) — [`ConfigValueTextTest`](#configvaluetexttest), [`DurationsTest`](#durationstest), [`JsonTest`](#jsontest), [`TickDelaysTest`](#tickdelaystest), [`UuidsTest`](#uuidstest)
 
@@ -76,7 +73,7 @@ This is a build tripwire, not a unit test of one class. Under a Turkish or Azeri
 
 Test: [`InboundAckRouterTest.java`](../src/test/java/org/wynnvets/api/InboundAckRouterTest.java) · Subject: [`InboundAckRouter`](../src/client/java/org/wynnvets/api/InboundAckRouter.java)
 
-`InboundAckRouter.route` handles the untyped `{"status": ...}` acks that arrive on the v1 inbound socket and decides whether each one resolves a pending staff-action callback, is an auth ack, or is only logged. This suite pins the non-auth routing: which acks answer a callback pending in `V1ApiManager.pendingAcks`, which one, and which leave the pending callbacks alone. An ack that echoes a request id (`req`) goes to that id's callback only; the tests that leave both echo flags (`helloEchoesReq`, `ackEchoedReq`) false pin the eldest-first pairing used against a server that does not echo ids (legacy mode). The auth-ok and auth-failure branches are not driven because they reach `VetsConfig`, which cannot initialise outside a game launch, so two tests rely on `assertDoesNotThrow` to show an ack stayed out of those branches. A recording callback stands in for the staff-action callbacks, registered through a `pending(name)` helper that returns its request id, and `reset` (run before and after each test) clears the static auth state, drains `pendingAcks` and clears both echo flags.
+`InboundAckRouter.route` handles the untyped `{"status": ...}` acks that arrive on the v1 inbound socket and decides whether each one resolves a pending staff-action callback, is an auth ack, or is only logged. This suite pins the non-auth routing: which acks answer a callback pending in `V1ApiManager.pendingAcks`, which one, and which leave the pending callbacks alone. An ack that echoes a request id (`req`) goes to that id's callback only; the tests that leave both echo flags (`helloEchoesReq`, `ackEchoedReq`) false pin the eldest-first pairing used against a server that does not echo ids (legacy mode). The auth-ok and auth-failure branches are not driven because they reach `VetsConfig`, which cannot initialise outside a game launch, so the two tests that keep an error out of the auth-failure branch see it through the confirmed staff state, which that branch clears before anything else. A recording callback stands in for the staff-action callbacks, registered through a `pending(name)` helper that returns its request id, and `reset` (run before and after each test) clears the static auth state, drains `pendingAcks` and clears both echo flags.
 
 - **`eachStaffActionShapeRoutesToTheHeadCallback`** (legacy mode): Acks carrying `kind`, `triggered`, `total_points`, `target_uuid`, or status `would_trigger` each hand the full ack to the single queued callback and empty the queue.
   - For each `shape` in the five JSON ack strings (`{"status":"ok","kind":"caution"}`, `{"status":"ok","triggered":false}`, `{"status":"ok","total_points":3}`, `{"status":"ok","target_uuid":"<TARGET>"}` with `TARGET` = `0a1b2c3d-1111-2222-3333-444455556666`, `{"status":"would_trigger"}`): after `InboundAckRouter.route` of that ack with one `head` callback queued, `calls` equals `List.of("head " + shape)`, i.e. the head callback received exactly that ack re-serialised.
@@ -90,11 +87,11 @@ Test: [`InboundAckRouterTest.java`](../src/test/java/org/wynnvets/api/InboundAck
   - With `confirmedStaff` true, rank `"chief"`, no auth ack awaited and one `head` callback queued, routing `{"status":"error","detail":"auth rejected: x"}` leaves `calls` equal to `["head {\"status\":\"error\",\"detail\":\"auth rejected: x\"}"]`.
   - `SessionAuthState.confirmedStaff` is still true after that route.
   - `SessionAuthState.confirmedStaffRank` still equals `"chief"` after that route.
-- **`aStaffShapedErrorWithAnEmptyQueueIsSwallowed`**: A staff-shaped error (has `target_uuid`, detail `"auth rejected: x"`) with an empty queue does not throw, showing it returns before reaching the auth-failure branch.
-  - `InboundAckRouter.route(error)` does not throw, where `error` is `{"status":"error","detail":"auth rejected: x","target_uuid":"<TARGET>"}` routed with an empty callback queue and no auth ack awaited.
-- **`aPlainErrorWithNothingPendingIsNotAnAuthFailure`**: A plain `"rate limited"` error with an empty queue does not throw and leaves confirmed staff state (`true`, `"chief"`) untouched, so it stays out of the auth-failure branch.
-  - `InboundAckRouter.route` of `{"status":"error","detail":"rate limited"}` with an empty callback queue (and `confirmedStaff` true, rank `"chief"`) does not throw.
-  - `SessionAuthState.confirmedStaff` is still true after that route.
+- **`aStaffShapedErrorWithAnEmptyQueueIsSwallowed`**: A staff-shaped error (has `target_uuid`, detail `"auth rejected: x"`) with an empty queue is swallowed before the auth-failure branch, so the confirmed staff state (`true`, `"chief"`) is untouched.
+  - `SessionAuthState.confirmedStaff` is still true after routing `{"status":"error","detail":"auth rejected: x","target_uuid":"<TARGET>"}` with an empty callback queue and no auth ack awaited.
+  - `SessionAuthState.confirmedStaffRank` still equals `"chief"`.
+- **`aPlainErrorWithNothingPendingIsNotAnAuthFailure`**: A plain `"rate limited"` error with an empty queue leaves the confirmed staff state (`true`, `"chief"`) untouched, so it stays out of the auth-failure branch.
+  - `SessionAuthState.confirmedStaff` is still true after routing `{"status":"error","detail":"rate limited"}` with an empty callback queue.
   - `SessionAuthState.confirmedStaffRank` still equals `"chief"` after that route.
 - **`aTierKeyKeepsAWouldTriggerAckOutOfTheQueue`**: A `would_trigger` ack that also carries `tier` is treated as auth-shaped: the pending callback is not called and stays queued.
   - After routing `{"status":"would_trigger","tier":"member"}` with one `head` callback queued, `calls` is empty (callback not invoked).
@@ -114,7 +111,8 @@ Test: [`InboundAckRouterTest.java`](../src/test/java/org/wynnvets/api/InboundAck
 - **`anAckForAnUnknownReqIsDroppedWithoutTouchingThePendingCallback`**: An ok and an error ack carrying an id with no callback (`zzzzzzzz`) answer nobody.
   - `calls` is empty and `pendingAcks.size()` equals 1.
 - **`aReqlessErrorPopsNothingOnceTheServerEchoesIds`**: With the hello flag set, an error with no id (`Inbound processing is disabled`, as a refused guild forward gets) leaves the pending callback alone.
-  - Routing does not throw; `calls` is empty and `pendingAcks.size()` equals 1.
+  - `calls` is empty.
+  - `pendingAcks.size()` equals 1.
 - **`aRelaysAckReachesItsOwnCallback`**: With a staff callback and a relay pending, an error carrying the relay's id goes to the relay only.
   - `calls` equals `["relay " + {"status":"error","detail":"Inbound processing is disabled","req":"<relay>"}]` and `pendingAcks.size()` is 1.
 - **`theLegacyPairingNeverAnswersARelay`** (legacy mode): A staff-shaped ack skips an older pending relay and goes to the staff callback; an error with only the relay pending answers nobody.
@@ -165,7 +163,7 @@ Test: [`PendingAcksTest.java`](../src/test/java/org/wynnvets/api/PendingAcksTest
 
 Test: [`SerializedSenderTest.java`](../src/test/java/org/wynnvets/api/SerializedSenderTest.java) · Subject: [`SerializedSender`](../src/client/java/org/wynnvets/api/SerializedSender.java)
 
-`SerializedSender` serialises one WebSocket's text writes in submit order, because the JDK socket allows one outstanding `sendText`. The suite pins one write at a time in submit order, a failed write that does not block the next, and the in-flight bound. A `FakeWriter` records each text it is asked to write and returns a future the test completes by hand, standing in for `sendText`.
+`SerializedSender` serialises one WebSocket's text writes in submit order, because the JDK socket allows one outstanding `sendText`. The suite pins one write at a time in submit order, a failed write that does not block the next, and the in-flight bound, 64 by default. A `FakeWriter` records each text it is asked to write and returns a future the test completes by hand, standing in for `sendText`.
 
 - **`framesGoOutInSubmitOrderOneAtATime`**: Three submits are written one at a time, each after the previous write completes.
   - After submitting `a`, `b`, `c`, `writer.written` equals `["a"]`.
@@ -182,13 +180,17 @@ Test: [`SerializedSenderTest.java`](../src/test/java/org/wynnvets/api/Serialized
   - A later `submit("d")` completes `true` once its write completes.
 - **`aSubmitFromAResultsDependentStillWaitsItsTurn`**: A submit made from inside a completed write's result dependent still queues in order. With a writer that completes `"a"` at once and leaves the rest pending, the dependent of `submit("a")` submits `"b"`, then `"c"` is submitted.
   - The writer saw `["a", "b"]` (`"c"` waits for `"b"`); after completing `"b"`'s write it saw `["a", "b", "c"]`; `"b"` and `"c"` complete `true`.
-- **`theBoundIsSixtyFourByDefault`**: `SerializedSender.MAX_IN_FLIGHT` equals 64.
+- **`aDefaultSenderTakesSixtyFourWritesAndRefusesTheNext`**: A sender built without a bound takes 64 submits and refuses the 65th at once. No write ever completes, so the first stays in progress and the rest queue behind it; the test waits on no future that is not already done.
+  - `refused` (the 65th submit, `"over"`) is done.
+  - `refused.join()` is false.
+  - None of the 64 earlier submits is done.
+  - `writer.written` equals `["f0"]`: one write at a time, and the refused one never.
 
 ### `V1ApiManagerFramesTest`
 
 Test: [`V1ApiManagerFramesTest.java`](../src/test/java/org/wynnvets/api/V1ApiManagerFramesTest.java) · Subject: [`V1ApiManager`](../src/client/java/org/wynnvets/api/V1ApiManager.java), `AnniWsSender`, `AnniQueryClient`, `AnniRsvpClient`, `AnniScrollspotClient`
 
-`V1ApiManager` and the anni senders write JSON frames on the v1 inbound WebSocket. This suite pins the exact serialised text of each frame (key order included; the `unregister` retraction included, with its server-capability gate) and what each socket-checking send does when the socket is missing or disconnected: nothing is written, and the staff-action and anni clients report a not-connected outcome instead of waiting. A `RecordingWsClient` subclass of `WsClient` replaces the real socket: it never connects, overrides `sendAsync` to record each frame as the real send would serialise it (`WsClient.toWire`, which keeps null members) and complete with its settable `sends` flag (`true` unless a test sets it), has a settable connected flag, and reports a settable socket `generation` (1 unless a test sets it). For the frames with a random `uuid` and a clock `timestamp` (inbound chat and `rank_change`), a `masked` helper first checks the uuid is canonical and the timestamp is a fractional-seconds double between two sampled clock readings, then replaces both so the rest of the string is compared literally; a `reqMasked` helper does the same for a staff-action frame's random `req`. `reset` removes the injected socket, clears the registration and the awaited-auth flag after each test.
+`V1ApiManager` and the anni senders write JSON frames on the v1 inbound WebSocket. This suite pins the exact serialised text of each frame (key order included; the `unregister` retraction included, with its server-capability gate) and what each socket-checking send does when the socket is missing or disconnected: nothing is written, and the staff-action and anni clients report a not-connected outcome instead of waiting. `RecordingWsClient`, a package-private `WsClient` subclass in the test tree that `V1ApiManagerOutboundAuthTest` shares, replaces the real socket: it never connects, overrides `sendAsync` to record each frame as the real send would serialise it (`WsClient.toWire`, which keeps null members) and complete with its settable `sends` flag (`true` unless a test sets it), has a settable connected flag, and reports a settable socket `generation` (1 unless a test sets it). For the frames with a random `uuid` and a clock `timestamp` (inbound chat and `rank_change`), a `masked` helper first checks the uuid is canonical and the timestamp is a fractional-seconds double between two sampled clock readings, then replaces both so the rest of the string is compared literally; a `reqMasked` helper does the same for a staff-action frame's random `req`. `reset` removes the injected socket, clears the registration and the awaited-auth flag after each test.
 
 Asserting helpers:
 
@@ -283,7 +285,7 @@ Tests:
 
 Test: [`V1ApiManagerOutboundAuthTest.java`](../src/test/java/org/wynnvets/api/V1ApiManagerOutboundAuthTest.java) · Subject: [`V1ApiManager`](../src/client/java/org/wynnvets/api/V1ApiManager.java), [`OutboundAckRouter`](../src/client/java/org/wynnvets/api/OutboundAckRouter.java)
 
-The outbound socket authenticates only after a `server_info` offering the all-tiers receive map (`chat_tiers: "all"`) and an inbound ack confirming a member tier, never with `expectingAuthAck` set, and its untyped ack goes to `OutboundAckRouter` without reaching the outbound listeners or `SessionAuthState`. A `RecordingWsClient` stands in for the outbound socket as in `V1ApiManagerFramesTest`. No test reads the stored key: sends go through `sendOutboundAuth(key)`, and every frame routed through `handleOutboundFrame` leaves one of the two flags unset. No test routes a transient error ack, whose retry needs the Wynntils tick scheduler. A `@BeforeEach` replaces `OutboundAckRouter.onAuthenticated` (which clears the staff overlay and starts an HTTP fetch) with a counter, and `reset` restores it, calls `V1ApiManager.disconnect()` and clears `expectingAuthAck` and `confirmedStaff`.
+The outbound socket authenticates only after a `server_info` offering the all-tiers receive map (`chat_tiers: "all"`) and an inbound ack confirming a member tier, never with `expectingAuthAck` set, and its untyped ack goes to `OutboundAckRouter` without reaching the outbound listeners or `SessionAuthState`. The shared `RecordingWsClient` (described under `V1ApiManagerFramesTest`) stands in for the outbound socket, with its send outcome and socket number left at their defaults. No test reads the stored key: sends go through `sendOutboundAuth(key)`, and every frame routed through `handleOutboundFrame` leaves one of the two flags unset. No test routes a transient error ack, whose retry needs the Wynntils tick scheduler. A `@BeforeEach` replaces `OutboundAckRouter.onAuthenticated` (which clears the staff overlay and starts an HTTP fetch) with a counter, and `reset` restores it, calls `V1ApiManager.disconnect()` and clears `expectingAuthAck` and `confirmedStaff`.
 
 - **`sendsTheAuthFrameWhenOfferedAndAMemberTier`**: With both flags set, `sendOutboundAuth` writes the auth frame on the outbound socket and does not mark an inbound auth ack as awaited.
   - `socket.wire` equals the single frame `{"type":"auth","key":"kkk…"}` (43 `k`s).
@@ -355,10 +357,10 @@ Test: [`WsClientLossTest.java`](../src/test/java/org/wynnvets/api/WsClientLossTe
   - The hook heard `[1]`, and `reconnectsScheduled()` is 1.
 - **`theCurrentSocketFailingIsReportedWithItsGeneration`**: `onError` for the installed socket reports generation 1 and aborts it.
   - The hook heard `[1]`; the stub was aborted.
-- **`aReplacedSocketIsAbortedAndReportedAndItsLateCloseIsNot`**: Installing a second socket aborts the first and reports generation 1; the first one's late `onClose` and `onError` report nothing and leave the second installed. Before, that late close scheduled a reconnect whose install aborted the healthy socket.
+- **`aReplacedSocketIsAbortedAndReportedAndItsLateCloseIsNot`**: Installing a second socket aborts the first and reports generation 1; the first one's late `onClose` and `onError` report nothing and leave the second installed: that late close must not schedule a reconnect, whose install would abort the healthy socket.
   - After both installs: the first stub was aborted and the hook heard `[1]`.
   - After the late events: the hook still heard only `[1]`, the client is connected, `generation()` is 2 and no reconnect was scheduled.
-- **`aSocketThatClosesBeforeItIsInstalledIsNotInstalled`**: An `onClose` (1012) delivered before `installSocket` for the same stub leaves it uninstalled: the JDK can deliver the close first, when it schedules no reconnect, and the dead socket used to stay installed for the session.
+- **`aSocketThatClosesBeforeItIsInstalledIsNotInstalled`**: An `onClose` (1012) delivered before `installSocket` for the same stub leaves it uninstalled: the JDK can deliver the close first, when it schedules no reconnect, so the install must not leave the dead socket installed for the session.
   - No reconnect after the close alone; after the install the client is not connected, the stub was aborted, `generation()` is still 0, the hook heard `[0]` (no socket was current, so what the dead socket's frames set is cleared), exactly one reconnect was scheduled and the on-connect callback did not run.
 - **`aDeadSocketBesideALiveOneLeavesTheLiveOneAlone`**: With a live socket installed, installing a stub whose input is closed leaves the live one installed and reports nothing.
   - The client is connected, the hook heard nothing and `generation()` is 1.
@@ -412,7 +414,7 @@ Test: [`ChatHookGateTest.java`](../src/test/java/org/wynnvets/chat/ChatHookGateT
 
 Test: [`GuildChatLineTest.java`](../src/test/java/org/wynnvets/chat/GuildChatLineTest.java) · Subject: [`GuildChatLine`](../src/client/java/org/wynnvets/chat/GuildChatLine.java)
 
-`GuildChatLine` splits a guild chat line of the form `<rank glyphs> <display name>: <body>` into rank indicator, display name and body, through two entry points: `parse` (name and trimmed body, null-safe) and `parseServerLine` (name, rank indicator and a body offset into the original string). The suite pins the header scan both share (name is the trimmed text between the last custom glyph and the first colon), then the four cells where the two parsers deliberately differ: null handling, return shape, rank-indicator retention, and whitespace skipping before the body. The fixtures use a private-use rank glyph, a supplementary unassigned code point (counts as a glyph) and a BMP unassigned code point (does not), and the file ties the glyph bound to `PillCodecTest`'s predicate test.
+`GuildChatLine` splits a guild chat line of the form `<rank glyphs> <display name>: <body>` into rank indicator, display name and body, through two entry points: `parse` (name and trimmed body, null-safe) and `parseServerLine` (name, rank indicator and a body offset into the original string). The suite pins the header scan both share (name is the trimmed text between the last custom glyph and the first colon), that `parse` rejects null and both reject empty input, then the three cells where the two parsers deliberately differ: return shape, rank-indicator retention, and whitespace skipping before the body. What `parseServerLine` does with null is not pinned: its one caller never passes it. The fixtures use a private-use rank glyph, a supplementary unassigned code point (counts as a glyph) and a BMP unassigned code point (does not), and the file ties the glyph bound to `PillCodecTest`'s predicate test.
 
 - **`bothReadTheNameBetweenTheLastGlyphAndTheColon`**: For a glyph, space, `Metrafish: hello there` line, `parse` gives username `Metrafish` and message `hello there`, and `parseServerLine` also gives username `Metrafish`.
   - `shared`, the result of `GuildChatLine.parse(line)` with `line` = `PUA + " Metrafish: hello there"` (`PUA` is U+E062, a private-use rank glyph), is not null.
@@ -450,9 +452,8 @@ Test: [`GuildChatLineTest.java`](../src/test/java/org/wynnvets/chat/GuildChatLin
   - `shared.username()` equals `"Metrafish"`.
   - `server` = `GuildChatLine.parseServerLine(PUA + " \t Metrafish \t : hi")` is not null.
   - `server.username()` equals `"Metrafish"` (same trimming as `parse`).
-- **`nullIsRejectedByParseAndThrowsInParseServerLine`**: `parse(null)` returns null, while `parseServerLine(null)` throws `NullPointerException`.
+- **`nullIsRejectedByParse`**: `parse(null)` returns null, as its parameter documentation says.
   - `GuildChatLine.parse(null)` is null.
-  - `GuildChatLine.parseServerLine(null)` throws `NullPointerException`.
 - **`emptyInputIsRejectedByBothButByDifferentRoutes`**: The empty string returns null from both parsers.
   - `GuildChatLine.parse("")` is null.
   - `GuildChatLine.parseServerLine("")` is null.
@@ -491,24 +492,22 @@ Test: [`LegacyTextParserTest.java`](../src/test/java/org/wynnvets/chat/LegacyTex
 
 - **`literalWithUrls_empty_isAnEmptyComponent`**: An empty string with an empty base style renders as `empty`.
   - `parse("", Style.EMPTY)`, which is `LegacyTextParser.literalWithUrls("", Style.EMPTY).toString()`, equals `"empty"`.
-- **`literalWithUrls_null_throws`**: A null text throws `NullPointerException`.
-  - `parse(null, Style.EMPTY)` throws `NullPointerException`.
 - **`literalWithUrls_eachColourCode_setsItsColour`**: Codes `0` to `f` before a URL each give the matching named colour (black through white) on the linked URL literal.
   - For each index `i` of `"0123456789abcdef"` (sixteen colour codes), `parse("§" + code + URL, Style.EMPTY)` equals `linked("color=" + name)`, where `URL` is `"https://wynnvets.org/"` and `linked` builds the golden for the URL alone with a click event `OpenUrl[uri=https://wynnvets.org/]` and the given style prefix. The pairs are 0 black, 1 dark_blue, 2 dark_green, 3 dark_aqua, 4 dark_red, 5 dark_purple, 6 gold, 7 gray, 8 dark_gray, 9 blue, a green, b aqua, c red, d light_purple, e yellow, f white.
 - **`literalWithUrls_eachFormatCode_setsItsFlag`**: Codes `k`, `l`, `m`, `n`, `o` give obfuscated, bold, strikethrough, underlined and italic respectively, and `§a§l` accumulates to green plus bold.
   - For each index `i` of `"klmno"`, `parse("§" + code + URL, Style.EMPTY)` equals `linked(flag)`. The pairs are k obfuscated, l bold, m strikethrough, n underlined, o italic.
   - `parse("§a§l" + URL, Style.EMPTY)` (codes `a` then `l`, then the URL) equals `linked("color=green,bold")`: the format code adds to the colour already set.
 - **`literalWithUrls_unknownCode_isDroppedAndKeepsTheStyle`**: `§z` before a URL leaves the style empty, and `§a§z` keeps green, so an unknown code is dropped and does not reset to the base style.
-  - `parse("§z" + URL, Style.EMPTY)` equals the golden for `https://wynnvets.org/` with an empty style apart from the click event `OpenUrl[uri=https://wynnvets.org/]` (no colour, no flags); the unknown code `z` is dropped.
+  - `parse("§z" + URL, Style.EMPTY)` equals `linked("")`, the URL with only its click event (no colour, no flags); the unknown code `z` is dropped.
   - `parse("§a§z" + URL, Style.EMPTY)` equals `linked("color=green")`: the unknown code keeps the style built so far.
 - **`literalWithUrls_upperCaseCode_actsAsLowerCase`**: `§A` before a URL gives green, the same as `§a`.
-  - `parse("§A" + URL, Style.EMPTY)` equals the golden for `https://wynnvets.org/` with style `color=green` and click event `OpenUrl[uri=https://wynnvets.org/]`, the same as lower-case `a`.
+  - `parse("§A" + URL, Style.EMPTY)` equals `linked("color=green")`, the same as lower-case `a`.
 - **`literalWithUrls_colourCodeAfterAFormatCode_resetsToTheBaseStylePlusTheColour`**: `§l§a` gives green with no bold, and with a gold-italic base it gives green italic, so a colour code drops earlier format flags but keeps the base style's other fields.
-  - `parse("§l§a" + URL, Style.EMPTY)` equals the golden for `https://wynnvets.org/` with style `color=green` and the click event, with no `bold`: the colour code resets the earlier format code.
-  - `parse("§l§a" + URL, BASE)` equals the golden for `https://wynnvets.org/` with style `color=green,italic` and the click event, where `BASE` is `Style.EMPTY` with colour gold and italic: the colour overrides gold, italic from the base survives, bold is gone.
+  - `parse("§l§a" + URL, Style.EMPTY)` equals `linked("color=green")`, with no `bold`: the colour code resets the earlier format code.
+  - `parse("§l§a" + URL, BASE)` equals `linked("color=green,italic")`, where `BASE` is `Style.EMPTY` with colour gold and italic: the colour overrides gold, italic from the base survives, bold is gone.
 - **`literalWithUrls_resetAfterCodesThatChangedTheStyle_returnsToTheBaseStyle`**: `§a§l§r` gives an empty style for an empty base, and gold italic for a gold-italic base.
-  - `parse("§a§l§r" + URL, Style.EMPTY)` equals the golden for `https://wynnvets.org/` with only the click event (no colour, no bold).
-  - `parse("§a§l§r" + URL, BASE)` equals the golden for `https://wynnvets.org/` with style `color=gold,italic` and the click event: `r` returns to `BASE` (gold, italic).
+  - `parse("§a§l§r" + URL, Style.EMPTY)` equals `linked("")`, the URL with only its click event (no colour, no bold).
+  - `parse("§a§l§r" + URL, BASE)` equals `linked("color=gold,italic")`: `r` returns to `BASE` (gold, italic).
 - **`literalWithUrls_sectionSignWithNoCodeAfterIt_staysInTheText`**: A section sign at the very end of the text stays in the literal, so the linked URL text and target include it.
   - `parse(URL + "§", Style.EMPTY)` (the URL followed by a trailing U+00A7 with no code) equals the golden for a single literal whose text is `https://wynnvets.org/` followed by U+00A7 and whose style has only the click event, with uri `https://wynnvets.org/` followed by U+00A7; the section sign stays in the text and in the link target.
 
@@ -625,10 +624,6 @@ Test: [`NickResolverTest.java`](../src/test/java/org/wynnvets/chat/NickResolverT
 - **`flattenComponent_childFontOverridesTheParentFont`**: A child naming `chat/prefix` keeps that font over the root's `banner/pill`.
   - `parts.size()` equals 1, where `parts` comes from flattening an empty literal root with font `PILL_FONT` and one child `badge` with font `PREFIX_FONT` (`chat/prefix`).
   - `parts.get(0).style().getFont()` equals `PREFIX_FONT`.
-- **`flattenComponent_anUnfontedSpanCarriesMinecraftsDefaultFontNotNull`**: A span with no font resolves to a non-null font that is not `banner/pill`. This pins vanilla `Style.getFont()` behaviour, not the walk, as the test's comment says.
-  - `parts.size()` equals 1, where `parts` comes from flattening an aqua empty literal root with one child `Nickname` styled italic, with no font anywhere.
-  - `resolved`, which is `parts.get(0).style().getFont()`, is not null.
-  - `resolved` does not equal `PILL_FONT`.
 
 ### `OutboundDisplayHandlerTest`
 
@@ -668,9 +663,6 @@ Test: [`PillCodecTest.java`](../src/test/java/org/wynnvets/chat/PillCodecTest.ja
   - `PillCodec.isCustomGlyph(' ')` is false.
   - `PillCodec.isCustomGlyph(0x2064)` is false (a format character).
   - `PillCodec.isCustomGlyph(0x1F600)` is false (an assigned supplementary codepoint).
-- **`isCustomGlyph_andIsEncodedDisagreeOnTheServerMarkers`**: For each of the three server markers, `isCustomGlyph` is true and `isEncoded` of the same character is false.
-  - For each `marker` in `SERVER_PILL_CLOSE` (0xD0002), `SERVER_WIDTH_MIN` (0xCFF00), `SERVER_KERN_MARKER` (0xCFFFF): `PillCodec.isCustomGlyph(marker)` is true.
-  - For the same three markers: `PillCodec.isEncoded(chars(marker))` is false, where `chars(marker)` is the one-codepoint string.
 - **`isEncoded_nullEmptyAndPlainAscii`**: Null, the empty string, `VET` and `[Vetsmod]` are not encoded.
   - `PillCodec.isEncoded(null)` is false.
   - `PillCodec.isEncoded("")` is false.
@@ -758,13 +750,10 @@ Test: [`PrependTest.java`](../src/test/java/org/wynnvets/chat/PrependTest.java) 
 
 - **`blockIndicatorStyle_leavesTheNextGetAFullBadge`**: Calling `GUILD.blockIndicatorStyle()` first does not count as a drawn badge, so the next `GUILD.get()` is still the full badge text.
   - After `Prepend.GUILD.blockIndicatorStyle()`, `Prepend.GUILD.get().getString()` equals `GUILD_FULL`, where `GUILD_FULL` is U+CFFFC, U+E006, U+CFFFF, U+E002, U+CFFFE, U+0020.
-- **`blockIndicatorStyle_isTheStyleOfTheIndicatorGetReturns`**: After one `GUILD.get()`, the second `get()` returns the compact indicator text, and its style equals `blockIndicatorStyle()`.
-  - After two `Prepend.GUILD.get()` calls, the second result `indicator` has `getString()` equal to `GUILD_INDICATOR`, where `GUILD_INDICATOR` is U+CFFFC, U+E001, U+D0006, U+0020.
-  - `indicator.getStyle()` equals `Prepend.GUILD.blockIndicatorStyle()`.
 - **`blockIndicatorStyle_isTheIndicatorsStyleNotTheFullBadges`**: For `DEFAULT`, whose full badge root has no font but whose indicator has one, the indicator returned by the second `get()` has the same style as `blockIndicatorStyle()`.
   - After two `Prepend.DEFAULT.get()` calls, the second result `indicator` has `getStyle()` equal to `Prepend.DEFAULT.blockIndicatorStyle()`.
 - **`get_returnsTheFullBadgeAgainAfter18Lines`**: After one `get()`, 17 added rendered lines still give the indicator, and one more line makes the next `get()` the full badge again.
-  - After one `Prepend.GUILD.get()` and `Prepend.addRenderedLines(17)`, the next `Prepend.GUILD.get().getString()` equals `GUILD_INDICATOR`.
+  - After one `Prepend.GUILD.get()` and `Prepend.addRenderedLines(17)`, the next `Prepend.GUILD.get().getString()` equals `GUILD_INDICATOR`, where `GUILD_INDICATOR` is U+CFFFC, U+E001, U+D0006, U+0020.
   - After a further `Prepend.addRenderedLines(1)` (18 lines in total), the next `Prepend.GUILD.get().getString()` equals `GUILD_FULL`.
 - **`staffChannel_afterAGuildLine_getsItsFullRedBadge`**: A `STAFF_CHANNEL.get()` right after a `GUILD.get()` returns GUILD's full badge text, with GUILD's badge style recoloured red.
   - After one `Prepend.GUILD.get()`, `Prepend.STAFF_CHANNEL.get()` (`staff`) has `getString()` equal to `GUILD_FULL`.
@@ -791,28 +780,6 @@ Test: [`RankDisplayMapTest.java`](../src/test/java/org/wynnvets/chat/RankDisplay
   - `displayFor("Moderator")` is `Moderator`, `displayFor("")` is the empty string, and `displayFor(null)` is null.
 
 ## `org.wynnvets.chat.dispatcher`
-
-### `DispatchCoordinatorTest`
-
-Test: [`DispatchCoordinatorTest.java`](../src/test/java/org/wynnvets/chat/dispatcher/DispatchCoordinatorTest.java) · Subject: [`DispatchCoordinator`](../src/client/java/org/wynnvets/chat/dispatcher/DispatchCoordinator.java)
-
-`DispatchCoordinator` prints two yellow notices, each naming its cause: why a `/v` reached nobody (`NoRecipientsCause`) and why a gated staff command was dropped (`StaffWaitCause`). The suite pins the text `message()` gives for each cause. Which cause each code path picks, and the staff feed readers' throw on a non-200 or malformed body, are not covered: they run on the shared HTTP client and the render thread.
-
-- **`noRecipientsCause_messages_areTheWordedLines`**: Each no-recipients cause has its worded line.
-  - `NoRecipientsCause.NOBODY_HERE.message()` equals `"Nobody saw your message (nobody here)"`.
-  - `NoRecipientsCause.API_UNREACHABLE.message()` equals `"Nobody saw your message (API unreachable)"`.
-- **`staffWaitCause_messages_areTheWordedLines`**: Each staff-wait cause has its worded line.
-  - `StaffWaitCause.IN_PROGRESS.message()` equals `"Message not deliverable (permission verification in progress)"`.
-  - `StaffWaitCause.UNSUCCESSFUL.message()` equals `"Message not deliverable (permission verification unsuccessful)"`.
-- **`messages_areDistinct_nonBlank_andEndWithoutAPeriod`**: The four lines differ, are non-blank and carry no trailing period.
-  - The messages of both enums together number 4.
-  - They form a set of size 4.
-  - Each is non-blank.
-  - Each does not end with `"."`.
-- **`onlyTheTransportCauseBlamesTheApi`**: Only `API_UNREACHABLE` mentions the API.
-  - For each `NoRecipientsCause`, whether `message()` contains `"API"` equals whether the cause is `API_UNREACHABLE`.
-  - For each `StaffWaitCause`, `message()` does not contain `"API"`.
-  - For each `StaffWaitCause`, `message()` starts with `"Message not deliverable ("`.
 
 ### `FindDispatcherTest`
 
@@ -869,7 +836,7 @@ The suite pins two pure helpers. `GuildChatDispatcher.relayRefusalLine` is the r
 
 Test: [`MessageFanoutDispatcherTest.java`](../src/test/java/org/wynnvets/chat/dispatcher/MessageFanoutDispatcherTest.java) · Subject: [`MessageFanoutDispatcher`](../src/client/java/org/wynnvets/chat/dispatcher/MessageFanoutDispatcher.java)
 
-`MessageFanoutDispatcher` sends the staff `/v` broadcast as one `/msg` per recipient and suppresses the server feedback for each. This suite covers the package-private string helpers of its echo matcher, which decide whether an incoming chat line is the echo of an outbound `/msg` payload. It pins the normalisation, tokenising and matching rules, including two deliberate false-positive surfaces: the recipient check is a substring test, and `*` in the message acts as a wildcard. Fixtures are plain text with PUA glyphs kept, using the U+E003 private-message separator; `shouldSuppressFeedback` is not covered.
+`MessageFanoutDispatcher` sends the staff `/v` broadcast as one `/msg` per recipient and suppresses the server feedback for each. This suite covers the package-private string helpers of its echo matcher, which decide whether an incoming chat line is the echo of an outbound `/msg` payload. It pins the normalisation, tokenising and matching rules. Three known defects are deliberately not pinned, so fixing one fails nothing: the recipient check is a substring test (a message to `holidazed` counts as one to `holidaze`), an all-`*` region matches any payload that fits in it, and because normalisation strips spaces before tokenising, the token-subsequence fallback cannot match words separated only by spaces. Fixtures are plain text with PUA glyphs kept, using the U+E003 private-message separator; `shouldSuppressFeedback` is not covered.
 
 - **`isOutboundRecipientTarget_matchesTheSegmentBetweenGlyphAndColon`**: `"you <SEP> holidaze: hi"` is accepted as an outbound message to `holidaze`.
   - `isOutboundRecipientTarget("you " + SEP + " holidaze: hi", "holidaze")` is true, where `SEP` is the one-char string U+E003.
@@ -877,9 +844,8 @@ Test: [`MessageFanoutDispatcherTest.java`](../src/test/java/org/wynnvets/chat/di
   - `isOutboundRecipientTarget("you holidaze: hi", "holidaze")` is false (no `SEP` glyph).
   - `isOutboundRecipientTarget("you " + SEP + " holidaze hi", "holidaze")` is false (no colon after the glyph).
   - `isOutboundRecipientTarget("a: b " + SEP + " holidaze", "holidaze")` is false (the only colon comes before the glyph).
-- **`isOutboundRecipientTarget_recipientIsASubstringTestSoPrefixesFalseMatch`**: A message to `holidazed` matches recipient `holidaze`, but a message to `holidaze` does not match recipient `holidazed`; containment runs one way.
-  - `isOutboundRecipientTarget("you " + SEP + " holidazed: hi", "holidaze")` is true (segment `holidazed` contains `holidaze`).
-  - `isOutboundRecipientTarget("you " + SEP + " holidaze: hi", "holidazed")` is false (segment `holidaze` does not contain `holidazed`).
+- **`isOutboundRecipientTarget_aLongerNameDoesNotMatchAShorterRecipient`**: A message to `holidaze` is not one to `holidazed`.
+  - `isOutboundRecipientTarget("you " + SEP + " holidaze: hi", "holidazed")` is false.
 - **`isOutboundRecipientTarget_looksOnlyAtTheRecipientSegment`**: A name that appears only in the message body (`"metrafish: tell holidaze hi"`) is not a match for `holidaze`.
   - `isOutboundRecipientTarget("you " + SEP + " metrafish: tell holidaze hi", "holidaze")` is false (`holidaze` appears only after the colon).
 - **`isOfflineRecipientMessage_bothServerWordings`**: `"holidaze is not online"` and `"holidaze is not currently online"` are both recognised for `holidaze`.
@@ -921,9 +887,7 @@ Test: [`MessageFanoutDispatcherTest.java`](../src/test/java/org/wynnvets/chat/di
 - **`containsCensoredVariant_starInTheMessageStandsForAnyCharacter`**: `"say h***o there"` is a censored variant of `hello`, and an exact `"hello"` also matches.
   - `containsCensoredVariant("say h***o there", "hello")` is true (each `*` in the message matches any payload char).
   - `containsCensoredVariant("hello", "hello")` is true.
-- **`containsCensoredVariant_aRunOfStarsMatchesAnyPayloadOfThatLength`**: `"*****"` matches both `hello` and `world`, but `"****"` does not match the five-letter `hello`; the run must be at least as long.
-  - `containsCensoredVariant("*****", "hello")` is true.
-  - `containsCensoredVariant("*****", "world")` is true.
+- **`containsCensoredVariant_theRegionMustBeAsLongAsThePayload`**: A censored region shorter than the payload does not match it.
   - `containsCensoredVariant("****", "hello")` is false (4 stars are shorter than the 5-char payload).
 - **`containsCensoredVariant_theWildcardIsOneDirectionalOnly`**: A `*` in the payload is literal: message `"hello"` does not match payload `"h***o"`.
   - `containsCensoredVariant("hello", "h***o")` is false (a `*` in the payload is a literal, not a wildcard).
@@ -940,9 +904,6 @@ Test: [`MessageFanoutDispatcherTest.java`](../src/test/java/org/wynnvets/chat/di
   - `containsNormalizedPayload("you " + SEP + " holidaze: HEL" + U+E003 + "LO there", "hello")` is true (glyphs, spaces and case ignored).
 - **`containsNormalizedPayload_fallsThroughToTheTokenSubsequence`**: `"hello, world, friend"` matches payload `"hello, friend"`, which only the token-subsequence step can accept.
   - `containsNormalizedPayload("hello, world, friend", "hello, friend")` is true (matched by the token-subsequence path).
-- **`containsNormalizedPayload_tokenBoundariesComeFromPunctuationOnlyNotSpaces`**: Whitespace is stripped before tokenising, so `"hello world friend"` is one token `helloworldfriend` and does not match `"hello friend"`.
-  - `extractEchoTokens(normalizeForEchoComparison("hello world friend"))` equals `["helloworldfriend"]` (normalisation strips spaces before tokenising, so one token).
-  - `containsNormalizedPayload("hello world friend", "hello friend")` is false (space-separated words do not form separate tokens).
 
 ## `org.wynnvets.chat.spoiler`
 
@@ -950,7 +911,7 @@ Test: [`MessageFanoutDispatcherTest.java`](../src/test/java/org/wynnvets/chat/di
 
 Test: [`SpoilerCodecTest.java`](../src/test/java/org/wynnvets/chat/spoiler/SpoilerCodecTest.java) · Subject: [`SpoilerCodec`](../src/client/java/org/wynnvets/chat/spoiler/SpoilerCodec.java)
 
-`SpoilerCodec` converts Discord-style `||spoiler||` text to and from a private-use encoding (start U+F600, end U+F601, direct chars at U+F602 and up, an escape at U+F700 followed by three base-254 digits) wrapped in a visible `[Spoiler: ...]` label. The suite pins detection, the encode/decode round trip for ASCII, high-codepoint and CJK content, and the hardening rules: banned characters are stripped on both encode and decode, and the decoder drops any escape that could not have come from the encoder. Several fixtures are written as raw PUA characters or `\u` escapes, and expectations are given on the encoded form where a round trip alone would pass without the encode-side strip.
+`SpoilerCodec` converts Discord-style `||spoiler||` text to and from a private-use encoding (start U+F600, end U+F601, direct chars at U+F602 and up, an escape at U+F700 followed by three base-254 digits) wrapped in a visible `[Spoiler: ...]` label. The suite pins detection, the wire form of an encoded block, the encode/decode round trip for ASCII, high-codepoint and CJK content, and the hardening rules: banned characters are stripped on both encode and decode, and the decoder drops any escape that could not have come from the encoder. Every private-use fixture is written as a `\u` escape, and expectations are given on the encoded form where a round trip alone would pass without the encode-side strip.
 
 - **`containsPipeSpoiler_nullEmptyAndNoMarker`**: `null`, `""`, plain text and an unterminated `"|| not a real spoiler"` all return `false`.
   - `SpoilerCodec.containsPipeSpoiler(null)` is false.
@@ -971,10 +932,8 @@ Test: [`SpoilerCodecTest.java`](../src/test/java/org/wynnvets/chat/spoiler/Spoil
   - `SpoilerCodec.encodeSpoilers(null)` is the same instance as null (returns null).
   - `encodeSpoilers(empty)` is the same instance as `empty`, the `""` literal passed in.
   - `encodeSpoilers(plain)` equals `plain`, where `plain` is `"no markers here"`.
-- **`encodeSpoilers_wrapsContentWithVisiblePrefix`**: Encoding `"a ||x|| b"` yields output containing `WRAPPER_PREFIX` and `WRAPPER_SUFFIX` that `containsEncodedSpoiler` recognises.
-  - `encoded` (= `encodeSpoilers("a ||x|| b")`) contains `SpoilerCodec.WRAPPER_PREFIX` (`"[Spoiler: "`) (is true).
-  - `encoded` contains `SpoilerCodec.WRAPPER_SUFFIX` (`"]"`) (is true).
-  - `SpoilerCodec.containsEncodedSpoiler(encoded)` is true.
+- **`encodeSpoilers_wrapsContentWithVisiblePrefix`**: Encoding `"a ||x|| b"` gives the exact wire form, written numerically: the visible wrapper around U+F600, `x` encoded directly, and U+F601.
+  - `SpoilerCodec.encodeSpoilers("a ||x|| b")` equals `"a [Spoiler: "` + U+F600 + U+F67A + U+F601 + `"] b"`, where U+F67A is U+F602 + 0x78 (`x`).
 - **`roundTrip_simpleAsciiSpoiler`**: `"||hello||"` decodes back to itself after `encodeSpoilers` then `decodeToDiscord`.
   - `decodeToDiscord(encodeSpoilers("||hello||"))` equals `"||hello||"`.
 - **`roundTrip_multipleSpoilersPreservesSurroundingText`**: `"before ||a|| middle ||bb|| end"` round-trips unchanged, keeping the text between and around the blocks.
@@ -982,8 +941,9 @@ Test: [`SpoilerCodecTest.java`](../src/test/java/org/wynnvets/chat/spoiler/Spoil
 - **`decodeContent_emptyReturnsEmpty`**: `decodeContent("")` and `decodeContent(null)` both return `""`.
   - `SpoilerCodec.decodeContent("")` equals `""`.
   - `SpoilerCodec.decodeContent(null)` equals `""`.
-- **`decodeContent_truncatedEscapeDoesNotThrow`**: A lone escape character (U+F700) with no following digits does not throw; only the absence of an exception is asserted.
-  - `SpoilerCodec.decodeContent(truncated)` does not throw, where `truncated` is the one-char string U+F700 (a lone ESCAPE with no following digits).
+- **`decodeContent_truncatedEscapeIsDroppedAlone`**: An escape (U+F700) with fewer than three digits after it is skipped by itself, so what follows it still decodes.
+  - `SpoilerCodec.decodeContent` of U+F700 alone equals `""`.
+  - `SpoilerCodec.decodeContent` of U+F700 then U+F643 equals `"A"`: U+F643 is a direct `A`.
 - **`decodeToDiscord_stripsVisibleWrapper`**: Encoding `"plain ||spoil||"` and decoding gives exactly `"plain ||spoil||"`, with no `[Spoiler: ` wrapper left.
   - `decoded` (= `decodeToDiscord(encodeSpoilers("plain ||spoil||"))`) does not contain `SpoilerCodec.WRAPPER_PREFIX` (is false).
   - `decoded` equals `"plain ||spoil||"`.
@@ -1060,6 +1020,20 @@ Tab completion reads a copy of the client tree that Fabric took at the last comm
   - `isStale(nested, copyWithoutInner, SOURCE)` is true, where `copyWithoutInner` is `wv → outer`.
   - `isStale(nested, copyWithInner, SOURCE)` is false, where `copyWithInner` is `wv → outer → inner`.
 
+### `CommandRegistryTest`
+
+Test: [`CommandRegistryTest.java`](../src/test/java/org/wynnvets/commands/CommandRegistryTest.java) · Subject: [`CommandRegistry`](../src/client/java/org/wynnvets/commands/CommandRegistry.java)
+
+`CommandRegistry.register` builds the whole client command tree, `/motd` and `/wv` with every subtree, and Fabric runs it on every login for every user, whatever their tier or debug setting. The suite is that "does not crash for every user on join" bar: it builds the tree into a fresh `CommandDispatcher` as Fabric does, with `null` for the `registryAccess` argument, which `register` does not read, and checks that `/wv` holds the subtrees other classes build and that `/wv debug tree` holds its two harnesses. No command is run; building the tree reads only the suggestion providers it attaches, since a method reference or lambda does not initialise the class it names until it runs. It is the only test of the debug subtrees, which get no other JUnit.
+
+- **`theWholeTreeBuildsWithEachDelegatedSubtree`**: `register` builds without throwing, and the root holds `/motd` and `/wv`, `/wv` holds `debug`, `distribute`, `laurels`, `retro` and `extras`, and `/wv debug tree` holds `anni` and `retro`.
+  - `dispatcher.getRoot().getChild("motd")` is not null, where `dispatcher` is the `CommandDispatcher` that `CommandRegistry.register(dispatcher, null)` filled.
+  - `wv`, which is `dispatcher.getRoot().getChild(CommandRegistry.WV)` (`"wv"`), is not null.
+  - For each `subtree` in `debug`, `distribute`, `laurels`, `retro`, `extras`: `wv.getChild(subtree)` is not null.
+  - `tree`, which is `wv.getChild("debug").getChild("tree")`, is not null.
+  - `tree.getChild("anni")` is not null.
+  - `tree.getChild("retro")` is not null.
+
 ### `HelpCommandsTest`
 
 Test: [`HelpCommandsTest.java`](../src/test/java/org/wynnvets/commands/HelpCommandsTest.java) · Subject: [`HelpCommands`](../src/client/java/org/wynnvets/commands/HelpCommands.java)
@@ -1081,8 +1055,6 @@ Tests:
   - For each `mask` from 0 to 63 (bits 1, 2, 4, 8, 16, 32 give `anniTools`, `unlocked`, `staff`, `staffOfAnyGuild`, `featuresEnabled`, `confirmedStaff`, in `buildHelp`'s parameter order, so all 64 combinations): `rowsOf(buildHelp(...))` equals `expectedRows(...)` of the last five; `anniTools` changes only a row's text. `rowsOf` collects each YELLOW sibling's text and appends a directly-following non-bold GOLD argument run to the same row. `expectedRows` is, in order: `/wv help`, `/wv anni`, `/wv config [<key> [<value>]]`, `/wv motd`, `/wv retro [on|off|parts|only]`, then `/wv list` and `/wv list <xp|graids>` if `unlocked`, `/wv list world` if `staff`, `/wv staff` if `unlocked`, `/wv distribute <name|@selector> <type> <count>` if `staffOfAnyGuild`, `/wv return` and `/wv line <church|scrap|bat|hegea|lighthouse>` if `featuresEnabled`, `/wv check <player>` and `/wv laurels <update|return>` if `confirmedStaff`, then `/wv debug`.
 - **`anniRowPointsAtTheAnniPageOnlyWithAnniTools`**: The `/wv anni` row points at `/wv help anni` for the modes and RSVP exactly when `anniTools` is true, whatever the other gates say.
   - For each `mask` from 0 to 63 (as the gate matrix): the sibling after the YELLOW `/wv anni` head is ` - Show anni timer; /wv help anni for modes & RSVP\n` when bit 1 (`anniTools`) is set, else ` - Show anni timer\n`.
-- **`wvListIsAdvertisedExactlyOnceWhenUnlockedAndNeverOtherwise`**: Across all gate combinations the `/wv list` row appears once when unlocked and not at all otherwise. Regression guard for a fix where it printed twice and keyed off the vet predicate.
-  - For each `mask` from 0 to 63 (as the gate matrix): `advertised`, the count of rows equal to `"/wv list"` in `rowsOf(buildHelp(...))`, equals 1 when `unlocked` (bit 2) is set and 0 otherwise; the `/wv list <xp|graids>` and `/wv list world` rows do not count.
 - **`helpConfigPage_pinsItsNineteenSiblings`**: The config options page matches its exact tree, and its last row is a yellow key followed by two separate gray appends with no trailing newline.
   - `HelpCommands.buildHelpConfig()` has exactly 19 siblings: GOLD bold `Config Options\n`; GRAY `Toggle with /wv config <key> <default|true|false>.\nThese are the common toggles; /wv config lists every key.\n\n`; then seven YELLOW key (`legacyItemHighlighting\n`, `printMOTD\n`, `printANNI\n`, `printBridgeMessages\n`, `showSupporterGlints\n`, `colorBlindMode\n`, `handleSpoilers\n`), each followed by one GRAY description starting with two spaces and ending `\n` (highlights old items in inventory; auto-print the message of the day on join; auto-print the annihilation timer on join (Returners members only); show bridge messages incl. discord, queue, waitlist and honourary chats; supporter animated gradient glints on nametags, chat pills and /wv list; higher-contrast colour pair for supporter glints for red/green colour-blind users; encode ||spoiler|| markers in /g and /wg and render as hoverable labels); last row YELLOW `moreReliableGuildCheck\n` followed by two separate GRAY siblings, `  Run /gu stats on world join to detect your membership,` and ` instead of relying solely on Wynntils (it can lag on join)`, neither ending in a newline.
 - **`helpCheckPage_pinsItsFiveSiblings`**: The `/wv check` page, built with `CONFIRMED` access, matches its tree and ends with an aqua `Staff` requirement.
@@ -1123,20 +1095,12 @@ Tests:
   - `HelpCommands.access(true, false)` equals `Access.GRANTED`.
   - `HelpCommands.access(true, true)` equals `Access.CONFIRMED`.
   - `HelpCommands.access(false, true)` equals `Access.CONFIRMED` (server-confirmed outranks a stale local signal).
-- **`requiresFooter_staysWhiteOnTheSixPagesWithNoGate`**: The motd, anni, retro, debug, debug set and debug trigger pages end with a white `None (public)` requirement. Its first assertion cannot fail: it looks `PUBLIC` up in the test's own `ACCESS_COLOURS` map, which has no `PUBLIC` key, so `getOrDefault` always returns the WHITE it is compared with.
-  - `ACCESS_COLOURS.getOrDefault(Access.PUBLIC, ChatFormatting.WHITE)` equals `ChatFormatting.WHITE` (PUBLIC has no entry in the map, so the default is returned).
-  - The last sibling of `buildHelpMotd()` is `None (public)` in WHITE.
-  - The last sibling of `buildHelpAnni(false)` and of `buildHelpAnni(true)` is `None (public)` in WHITE.
-  - The last sibling of `buildHelpRetro()` is `None (public)` in WHITE.
-  - The last sibling of `buildHelpDebug()` is `None (public)` in WHITE.
-  - The last sibling of `buildHelpDebugSet()` is `None (public)` in WHITE.
-  - The last sibling of `buildHelpDebugTrigger()` is `None (public)` in WHITE.
 
 ### `InviteGateTest`
 
 Test: [`InviteGateTest.java`](../src/test/java/org/wynnvets/commands/InviteGateTest.java) · Subject: [`InviteGate`](../src/client/java/org/wynnvets/commands/InviteGate.java), [`MembershipSnapshot`](../src/client/java/org/wynnvets/datamodels/MembershipSnapshot.java)
 
-The `/gu invite` gate decides from temporary-server's `check_membership` reply. The suite pins that a non-staff member's invite verdict (no Discord blob) is usable and a `may_invite: false` verdict blocks, that a staff snapshot still needs its Discord blob and blocks on `blocklisted`, which entry verdict (`entryVerdict`) a staff, member, pending-key, keyless, rejected-key or other-tier session gets, and the lines a non-staff player sees. Snapshots are parsed from JSON with `Json.GSON`.
+The `/gu invite` gate decides from temporary-server's `check_membership` reply. The suite pins that a non-staff member's invite verdict (no Discord blob) is usable and a `may_invite: false` verdict blocks, that a staff snapshot still needs its Discord blob and blocks on `blocklisted`, and which entry verdict (`entryVerdict`) a staff, member, pending-key, keyless, rejected-key or other-tier session gets. Snapshots are parsed from JSON with `Json.GSON`.
 
 - **`aMembersVerdictIsUsableWithoutTheDiscordBlob`**: A verdict with no `discord` drives the gate for a non-staff player.
   - `snapshotUsable(verdict(may_invite true), false)` is true.
@@ -1164,10 +1128,6 @@ The `/gu invite` gate decides from temporary-server's `check_membership` reply. 
   - `entryVerdict(false, true, true, false, false, true)` is `STILL_CHECKING`.
 - **`entryVerdict_authenticatedNonMemberIsUnauthenticatedWithoutReauth`**: With no re-auth due, the same session gets the complaint.
   - `entryVerdict(false, true, true, false, false, false)` is `UNAUTHENTICATED`.
-- **`theNonStaffLinesAreTheUsersWording`**: The refusal and the unauthenticated line are the user's text, and the still-checking line is `/wv list world`'s.
-  - `GENERIC_REJECTION` equals `"This user is not eligible to join the guild, ask a Steward."`.
-  - `UNAUTHENTICATED` equals `"Unable to handle /gu invite: vetsmod is running unauthenticated. For more details, use ~vetsmod in #bot-commands on vetscord."`.
-  - `STILL_CHECKING` equals `"We are still checking your permissions, please retry in a moment."`.
 
 ## `org.wynnvets.config`
 
@@ -1175,12 +1135,8 @@ The `/gu invite` gate decides from temporary-server's `check_membership` reply. 
 
 Test: [`NamedColorTest.java`](../src/test/java/org/wynnvets/config/NamedColorTest.java) · Subject: [`NamedColor`](../src/client/java/org/wynnvets/config/NamedColor.java)
 
-`NamedColor` is a registry of named colours (including a custom `legacy_orange` and a `transparent` entry) used by the legacy item highlighting config, with lookups by name and an opacity-to-alpha helper. The suite pins the registry order and immutability, case-insensitive and locale-independent lookup, the null-on-miss and default-on-miss contracts, and the rounding, clamping and alpha-replacing behaviour of `withAlpha`. It temporarily switches the JVM default locale to Turkish in one test and restores it afterwards.
+`NamedColor` is a registry of named colours (including a custom `legacy_orange` and a `transparent` entry) used by the legacy item highlighting config, with lookups by name and an opacity-to-alpha helper. The suite pins the registry's immutability, case-insensitive and locale-independent lookup, the null-on-miss and default-on-miss contracts, and the rounding, clamping and alpha-replacing behaviour of `withAlpha`. It temporarily switches the JVM default locale to Turkish in one test and restores it afterwards.
 
-- **`getNames_hasFortyEntriesInInsertionOrder`**: The name set has 40 entries, with `black` first and `transparent` last.
-  - `List.copyOf(NamedColor.getNames())` has size 40.
-  - Element 0 of `names` equals `"black"`.
-  - Element 39 (the last) of `names` equals `"transparent"`.
 - **`getNames_isUnmodifiable`**: Adding to the returned name set throws `UnsupportedOperationException`.
   - `NamedColor.getNames().add("puce")` throws `UnsupportedOperationException`.
 - **`isValid_knownNameCaseInsensitive`**: `gold`, `GOLD` and `GoLd` are all valid.
@@ -1289,7 +1245,7 @@ Test: [`VetsConfigDefaultsTest.java`](../src/test/java/org/wynnvets/config/VetsC
 
 Test: [`VetsConfigKeysTest.java`](../src/test/java/org/wynnvets/config/VetsConfigKeysTest.java) · Subject: [`VetsConfigKeys`](../src/client/java/org/wynnvets/config/VetsConfigKeys.java)
 
-`VetsConfigKeys` is the list of string constants naming each setting as stored in `config.json`. Those names are the file format: renaming one makes existing values unreadable and they are dropped at the next save. The suite compares the constants against a frozen constant-to-name table, read by reflection over all public static final `String` fields, so an added, removed or renamed key fails, and it checks the on-disk names are distinct.
+`VetsConfigKeys` is the list of string constants naming each setting as stored in `config.json`. Those names are the file format: renaming one makes existing values unreadable and they are dropped at the next save. The suite compares the constants against a frozen constant-to-name table, read by reflection over all public static final `String` fields, so an added, removed or renamed key fails, and it checks the on-disk names are distinct. The table, `EXPECTED`, is package-private: `VetsConfigSchemaTest` takes its key names from it.
 
 - **`everyKeyConstant_hasItsOnDiskName`**: The reflected map of constant name to string value equals the frozen expected table, in both content and key set.
   - `keyConstants()`, the sorted map of every public static final `String` field of `VetsConfigKeys` (constant name to value), equals `new TreeMap<>(EXPECTED)`: the 48 frozen pairs from `VETS_AUTOMESSAGE` to `vetsAutomessage` through `LEGACY_ITEM_FOREGROUND_COLOR` to `legacyItemForegroundColor`.
@@ -1300,7 +1256,7 @@ Test: [`VetsConfigKeysTest.java`](../src/test/java/org/wynnvets/config/VetsConfi
 
 Test: [`VetsConfigSchemaTest.java`](../src/test/java/org/wynnvets/config/VetsConfigSchemaTest.java) · Subject: [`VetsConfigSchema`](../src/client/java/org/wynnvets/config/VetsConfigSchema.java)
 
-`VetsConfigSchema` holds the key tables behind `/wv config`: which keys users may set, their print order, which keys are tri-state, string or int, and the valid-value lists for fixed-choice keys. The suite pins each table against a frozen literal and checks that the `is*Key` predicates and `fixedValuesOf`/`isFixedValue` agree with those arrays across every known key name plus a debug key and an unknown name. The string-key guard reads the live `STRING_CONFIG_KEYS`, so a new string key must be a colour key, the sprite key or declare a fixed list.
+`VetsConfigSchema` holds the key tables behind `/wv config`: which keys users may set, their print order, which keys are tri-state, string or int, and the valid-value lists for fixed-choice keys. The suite pins each table against a frozen literal and checks that the `is*Key` predicates and `fixedValuesOf`/`isFixedValue` agree with those arrays across every known key name plus a debug key and an unknown name. One guard reads `STRING_CONFIG_KEYS` itself: every string key is a colour key, the sprite key, or has a fixed value list. `ALL_NAMES` is built from `VetsConfigKeysTest.EXPECTED`'s on-disk names, in its order, then `itemDump` and `noSuchKey`, so a key is checked here as soon as it is pinned there.
 
 - **`userConfigKeys_inPrintOrder`**: `USER_CONFIG_KEYS` equals the expected array in exactly that order, which is the order `configList` prints.
   - `VetsConfigSchema.USER_CONFIG_KEYS` equals, in order, the 30 names from `legacyItemHighlighting` (first) to `moreReliableGuildCheck` (last). `legacyItemUnderrolling` is 3rd and `handleSpoilers` 29th.
@@ -1313,7 +1269,7 @@ Test: [`VetsConfigSchemaTest.java`](../src/test/java/org/wynnvets/config/VetsCon
   - `VALID_FLASH_INTENSITIES` equals, in order, `subtle`, `normal`, `strong`.
   - `VALID_SPRITES` equals, in order, the 10 names from `wynn` (first) to `box_gradient_2` (last).
 - **`fixedValuesOf_mapsOnlyRoleStyleAndFlashIntensity`**: For every known name, `fixedValuesOf` returns the role-style or flash-intensity list for those two keys and `null` for all others.
-  - For `name` = `vetsAnniRoleStyle` in `ALL_NAMES` (50 names, `vetsAutomessage` first, `noSuchKey` last): `fixedValuesOf(name)` equals `descriptive`, `short`, `formal`.
+  - For `name` = `vetsAnniRoleStyle` in `ALL_NAMES` (`vetsAutomessage` first, `noSuchKey` last): `fixedValuesOf(name)` equals `descriptive`, `short`, `formal`.
   - For `name` = `vetsAnniFlashIntensity`: `fixedValuesOf(name)` equals `subtle`, `normal`, `strong`.
   - For every other name in `ALL_NAMES`: `fixedValuesOf(name)` is null.
 - **`isFixedValue_acceptsTheListedLowercaseValuesOnly`**: Listed lowercase values pass for their key; wrong-list values, upper case `SHORT`, empty, `null`, colour keys and unknown keys fail.
@@ -1323,7 +1279,7 @@ Test: [`VetsConfigSchemaTest.java`](../src/test/java/org/wynnvets/config/VetsCon
   - `isFixedValue("vetsAnniFlashIntensity", "short")` is false.
   - `isFixedValue("legacyItemForegroundColor", "orange")` is false.
   - `isFixedValue("noSuchKey", "normal")` is false.
-- **`everyStringKey_isAColourKeyTheSpriteKeyOrHasAFixedList`**: Each entry in `STRING_CONFIG_KEYS` is one of the colour or sprite keys or has a non-null fixed-value list.
+- **`everyStringKey_isAColourKeyTheSpriteKeyOrHasAFixedList`**: Each entry in `STRING_CONFIG_KEYS` is one of the colour or sprite keys or has a non-null fixed-value list, so a new string key without a list fails here instead of being validated as a colour name.
   - For each `key` in `STRING_CONFIG_KEYS`: `key` is one of `legacyItemBackgroundGradientTop`, `legacyItemBackgroundGradientBottom`, `legacyItemForegroundColor`, `legacyItemForegroundSprite`, or `fixedValuesOf(key)` is not null.
 - **`predicates_agreeWithTheirArrays`**: For every known key name, `isUserConfigKey`, `isTriStateKey`, `isStringKey` and `isIntKey` match membership in their respective arrays.
   - For each `name` in `ALL_NAMES`: `isUserConfigKey(name)` equals whether `name` is in `USER_CONFIG_KEYS`.
@@ -1345,7 +1301,7 @@ Test: [`UserTest.java`](../src/test/java/org/wynnvets/datamodels/UserTest.java) 
   - `parse(json).isInVets()` is false, where `json` is `{"guild": {"uuid": "bbbbbbbb-1111-2222-3333-444444444444"}}`.
 - **`isInVets_noGuild`**: An empty payload and `"guild": null` both return `false`.
   - For each `json` in `{}`, `{"guild": null}`: `parse(json).isInVets()` is false.
-- **`isInVets_guildWithoutUuid`**: A guild with only a name, and a guild with `"uuid": null`, return `false`. Regression guard: this case used to throw.
+- **`isInVets_guildWithoutUuid`**: A guild with only a name, and a guild with `"uuid": null`, return `false` rather than throwing.
   - For each `json` in `{"guild": {"name": "Returners"}}`, `{"guild": {"uuid": null}}`: `parse(json).isInVets()` is false.
 - **`joinInstants_parseTheApiTimestamps`**: A payload with millisecond `Z` timestamps gives both instants, and the string date getters still return the part before the `T`.
   - `getFirstJoinInstant()` equals `Instant.parse("2015-10-14T01:00:00Z")` and `getLastJoinInstant()` equals `Instant.parse("2026-10-22T01:07:00Z")`, for `firstJoin` `2015-10-14T01:00:00.000Z` and `lastJoin` `2026-10-22T01:07:00.000Z`.
@@ -1356,105 +1312,23 @@ Test: [`UserTest.java`](../src/test/java/org/wynnvets/datamodels/UserTest.java) 
   - For `{}`: `getFirstJoinInstant()` and `getLastJoinInstant()` are null.
   - For `firstJoin` `not a time` and `lastJoin` `2026-10-22`: both instant getters are null, and `getLastJoinDate()` equals `"2026-10-22"`.
 
-## `org.wynnvets.debug.anni`
-
-### `AnniDebugCommandsTest`
-
-Test: [`AnniDebugCommandsTest.java`](../src/test/java/org/wynnvets/debug/anni/AnniDebugCommandsTest.java) · Subject: [`AnniDebugCommands`](../src/client/java/org/wynnvets/debug/anni/AnniDebugCommands.java)
-
-`AnniDebugCommands` builds the Brigadier `anni` command tree mounted under `/wv debug tree`, and that tree is built when the client joins a server. The suite builds the tree and checks it does not throw and has the shape its Javadoc documents: root literal `anni`, a fixed number of top-level children, of handler leaves, and of inner nodes whose command prints a usage line. No command is run; building the tree initialises the suggestion providers but not the handler classes that need the game directory. A small recursive helper counts the nodes that carry a command, leaves or inner nodes.
-
-- **`treeBuildsWithItsDocumentedShape`**: `buildCommandTree().build()` yields a root named `anni` with 11 children, 24 leaves that have a command (the handlers) and 18 inner nodes that have one (the usage lines).
-  - `anni.getName()` equals `"anni"`, where `anni` is the `LiteralCommandNode` from `AnniDebugCommands.buildCommandTree().build()`.
-  - `anni.getChildren().size()` equals 11, the direct children of the root.
-  - `commandNodes(anni, true)` equals 24: leaves (no children) with a non-null command, over the whole tree.
-  - `commandNodes(anni, false)` equals 18: inner nodes (with children) with a non-null command.
-
-## `org.wynnvets.debug.dump`
-
-### `LiveItemModelsTest`
-
-Test: [`LiveItemModelsTest.java`](../src/test/java/org/wynnvets/debug/dump/LiveItemModelsTest.java) · Subject: [`LiveItemModels`](../src/client/java/org/wynnvets/debug/dump/LiveItemModels.java)
-
-`LiveItemModels` walks a parsed item definition with a stack to list the models it draws. The walk needs parsed definitions and is not tested; the suite pins `pickedEntry`, the choice of a range dispatch's entry, which follows Minecraft's own: the entry with the highest threshold at or below the value.
-
-- **`theHighestThresholdAtOrBelowTheValueIsPicked`**: Over thresholds `{0, 10, 5}` the entry is the highest one not above the value, whatever the file's order.
-  - `pickedEntry(thresholds, 0)` equals 0, and so does `4.9f`.
-  - `pickedEntry(thresholds, 5)` equals 2 (the file's order does not matter).
-  - `pickedEntry(thresholds, 10)` and `1000` equal 1.
-- **`theLaterOfEqualThresholdsIsPicked`**: Two entries with the same threshold give the later one, as Minecraft's sort does.
-  - `pickedEntry({1, 5, 5}, 7)` equals 2, and `pickedEntry({5, 1, 5}, 7)` equals 2.
-- **`noThresholdAtOrBelowOrNoNumberPicksNone`**: A value below every threshold, `NaN`, or no thresholds at all picks nothing.
-  - `pickedEntry({1, 5}, 0.5f)` equals -1.
-  - `pickedEntry({1, 5}, Float.NaN)` equals -1.
-  - `pickedEntry({}, 1)` equals -1.
-
-## `org.wynnvets.debug.retro`
-
-### `AuditModelsTest`
-
-Test: [`AuditModelsTest.java`](../src/test/java/org/wynnvets/debug/retro/AuditModelsTest.java) · Subject: [`AuditModels`](../src/client/java/org/wynnvets/debug/retro/AuditModels.java)
-
-`AuditModels` reads Wynncraft's item models for the retro report: which model parents which, and which reach a stubbed model. The suite pins that over a `MemoryPack` of small model files. The ingredient lines read Wynntils and the vanilla pack and are not tested. `DAGGER` is the one stubbed model and `GLOVES` a model that parents it.
-
-- **`aModelsParentIsReadAndWhetherItHasArtOfItsOwn`**: `parents(pack)` records each model's parent and whether it sets `textures` or `elements`, skipping files that are not models.
-  - Over models with only a parent, with `textures`, with `elements`, with `display`, without a parent, not an object, unreadable, and a block model, the result equals the four with a parent: `GLOVES` and the `textures` and `display` models to `DAGGER`, and the `elements` model to `minecraft:item/generated`.
-- **`aModelWithNoArtOfItsOwnDrawsTheStubThroughItsParent`**: `drawnThroughParent` lists the models that show the stub's art; `derived` lists every model that reaches it.
-  - `drawnThroughParent` equals the grandchild's and `GLOVES`' chains, each ending in `DAGGER`; the stub itself and the models with art of their own are left out.
-  - `derived` adds the `textured` model and the one beneath it; a model that reaches no stub is left out.
-- **`aChainThatLoopsEnds`**: Two models that parent each other end the walk.
-  - `derived` over `a` parenting `b` and `b` parenting `a` equals the empty list.
-
-### `RetroDebugCommandsTest`
-
-Test: [`RetroDebugCommandsTest.java`](../src/test/java/org/wynnvets/debug/retro/RetroDebugCommandsTest.java) · Subject: [`RetroDebugCommands`](../src/client/java/org/wynnvets/debug/retro/RetroDebugCommands.java)
-
-`RetroDebugCommands` builds the Brigadier `retro` tree mounted under `/wv debug tree`, which is built when the client joins a server. The suite builds it and checks the shape its Javadoc documents: a usage line on `retro`, and the leaves `report` and `report ingredients`. No command is run, and building the tree touches neither Minecraft nor Wynntils. `names(node)` lists a node's children's names in order.
-
-- **`treeBuildsWithItsDocumentedShape`**: `buildCommandTree().build()` yields `retro`, whose command prints the usage, with the one child `report`, which has a command and the one child `ingredients`, a leaf with a command.
-  - `retro.getName()` equals `"retro"`, where `retro` is the `LiteralCommandNode` from `RetroDebugCommands.buildCommandTree().build()`.
-  - `retro.getCommand()` is not null: a bare `retro` prints its usage line.
-  - `names(retro)` equals `["report"]`.
-  - `report.getCommand()` is not null, where `report` is `retro.getChild("report")`.
-  - `names(report)` equals `["ingredients"]`.
-  - `ingredients.getCommand()` is not null, where `ingredients` is `report.getChild("ingredients")`.
-  - `names(ingredients)` equals `[]`.
-
-### `TextureDivergenceTest`
-
-Test: [`TextureDivergenceTest.java`](../src/test/java/org/wynnvets/debug/retro/TextureDivergenceTest.java) · Subject: [`TextureDivergence`](../src/client/java/org/wynnvets/debug/retro/TextureDivergence.java)
-
-`TextureDivergence` measures how closely Wynncraft's repaint of a block texture pictures vanilla's, for the retro report. The suite pins its brightness correlation on small hand-built images.
-
-- **`theSamePictureCorrelatesFullyInOtherColoursOrAtTwiceTheSize`**: `checker(dark, light)` is a 16x16 opaque checkerboard, `dark` at the top left; `doubled` is `numbered(16, 16)` at 32x32, each pixel two by two. Correlations compare within `1e-9`.
-  - `brightnessCorrelation(numbered(16, 16), numbered(16, 16))` equals 1.
-  - `brightnessCorrelation(checker(0xFF000000, 0xFFFFFFFF), checker(0xFF201008, 0xFF80FF40))` equals 1: dark and light in other colours.
-  - `brightnessCorrelation(numbered(16, 16), doubled)` equals 1: the larger one is scaled down to 16x16.
-- **`aNegativeCorrelatesAtMinusOne`**: A checkerboard against its negative.
-  - `brightnessCorrelation(checker(0xFF000000, 0xFFFFFFFF), checker(0xFFFFFFFF, 0xFF000000))` equals -1, within `1e-9`.
-- **`aFlatImageCorrelatesFullyOnlyWithAnotherFlatOne`**: Images of one colour throughout.
-  - `brightnessCorrelation(filled(16, 16, 0xFFFF0000), filled(8, 8, 0xFF0000FF))` equals 1: both are flat, whatever their colours and sizes.
-  - `brightnessCorrelation(filled(16, 16, 0xFFFF0000), checker(0xFF000000, 0xFFFFFFFF))` equals 0: only one is.
-- **`aStripOfFramesCountsByItsFirstAndATransparentPixelAsBlack`**: A 16x32 strip whose top frame is `checker(0x00FFFFFF, 0xFFFFFFFF)` (transparent and opaque white) and whose bottom frame is the negative checkerboard `checker(0xFFFFFFFF, 0xFF000000)`.
-  - `brightnessCorrelation(strip, checker(0xFF000000, 0xFFFFFFFF))` equals 1, within `1e-9`: its first frame, whose transparent squares count as black.
-
 ## `org.wynnvets.distribute`
 
 ### `DistributeRunsTest`
 
 Test: [`DistributeRunsTest.java`](../src/test/java/org/wynnvets/distribute/DistributeRunsTest.java) · Subject: [`DistributeRuns`](../src/client/java/org/wynnvets/distribute/DistributeRuns.java)
 
-`DistributeRuns` names a run in its chat lines by the noun it was submitted with. The suite pins the three line builders: `/wv distribute` submits `"distribution"` and its queued, stop and cancelled lines are asserted byte for byte as they were before the noun was a parameter, then the same lines for a `"laurels update"` run and a queue of mixed runs. Only the package-private builders are exercised; the run state is static and moves through the tick scheduler, which a test cannot boot.
+`DistributeRuns` names a run in its chat lines by the noun it was submitted with. The suite pins the three line builders: `/wv distribute` submits `"distribution"` and its queued, stop and cancelled lines are asserted byte for byte, then the same lines for a `"laurels update"` run and a queue of mixed runs. Only the package-private builders are exercised; the run state is static, and a queued run starts through the tick scheduler, which a test cannot boot.
 
 - **`aRunQueuedBehindADistributionSaysItStartsWhenThatDistributionFinishes`**: The queued line names the current run, here a distribution.
   - `queuedLine("distribution")` equals `Queued: starts when the current distribution finishes.`
 - **`aRunQueuedBehindALaurelsUpdateNamesTheUpdate`**: The queued line follows the current run's noun.
   - `queuedLine("laurels update")` equals `Queued: starts when the current laurels update finishes.`
-- **`aStoppedDistributionStillSaysDistributionStopped`**: A distribution's stop line is unchanged.
+- **`aStoppedDistributionStillSaysDistributionStopped`**: A distribution's stop line names it a distribution.
   - `stopLine("distribution", "the Members menu is not open")` equals `Distribution stopped: the Members menu is not open.`
 - **`aStoppedLaurelsUpdateIsCapitalisedAndNamed`**: The noun is capitalised at the start of the stop line.
   - `stopLine("laurels update", "the streak walk timed out")` equals `Laurels update stopped: the streak walk timed out.`
-- **`cancelledDistributionsAreCountedAndPluralised`**: A distribution's cancelled line is unchanged: singular for one, plural for more.
+- **`cancelledDistributionsAreCountedAndPluralised`**: A distribution's cancelled line counts the runs: singular for one, plural for more.
   - `cancelledLine(["distribution"])` equals `Cancelled 1 queued distribution.`
   - `cancelledLine(["distribution", "distribution"])` equals `Cancelled 2 queued distributions.`
 - **`cancelledRunsOfOneKindAreNamedByIt`**: Queued runs that share a noun are named by it, pluralised.
@@ -1467,7 +1341,7 @@ Test: [`DistributeRunsTest.java`](../src/test/java/org/wynnvets/distribute/Distr
 
 Test: [`MembersGuiTest.java`](../src/test/java/org/wynnvets/distribute/MembersGuiTest.java) · Subject: [`MembersGui`](../src/client/java/org/wynnvets/distribute/MembersGui.java)
 
-`MembersGui` describes the layout of Wynncraft's `<guild>: Members` menu: its title pattern, its two page-button slots and patterns, and which slots hold player-head tiles. The suite pins `isTileSlot` with a boundary sweep around the rows 0-4 by columns 2-8 tile area, including the two page-button slots, which sit one column outside it. It also pins the title, page-button patterns and page-button slot numbers as change-detectors for the claim that they mirror Wynntils' `GuildMemberListContainer`. It also pins `pageTurned`, the check the walker waits on after a Next or Previous click: true only when the new scan is non-empty and no tile slot still holds the name it held on the old page, so a name recurring in another slot still counts as turned (checked with Metrafish, Holidaze, Wenweia and Nazzae in slots 2 and 3). The tests call static members directly, with a small `assertTile` / `assertNotTile` helper that reports row and column in the failure message.
+`MembersGui` describes the layout of Wynncraft's `<guild>: Members` menu: its title pattern, its two page-button slots and patterns, and which slots hold player-head tiles. The suite pins `isTileSlot` with a boundary sweep around the rows 0-4 by columns 2-8 tile area, including the two page-button slots, which sit one column outside it. The literals that mirror Wynntils' `GuildMemberListContainer` (the title and page-button patterns and slot numbers) are not pinned, since with Wynntils absent at test runtime nothing can compare them with the originals. The suite also pins `pageTurned`, the check the walker waits on after a Next or Previous click: true only when the new scan is non-empty and no tile slot still holds the name it held on the old page, so a name recurring in another slot still counts as turned (checked with Metrafish, Holidaze, Wenweia and Nazzae in slots 2 and 3). The tests call static members directly, with a small `assertTile` / `assertNotTile` helper that reports row and column in the failure message.
 
 Asserting helpers:
 
@@ -1485,24 +1359,15 @@ Tests:
   - `MembersGui.isTileSlot(8)` is true (row 0, column 8).
 - **`theLastTileOfTheBottomRowIsATile`**: Slot 44 (row 4, column 8), the last tile, is a tile.
   - `MembersGui.isTileSlot(44)` is true (row 4, column 8, the last tile).
-- **`slotsBelowTheTileAreaAreNotTiles`**: Slots 45 and 54 (column 0, rows 5 and 6) are not tiles.
-  - `MembersGui.isTileSlot(slot)` is false for each `slot` in 45 (row 5, column 0) and 54 (row 6, column 0).
-- **`theSlotDirectlyBelowTheLastTileIsNotATile`**: Slot 53 (row 5, column 8) is not a tile; it is the only one of the below-area slots that pins the bottom row bound.
+- **`slotsBelowTheTileAreaAreNotTiles`**: Slots 47 and 53 (row 5, columns 2 and 8, directly below the first and last tiles of the bottom row) are not tiles. Both sit inside the tile columns, so only the row bound keeps them out.
+  - `MembersGui.isTileSlot(47)` is false (row 5, column 2).
   - `MembersGui.isTileSlot(53)` is false (row 5, column 8).
 - **`thePreviousPageButtonIsNotATile`**: `PREVIOUS_PAGE_SLOT` (10, row 1 column 1) is not a tile, so the walker never collects a page button as a member.
   - `MembersGui.isTileSlot(MembersGui.PREVIOUS_PAGE_SLOT)` is false; `PREVIOUS_PAGE_SLOT` is 10 (row 1, column 1).
 - **`theNextPageButtonIsNotATile`**: `NEXT_PAGE_SLOT` (28, row 3 column 1) is not a tile.
   - `MembersGui.isTileSlot(MembersGui.NEXT_PAGE_SLOT)` is false; `NEXT_PAGE_SLOT` is 28 (row 3, column 1).
-- **`aNegativeSlotIsNotATileAndDoesNotThrow`**: Slot -1 returns false without throwing; pinned as undocumented behaviour that matches the three predicate copies it replaced, not as contract.
+- **`aNegativeSlotIsNotATileAndDoesNotThrow`**: Slot -1 returns false without throwing: truncating `/` and `%` put it in column -1, and `MembersListSearcher.onSetSlot` passes on whatever slot an event carries.
   - `MembersGui.isTileSlot(-1)` is false (row 0, column -1); the call does not throw.
-- **`titlePatternMirrorsUpstream`**: `TITLE_PATTERN.pattern()` equals `.+: Members`.
-  - `MembersGui.TITLE_PATTERN.pattern()` equals `".+: Members"`.
-- **`pageButtonPatternsMirrorUpstream`**: The next and previous page patterns equal the literal strings `§a§lNext Page` and `§a§lPrevious Page`.
-  - `MembersGui.NEXT_PAGE_PATTERN.pattern()` equals `"§a§lNext Page"`.
-  - `MembersGui.PREVIOUS_PAGE_PATTERN.pattern()` equals `"§a§lPrevious Page"`.
-- **`pageButtonSlotsMirrorUpstream`**: `NEXT_PAGE_SLOT` is 28 and `PREVIOUS_PAGE_SLOT` is 10, matching Wynntils' `getNextItemSlot()` and `getPreviousItemSlot()`.
-  - `MembersGui.NEXT_PAGE_SLOT` equals `28`.
-  - `MembersGui.PREVIOUS_PAGE_SLOT` equals `10`.
 - **`pageTurned_falseWhileTheOldPageIsStillShowing`**: When the new scan is the old page itself (Metrafish in slot 2, Holidaze in slot 3), `pageTurned` is false.
   - `MembersGui.pageTurned(OLD_PAGE, OLD_PAGE)` is false, where `OLD_PAGE` is `Map.of(2, "Metrafish", 3, "Holidaze")`.
 - **`pageTurned_trueOnceEveryTileIsNew`**: When both slots hold new names (Wenweia, Nazzae), `pageTurned` is true.
@@ -1549,8 +1414,6 @@ Test: [`NameOrSelectorArgumentTest.java`](../src/test/java/org/wynnvets/distribu
   - `e.getRawMessage().getString()` equals `EMPTY_MESSAGE`.
 - **`getExamples_areTheTwoDocumentedForms`**: `getExamples()` is `PlayerName` then `@random`.
   - `List.copyOf(TYPE.getExamples())` equals `List.of("PlayerName", "@random")`, in that order.
-- **`nameOrSelector_returnsTheSharedInstance`**: Two calls to `nameOrSelector()` return the same instance.
-  - The result of `NameOrSelectorArgument.nameOrSelector()` is the same instance as the result of a second `NameOrSelectorArgument.nameOrSelector()` call.
 
 ## `org.wynnvets.distribute.distributor`
 
@@ -1583,20 +1446,16 @@ Test: [`GraidsDistributorTest.java`](../src/test/java/org/wynnvets/distribute/di
   - `queue.size()` equals `1`, where `queue` is `buildDistribution` over `a`=10, `b`=1 with 1 reward.
   - `sum(queue)` equals `1`.
   - `names(queue)` is `["a"]` or `["b"]`, since the one reward goes to a random participant.
-- **`aParticipantWithAZeroShareDisappearsWhileTheRestKeepTheirOrder`**: Three rewards across frequencies 11 and 1 total 3 and always put `a` first; it does not assert whether `b` is present.
-  - `sum(queue)` equals `3`, where `queue` is `buildDistribution` over `a`=11, `b`=1 with 3 rewards.
-  - `names(queue).get(0)` equals `"a"`.
+- **`aParticipantWithAZeroShareDisappearsWhileTheRestKeepTheirOrder`**: Three rewards across frequencies 11 and 1 floor to 2 and 0, and the leftover goes to a random one of the two: either `b` draws it and follows `a`, or `a` draws it and `b`, left with nothing, is not queued. Repeated over 50 trials so that `a`'s draw, the one that shows the zero share dropped, comes up.
+  - For each of 50 trials: `queue` (a list copy of `buildDistribution` over `a`=11, `b`=1 with 3 rewards) equals `[Distribution("a", 3)]` or `[Distribution("a", 2), Distribution("b", 1)]`.
 - **`anEmptyFrequencyMapYieldsAnEmptyQueue`**: An empty frequency map yields an empty queue; this is guarded here, unlike `ObjectivesDistributor`.
   - `GraidsDistributor.buildDistribution(freq(), 5)` is empty, where `freq()` is an empty map.
 - **`allZeroFrequenciesYieldAnEmptyQueue`**: Frequencies all 0 with 5 rewards yield an empty queue.
   - `GraidsDistributor.buildDistribution(freq("a", 0, "b", 0), 5)` is empty.
 - **`zeroRewardsYieldAnEmptyQueue`**: A count of 0 yields an empty queue, since every share floors to 0 with no remainder.
   - `GraidsDistributor.buildDistribution(freq("a", 3, "b", 1), 0)` is empty.
-- **`filterIndex_anEmptyExcludeSetHandsBackTheCallerSOwnMap`**: With an empty exclude set, `filterIndex` returns the very same map instance it was given.
-  - `GraidsDistributor.filterIndex(idx, Set.of())` is the same instance as `idx`, where `idx` is `{"oldname": "OldName", "newname": "OldName"}`.
-- **`filterIndex_anExcludeSetThatMatchesNothingStillCopies`**: An exclude set matching nothing returns an equal but distinct map, so the fast path depends on the set being empty, not on the outcome.
-  - `out` (the result of `filterIndex(idx, Set.of("Nobody"))`, with `idx` = `{"solo": "Solo"}`) equals `idx`.
-  - `out` is not the same instance as `idx`.
+- **`filterIndex_anEmptyExcludeSetKeepsEveryEntry`**: With an empty exclude set, `filterIndex` keeps every entry.
+  - `GraidsDistributor.filterIndex(idx, Set.of())` equals `idx`, where `idx` is `{"oldname": "OldName", "newname": "OldName"}`.
 - **`filterIndex_excludingAMemberDropsBothOfTheirLookupKeys`**: Excluding canonical name `OldName` removes both its current and legacy lookup keys and leaves the other member's entry.
   - `GraidsDistributor.filterIndex(idx, Set.of("OldName"))` equals `{"other": "Other"}`, where `idx` is `{"oldname": "OldName", "newname": "OldName", "other": "Other"}`.
 - **`filterIndex_theExcludeSetIsMatchedAgainstTheValueNotTheKey`**: Excluding the lookup key `oldname` filters nothing, because matching is against map values.
@@ -1669,20 +1528,15 @@ Test: [`ObjectivesDistributorTest.java`](../src/test/java/org/wynnvets/distribut
   - For each `total` 1 to 64, with `completers` as above: `counts` (the sorted counts of `buildDistribution(completers, total)`) has last element minus first element `<= 1`.
 - **`buildDistribution_zeroTotalYieldsAnEmptyQueue`**: A total of 0 yields an empty queue.
   - `ObjectivesDistributor.buildDistribution(["a", "b"], 0)` is empty.
-- **`buildDistribution_dividesByZeroOnAnEmptyCompleterList`**: An empty completer list throws `ArithmeticException`; pinned as unguarded, with the caller's `isEmpty()` check as the only protection.
-  - `ObjectivesDistributor.buildDistribution([], 5)` throws `ArithmeticException`.
 
 ### `RandomDistributorTest`
 
 Test: [`RandomDistributorTest.java`](../src/test/java/org/wynnvets/distribute/distributor/RandomDistributorTest.java) · Subject: [`RandomDistributor`](../src/client/java/org/wynnvets/distribute/distributor/RandomDistributor.java)
 
-`RandomDistributor` implements `@random` distribution, picking recipients from the wapi roster of legacy names. The suite covers its two pure helpers. `filterNames` applies the NoAspects opt-out to that roster before any picking; it is pinned for the identity return when nothing is excluded, order preservation, case-sensitive matching and the empty-result edges, using a fixed roster of Metrafish, Holidaze and Wenweia. `distinctIgnoringCase` keeps each tile name once, first spelling wins, and must fold case independently of the JVM default locale (checked under Turkish). Both are package-private seams.
+`RandomDistributor` implements `@random` distribution, picking recipients from the wapi roster of legacy names. The suite covers its two pure helpers. `filterNames` applies the NoAspects opt-out to that roster before any picking; it is pinned for an empty exclude set keeping every name, order preservation, case-sensitive matching and the empty-result edges, using a fixed roster of Metrafish, Holidaze and Wenweia. `distinctIgnoringCase` keeps each tile name once, first spelling wins, and must fold case independently of the JVM default locale (checked under Turkish). Both are package-private seams.
 
-- **`anEmptyExcludeSetHandsBackTheCallerSOwnList`**: With an empty exclude set, `filterNames` returns the same list instance it was given.
-  - `RandomDistributor.filterNames(ROSTER, Set.of())` is the same instance as `ROSTER`, the fixture `["Metrafish", "Holidaze", "Wenweia"]`.
-- **`anExcludeSetThatMatchesNothingStillCopies`**: Excluding `Nobody` returns an equal list that is a distinct instance, so the fast path depends on the set being empty.
-  - `out` (the result of `filterNames(ROSTER, Set.of("Nobody"))`) equals `["Metrafish", "Holidaze", "Wenweia"]`.
-  - `out` is not the same instance as `ROSTER`.
+- **`anEmptyExcludeSetKeepsEveryName`**: With an empty exclude set, `filterNames` keeps the whole roster.
+  - `RandomDistributor.filterNames(ROSTER, Set.of())` equals `ROSTER`, the fixture `["Metrafish", "Holidaze", "Wenweia"]`.
 - **`anExcludedNameIsDroppedAndTheRestKeepTheirOrder`**: Excluding `Holidaze` leaves Metrafish, Wenweia in order.
   - `RandomDistributor.filterNames(ROSTER, Set.of("Holidaze"))` equals `["Metrafish", "Wenweia"]`.
 - **`everyExcludedNameIsDropped`**: Excluding `Metrafish` and `Holidaze` leaves only Wenweia.
@@ -1702,10 +1556,8 @@ Test: [`RandomDistributorTest.java`](../src/test/java/org/wynnvets/distribute/di
 
 Test: [`SplitDistributorTest.java`](../src/test/java/org/wynnvets/distribute/distributor/SplitDistributorTest.java) · Subject: [`SplitDistributor`](../src/client/java/org/wynnvets/distribute/distributor/SplitDistributor.java)
 
-`SplitDistributor` runs the three distribution phases (`@graids`, `@objectives`, `@random`) back to back, and `splitCount` divides the total across those three pools. The suite pins that `splitCount` returns three pools, conserves the total, keeps the pools within one of each other, and hands the remainder to random distinct pools. It asserts exact arrays only where the shuffle does not run, and sweeps counts 0 to 255 (the Brigadier-reachable range). `splitCount` is a package-private seam.
+`SplitDistributor` runs the three distribution phases (`@graids`, `@objectives`, `@random`) back to back, and `splitCount` divides the total across those three pools. The suite pins that `splitCount` conserves the total, keeps the pools within one of each other, and hands the remainder to random distinct pools. It asserts exact arrays only where the shuffle does not run, and sweeps counts 0 to 255 (the Brigadier-reachable range). `splitCount` is a package-private seam.
 
-- **`alwaysReturnsThreePools`**: For every count from 0 to 255, the result has length 3.
-  - For each `count` 0 to 255: `SplitDistributor.splitCount(count).length` equals `3`.
 - **`totalIsConservedAcrossTheWholeReachableRange`**: For every count from 0 to 255, the three pools sum to the count.
   - For each `count` 0 to 255: `sum(SplitDistributor.splitCount(count))` equals `count`, where `sum(pools)` is `pools[0] + pools[1] + pools[2]`.
 - **`poolsNeverDifferByMoreThanOne`**: For every count from 0 to 255, the largest and smallest pool differ by at most 1.
@@ -1720,12 +1572,6 @@ Test: [`SplitDistributorTest.java`](../src/test/java/org/wynnvets/distribute/dis
   - For each `count` and expected array: `sorted(SplitDistributor.splitCount(count))` equals the array; `1` gives `[0, 0, 1]`; `2` gives `[0, 1, 1]`.
 - **`theBonusReachesEveryPoolAcrossRepeatedDraws`**: Over 200 draws of count 1, each of the three pool indices receives the bonus at least once, ruling out a fixed-index remainder.
   - `seen[0] && seen[1] && seen[2]` is true, where `seen` (a `boolean[3]`) is set at index `i` whenever `pools[i]` equals `1` in any of 200 calls to `SplitDistributor.splitCount(1)`.
-- **`negativeCountsSilentlyDropTheRemainder`**: Count -1 gives `{0,0,0}` (sum 0) and -4 gives `{-1,-1,-1}` (sum -3); pinned as undocumented, unreachable behaviour from truncating division.
-  - For each `count` and expected array: `SplitDistributor.splitCount(count)` equals the array; `-1` gives `[0, 0, 0]`; `-4` gives `[-1, -1, -1]`.
-  - For each `count` and expected sum: `sum(SplitDistributor.splitCount(count))` equals the value; `-1` gives `0`; `-4` gives `-3`.
-- **`negativeMultiplesOfThreeAreConservedBecauseTheyHaveNoRemainder`**: Count -6 gives `{-2,-2,-2}` and the total is conserved.
-  - `SplitDistributor.splitCount(-6)` equals `[-2, -2, -2]`.
-  - `sum(SplitDistributor.splitCount(-6))` equals `-6`.
 
 ## `org.wynnvets.distribute.recipients`
 
@@ -1733,14 +1579,10 @@ Test: [`SplitDistributorTest.java`](../src/test/java/org/wynnvets/distribute/dis
 
 Test: [`NameResolverTest.java`](../src/test/java/org/wynnvets/distribute/recipients/NameResolverTest.java) · Subject: [`NameResolver`](../src/client/java/org/wynnvets/distribute/recipients/NameResolver.java)
 
-`NameResolver` turns a wapi v3 guild payload into the names the Members GUI shows on its tiles (the legacy name where a member renamed, otherwise the current name). The suite pins its four string-in extractors: `extractAllLegacyNames`, `extractUuidToLegacyName`, `extractNameIndex` and `findLegacyName`. It fixes their deliberate asymmetries over malformed or uuid-less members, and that every parse failure is fail-open. All tests share one hand-written `ROSTER` JSON fixture covering a renamed member, a name collision, a uuid-less member and a non-object entry. An `@AfterEach` restores the default `Locale`, which one test sets to Turkish.
+`NameResolver` turns a wapi v3 guild payload into the names the Members GUI shows on its tiles (the legacy name where a member renamed, otherwise the current name). The suite pins its four string-in extractors: `extractAllLegacyNames`, `extractUuidToLegacyName`, `extractNameIndex` and `findLegacyName`. It fixes their deliberate asymmetries over malformed or uuid-less members, and that every parse failure is fail-open. Most tests share one hand-written `ROSTER` JSON fixture covering a renamed member, a name collision, a uuid-less member and a non-object entry; the Turkish-fold and walk-order tests build their own payloads, and the fail-open and `total`-bucket tests feed malformed, null or one-bucket bodies. An `@AfterEach` restores the default `Locale`, which one test sets to Turkish.
 
-- **`extractAllLegacyNames_prefersLegacyAndFallsBackToCurrent`**: The roster yields Holidaze, Holidaze, Metrafish, OldNazzae, Broken, using the legacy name where present and the current name otherwise.
+- **`extractAllLegacyNames_prefersLegacyAndFallsBackToCurrent`**: The roster yields Holidaze, Holidaze, Metrafish, OldNazzae, Broken, using the legacy name where present and the current name otherwise. The list shows two asymmetries: the malformed `Broken` entry still contributes its name, unlike in `extractUuidToLegacyName`, and `Holidaze` appears twice, because two distinct members display that name and the list is not deduplicated.
   - `names` (`NameResolver.extractAllLegacyNames(ROSTER)`, where `ROSTER` is the wapi v3 guild payload fixture) equals `["Holidaze", "Holidaze", "Metrafish", "OldNazzae", "Broken"]`, in payload order: Wenweia's legacy name, Holidaze (no legacy name, so the key), Metrafish (key), Nazzae's legacy name, Broken (key).
-- **`extractAllLegacyNames_keepsMalformedEntriesUnderTheirCurrentName`**: The malformed `Broken` entry still contributes its name, unlike in `extractUuidToLegacyName`.
-  - `NameResolver.extractAllLegacyNames(ROSTER)` contains `"Broken"`.
-- **`extractAllLegacyNames_canProduceDuplicates`**: `Holidaze` appears twice, because two distinct members display that name and the list is not deduplicated.
-  - The count of `"Holidaze"` in `names` (`extractAllLegacyNames(ROSTER)`) equals `2`.
 - **`extractUuidToLegacyName_keysOnTheNormalisedUuid`**: Keys are lowercased, undashed UUIDs mapping to tile names: Wenweia's UUID to Holidaze, Holidaze's to Holidaze, Metrafish's to Metrafish.
   - `map.get("085d0e5829d444aa837992a4568a59d6")` equals `"Holidaze"`, where `map` is `NameResolver.extractUuidToLegacyName(ROSTER)` and the key is Wenweia's uuid with dashes removed and lowercased.
   - `map.get("fa8aa7004538485fbf91325263606995")` equals `"Holidaze"`.
@@ -1756,9 +1598,9 @@ Test: [`NameResolverTest.java`](../src/test/java/org/wynnvets/distribute/recipie
 - **`extractNameIndex_keysAreLowercased`**: The key `wenweia` exists and the raw-case key `Wenweia` does not.
   - `index` contains the key `"wenweia"`.
   - `index` does not contain the key `"Wenweia"`.
-- **`extractNameIndex_foldsWithLocaleRootSoATurkishClientIndexesTheSameKeys`**: With the default locale set to Turkish, the index has key `metrafish` and lacks the dotless-i key `metrafısh`. As written this cannot fail: `Metrafish` has no capital `I`, and the Turkish fold only changes a capital `I` (to U+0131), so even a default-locale fold would produce `metrafish`. The test comment claims the name contains a capital I, which it does not.
-  - With the default locale set to Turkish (`tr`) for this test: `index.get("metrafish")` equals `"Metrafish"`. This cannot fail as written: `Metrafish` has no capital `I`, and the Turkish fold only changes a capital `I`, so the fold gives `metrafish` even without `Locale.ROOT`.
-  - With the same locale: `index` does not contain the key `"metrafısh"` (the dotless-i form). This cannot fail as written either, since no capital `I` exists to fold to U+0131; the test comment wrongly says the name contains a capital I.
+- **`extractNameIndex_foldsWithLocaleRootSoATurkishClientIndexesTheSameKeys`**: With the default locale set to Turkish, a one-member payload whose name starts with a capital `I` (`Ironclad`, no legacy name) is indexed under the ASCII key `ironclad`, never the dotless-i key a default-locale fold would give (`I` → U+0131).
+  - With the default locale set to Turkish (`tr`) for this test: `index.get("ironclad")` equals `"Ironclad"`, where `index` is `extractNameIndex` over `{"members": {"chief": {"Ironclad": {"uuid": "x"}}}}`.
+  - With the same locale: `index` does not contain the key `"ıronclad"` (the dotless-i form).
 - **`extractNameIndex_malformedEntriesStillGetAnEntry`**: The index maps `broken` to `Broken` even though its payload value is not an object.
   - `NameResolver.extractNameIndex(ROSTER).get("broken")` equals `"Broken"`.
 - **`findLegacyName_resolvesACurrentNameToItsLegacyName`**: Looking up `Wenweia` returns Holidaze.
@@ -1768,8 +1610,8 @@ Test: [`NameResolverTest.java`](../src/test/java/org/wynnvets/distribute/recipie
   - `NameResolver.findLegacyName(ROSTER, "WENWEIA")` equals `"Holidaze"`.
 - **`findLegacyName_acceptsALegacyNameVerbatim`**: Looking up `metrafish` returns `Metrafish`, the payload's spelling.
   - `NameResolver.findLegacyName(ROSTER, "metrafish")` equals `"Metrafish"`.
-- **`findLegacyName_payloadOrderDecidesACollisionBetweenALegacyAndACurrentName`**: Looking up `holidaze`, which is one member's legacy name and another's current name, returns Holidaze; both candidates give the same answer, so the result does not show which one won.
-  - `NameResolver.findLegacyName(ROSTER, "holidaze")` equals `"Holidaze"`; the owner bucket's legacy match for Wenweia is reached before the chief bucket's current-name match for Holidaze.
+- **`findLegacyName_payloadOrderDecidesACollisionBetweenALegacyAndACurrentName`**: In a payload where `Holidaze` is Wenweia's legacy name (owner bucket) and the current name of a chief whose own legacy name is `OldHolidaze`, looking up `holidaze` returns Holidaze: the walk stops at the first hit in document order, so the owner's legacy match wins over the chief's current-name match, which would answer `OldHolidaze`.
+  - `NameResolver.findLegacyName(collision, "holidaze")` equals `"Holidaze"`, where `collision` is `{"members": {"owner": {"Wenweia": {"legacyName": "Holidaze"}}, "chief": {"Holidaze": {"legacyName": "OldHolidaze"}}}}`.
 - **`findLegacyName_skipsMalformedEntriesSoTheirNameFallsBackToTheInput`**: Looking up `broken` returns `broken` unchanged (input case), because the malformed entry is skipped.
   - `NameResolver.findLegacyName(ROSTER, "broken")` equals `"broken"`; the malformed `Broken` entry is never matched, so the input is returned unchanged.
 - **`findLegacyName_unknownInputIsReturnedUnchanged`**: An unknown name `Nobody` is returned as given.
@@ -1790,7 +1632,7 @@ Test: [`NameResolverTest.java`](../src/test/java/org/wynnvets/distribute/recipie
 
 Test: [`NoAspectsFilterTest.java`](../src/test/java/org/wynnvets/distribute/recipients/NoAspectsFilterTest.java) · Subject: [`NoAspectsFilter`](../src/client/java/org/wynnvets/distribute/recipients/NoAspectsFilter.java)
 
-`NoAspectsFilter` builds the set of tile names excluded from aspect distribution: it parses an opt-out list of UUIDs, then translates them to legacy names using the guild roster. The suite pins `parseUuids` and `buildExcludedNames`, plus the ungated arm of `fetchExcludedLegacyNames`, which makes no request. Both halves fail open, so an empty exclude set means nobody is filtered. The one sharp edge is that a single unusable `uuid` value discards the whole parsed list. The tests use package-private seams with hand-written JSON and dashed or normalised UUID constants, and never call the gated network arm.
+`NoAspectsFilter` builds the set of tile names excluded from aspect distribution: it parses an opt-out list of UUIDs, then translates them to legacy names using the guild roster. The suite pins `parseUuids` and `buildExcludedNames`, plus the ungated arm of `fetchExcludedLegacyNames`, which makes no request. Both halves fail open, so an empty exclude set means nobody is filtered. The tests use package-private seams with hand-written JSON and dashed or normalised UUID constants, and never call the gated network arm.
 
 - **`fetchExcludedLegacyNames_ungated_isAnEmptySetAlreadyComplete`**: With gating off, the returned future is already done and holds an empty set.
   - `excluded.isDone()` is true, where `excluded` is `NoAspectsFilter.fetchExcludedLegacyNames(false)`.
@@ -1798,13 +1640,9 @@ Test: [`NoAspectsFilterTest.java`](../src/test/java/org/wynnvets/distribute/reci
 - **`parseUuids_normalisesEveryEntry`**: A dashed uppercase UUID in the payload comes back as a lowercase undashed one.
   - `uuids` (`NoAspectsFilter.parseUuids` on a one-entry array whose `uuid` is `BB171C68-7080-4D02-BE7B-CC2D5DCBCD82`) equals `Set.of("bb171c6870804d02be7bcc2d5dcbcd82")`.
 - **`parseUuids_dedupesAcrossSpellings`**: The same UUID listed dashed and undashed collapses to one entry.
-  - `uuids.size()` equals `1`, for an input listing the same account dashed and undashed.
+  - `uuids` equals `Set.of("bb171c6870804d02be7bcc2d5dcbcd82")`, for an input listing the same account dashed and undashed.
 - **`parseUuids_skipsEntriesWithNoUsableUuid`**: Entries with a missing, null or empty uuid, plus a string and a number, are skipped while a valid neighbour is kept.
   - `uuids` equals `Set.of("fa8aa7004538485fbf91325263606995")`, for an input array holding `{"username": "NoUuid"}`, `{"uuid": null}`, `{"uuid": ""}`, the string `"not an object"`, the number `123`, and `{"uuid": "fa8aa700-4538-485f-bf91-325263606995"}`.
-- **`parseUuids_coercesANumericUuidRatherThanRejectingIt`**: A numeric `uuid` of 123 yields the key `123` instead of being rejected.
-  - `NoAspectsFilter.parseUuids([{"uuid": 123}])` equals `Set.of("123")`.
-- **`parseUuids_oneUnusableUuidValueDiscardsTheEntireList`**: A valid entry followed by an object-valued uuid returns an empty set, because the catch covers the whole loop.
-  - `uuids` equals `Set.of()`, for the input `[{"uuid": "BB171C68-7080-4D02-BE7B-CC2D5DCBCD82"}, {"uuid": {"nested": 1}}]`; the valid first entry is discarded along with the object-valued second one.
 - **`parseUuids_failsOpenOnAnythingThatIsNotAJsonArray`**: Empty, non-JSON, `{}`, an object wrapping an empty array, `null`, a string, a number and a null argument all return an empty set.
   - For each `body` in `""`, `"not json"`, `"{}"`, `{"uuids": []}`, `"null"`, `"a string"` (a JSON string), `"7"`: `NoAspectsFilter.parseUuids(body)` equals `Set.of()`.
   - `NoAspectsFilter.parseUuids(null)` equals `Set.of()`.
@@ -1825,9 +1663,6 @@ Test: [`NoAspectsFilterTest.java`](../src/test/java/org/wynnvets/distribute/reci
   - `NoAspectsFilter.buildExcludedNames({"bb171c6870804d02be7bcc2d5dcbcd82"}, {uppercase of "bb171c6870804d02be7bcc2d5dcbcd82": "OldMetrafish"})` equals `Set.of()`; the case-mismatched key does not match. The uppercase form is `NORMALISED.toUpperCase(Locale.ROOT)`.
 - **`parseUuidsFeedsBuildExcludedNamesWithoutFurtherNormalisation`**: Parsing a dashed UUID and passing the result straight to `buildExcludedNames` finds `OldMetrafish` in a normalised-key map.
   - `NoAspectsFilter.buildExcludedNames(uuids, {"bb171c6870804d02be7bcc2d5dcbcd82": "OldMetrafish"})` equals `Set.of("OldMetrafish")`, where `uuids` is `parseUuids` of a one-entry array whose `uuid` is `BB171C68-7080-4D02-BE7B-CC2D5DCBCD82`.
-- **`anEmptyResultIsTheSharedImmutableInstanceOnEveryFailurePath`**: Parsing `garbage`, `{}`, and a list with an object-valued uuid all return the same `Set.of()` instance, covering both the guard and the catch exit.
-  - `NoAspectsFilter.parseUuids("garbage")` is the same instance as `NoAspectsFilter.parseUuids("{}")`.
-  - `NoAspectsFilter.parseUuids("{}")` is the same instance as `NoAspectsFilter.parseUuids([{"uuid": {"nested": 1}}])`.
 
 ## `org.wynnvets.extras`
 
@@ -1835,14 +1670,13 @@ Test: [`NoAspectsFilterTest.java`](../src/test/java/org/wynnvets/distribute/reci
 
 Test: [`ExtrasCommandsTest.java`](../src/test/java/org/wynnvets/extras/ExtrasCommandsTest.java) · Subject: [`ExtrasCommands`](../src/client/java/org/wynnvets/extras/ExtrasCommands.java)
 
-`ExtrasCommands` builds `/wv extras`. The suite pins the tree's shape and that nothing gates it. The commands themselves are not run, since an answer goes through Wynntils' chat.
+`ExtrasCommands` builds `/wv extras`. The suite pins that both `extras` and `sudoku` run when typed bare, and that no `requires` gates either. A node with no command of its own makes Brigadier report an unknown command, and Fabric forwards such a client command to the server, so a bare `/wv extras` would leave the client instead of printing its usage line. Several `/wv` subtrees are gated on the player's guild standing; this one is open to everyone. The tree is built with an `extras()` helper (`ExtrasCommands.buildCommandTree().build()`). The commands themselves are not run, since an answer goes through Wynntils' chat.
 
-- **`treeBuildsWithItsDocumentedShape`**: The tree is `extras` with one child, `sudoku`, and both nodes run on their own.
-  - The node's name equals `extras`.
+- **`bothNodesRunWhenTypedBare`**: `extras` and its `sudoku` child each have a command of their own.
+  - `extras.getName()` equals `"extras"`.
   - `extras.getCommand()` is not null: a bare `extras` prints its usage line.
-  - The child names equal `[sudoku]`.
-  - `sudoku`'s command is not null.
-  - `sudoku` has no children.
+  - `sudoku` (`extras.getChild("sudoku")`) is not null.
+  - `sudoku.getCommand()` is not null: `sudoku` opens the board.
 - **`everyoneCanPlay_soNothingGatesTheTree`**: Neither node has a requirement that can fail.
   - `extras.getRequirement().test(null)` is true.
   - `sudoku`'s `getRequirement().test(null)` is true.
@@ -2053,14 +1887,14 @@ Test: [`SudokuClientTest.java`](../src/test/java/org/wynnvets/extras/sudoku/Sudo
 
 Test: [`MojangCooldownTest.java`](../src/test/java/org/wynnvets/fetcher/lookup/MojangCooldownTest.java) · Subject: [`MojangCooldown`](../src/client/java/org/wynnvets/fetcher/lookup/MojangCooldown.java)
 
-`MojangCooldown` is a static cooldown gate: after a 429 from the legacy Mojang endpoint, the lookup provider skips that host until the recorded cutoff passes. The suite pins the default state, the 60 second default, explicit durations, the rule that the longest cutoff wins, `clear`, and the debug force switch. It reads the real wall clock and uses bounded ranges rather than exact values, and an `@AfterEach` resets the force flag and cooldown because the state is static.
+`MojangCooldown` is a static cooldown gate: after a 429 from the legacy Mojang endpoint, the lookup provider skips that host until the recorded cutoff passes. The suite pins the default state, the 60 second default, explicit durations, the rule that the longest cutoff wins, and `clear`. It reads the real wall clock and uses bounded ranges rather than exact values, and an `@AfterEach` clears the cooldown because the state is static.
 
 - **`defaultState_notCoolingDown_remainingMsZero`**: With nothing recorded, `isCoolingDown()` is false and `remainingMs()` is 0.
-  - `MojangCooldown.isCoolingDown()` is false on a fresh state (no 429 recorded, no force override; the `@AfterEach` resets both).
+  - `MojangCooldown.isCoolingDown()` is false on a fresh state (no 429 recorded; the `@AfterEach` clears it).
   - `MojangCooldown.remainingMs()` equals `0L`.
-- **`record429_nullDuration_appliesDefault60s`**: Recording a null duration puts the gate in cooldown, with remaining time positive and at most 60,000 ms.
+- **`record429_nullDuration_appliesDefault60s`**: Recording a null duration puts the gate in cooldown, with remaining time above 59,000 and at most 60,000 ms.
   - `MojangCooldown.isCoolingDown()` is true after `MojangCooldown.record429(null)`.
-  - `remaining` (`MojangCooldown.remainingMs()` read straight after the record) is greater than `0L`.
+  - `remaining` (`MojangCooldown.remainingMs()` read straight after the record) is greater than `55_000L`, allowing five wall-clock seconds between record and read.
   - `remaining` is at most `60_000L` (the 60 s default for a null duration).
 - **`record429_explicitDuration_applies`**: Recording 120 seconds gives remaining time above 60,000 and at most 120,000 ms.
   - `remaining` (after `record429(Duration.ofSeconds(120))`) is greater than `60_000L`.
@@ -2071,13 +1905,6 @@ Test: [`MojangCooldownTest.java`](../src/test/java/org/wynnvets/fetcher/lookup/M
   - `MojangCooldown.isCoolingDown()` is true after `record429(Duration.ofSeconds(60))`.
   - `MojangCooldown.isCoolingDown()` is false after `MojangCooldown.clear()`.
   - `MojangCooldown.remainingMs()` equals `0L` after `clear()`.
-- **`forceCooldown_overridesActualState`**: Forcing the cooldown with nothing recorded makes `isCoolingDown()` true, `remainingMs()` `Long.MAX_VALUE`, and `isForceCooldown()` true.
-  - `MojangCooldown.isCoolingDown()` is true after `setForceCooldown(true)`, with no 429 recorded.
-  - `MojangCooldown.remainingMs()` equals `Long.MAX_VALUE` under the force override.
-  - `MojangCooldown.isForceCooldown()` is true.
-- **`forceCooldown_unset_restoresActualState`**: Setting force on then off returns to not cooling down with 0 remaining.
-  - `MojangCooldown.isCoolingDown()` is false after `setForceCooldown(true)` then `setForceCooldown(false)`.
-  - `MojangCooldown.remainingMs()` equals `0L` after that pair of calls.
 
 ### `PlayerLookupTest`
 
@@ -2199,7 +2026,7 @@ Test: [`CheckReportRendererTest.java`](../src/test/java/org/wynnvets/fetcher/ond
 - **`otherGuildUnknown_showsCachedTail_noRank`**: A failed other-guild roster call leaves the payload's guild and prefix with the `(cached)` tail, no rank.
   - The line equals `"Guild: Other Guild  [OTH]  (cached)"`, for an other-guild roster `UNKNOWN`.
   - The line does not contain `"RECRUIT"`.
-- **`guildlessPayload_unchanged`**: A payload naming no guild reads `guildless` whatever the roster verdicts.
+- **`guildlessPayload_isGuildlessWhateverTheRoster`**: A payload naming no guild reads `guildless` whatever the roster verdicts.
   - The line equals `"Guild: guildless"`, for a Returners roster `NOT_IN_ROSTER`.
   - The line equals `"Guild: guildless"`, for a Returners roster `UNKNOWN`.
 - **`guildlessPayload_discordTierAnnotationUnchanged`**: A guildless payload with a `member`-tier Discord snapshot keeps the cached roster annotation.
@@ -2223,7 +2050,7 @@ Test: [`CheckReportRendererTest.java`](../src/test/java/org/wynnvets/fetcher/ond
   - The line equals the same text, for an other-guild roster `UNKNOWN`.
 - **`notHiatus_neverShowsHint`**: A `member` tier gets no annotation whatever the evidence.
   - The line equals `"Discord link: @meta  (42)  -  member"`, for a Returners roster `IN_ROSTER` and the tab-list flag set.
-- **`discordLine_snapshotUnavailableAndNotLinked_unchanged`**: The unavailable and not-linked lines are as before.
+- **`discordLine_snapshotUnavailableOrNotLinked`**: A missing or empty snapshot reads as unavailable, and an unlinked one as not linked.
   - The line equals `"Discord link: (snapshot unavailable)"` for a null snapshot.
   - The line equals `"Discord link: (snapshot unavailable)"` for a snapshot with no `discord`.
   - The line equals `"Discord link: not linked"` for `{"linked": false}`.
@@ -2239,7 +2066,7 @@ Test: [`CheckReportRendererTest.java`](../src/test/java/org/wynnvets/fetcher/ond
 - **`lastSeenFallback_noObservation_isHidden`**: A null snapshot, or one without `last_seen_observed` (an older server), is hidden.
   - The line equals `"Last seen on Wynncraft: (hidden)"` for a null snapshot.
   - The line equals the same text for a snapshot parsed from `{}`.
-- **`lastSeenFallback_selfAndTabList_unchanged`**: Self and a tab-list hit read as now, ahead of any observation.
+- **`lastSeenFallback_selfAndTabList_readNow`**: Self and a tab-list hit read as now, ahead of any observation.
   - The line equals `"Last seen on Wynncraft: now  (self)"`, for self with tab-list server `WC7`.
   - The line equals `"Last seen on Wynncraft: now  (tab-list: WC7)"`, for a non-self target with tab-list server `WC7`.
 
@@ -2379,7 +2206,7 @@ Test: [`ReturnersRosterProbeTest.java`](../src/test/java/org/wynnvets/fetcher/on
 
 Test: [`TimeLabelsTest.java`](../src/test/java/org/wynnvets/fetcher/ondemand/TimeLabelsTest.java) · Subject: [`TimeLabels`](../src/client/java/org/wynnvets/fetcher/ondemand/TimeLabels.java)
 
-`TimeLabels` formats relative dates and ages: a day-level date label, a coarse years/months/days label, and a seconds-based age. The suite pins `humanizeAge` at each unit boundary, and the two date labels on inputs that cannot straddle a unit boundary on any calendar day. The String overloads of the date labels read `LocalDate.now()` themselves, so the `assertLabel` helper reads the date before and after the call and skips the assertion with `assumeTrue` if midnight passed in between. Inputs are date strings derived from the same default-zone date. The overloads that take a `LocalDate` and an explicit `today`, and `toLocalDate(Instant, ZoneId)`, read no clock: they are pinned with the fixed zone `BUENOS_AIRES` (America/Argentina/Buenos_Aires, UTC-3 all year) and a fixed `today`, including the evening on which the UTC date is a day ahead of the local one.
+`TimeLabels` formats relative dates and ages: a day-level date label, a coarse years/months/days label, and a seconds-based age. The suite pins `humanizeAge` at each unit boundary, and the two date labels in both their forms. The overloads that take a `LocalDate` and an explicit `today`, and `toLocalDate(Instant, ZoneId)`, read no clock and carry the label tables: they are pinned with the fixed zone `BUENOS_AIRES` (America/Argentina/Buenos_Aires, UTC-3 all year) and a fixed `today`, including the evening on which the UTC date is a day ahead of the local one. The String overloads parse the text and pass `LocalDate.now()` to those, so each has one assertion, through the `assertLabel` helper, on an input that cannot straddle a unit boundary on any calendar day: the helper reads the date before and after the call and skips the assertion with `assumeTrue` if midnight passed in between. Inputs are date strings derived from the same default-zone date.
 
 Asserting helpers:
 
@@ -2391,10 +2218,10 @@ Tests:
   - `TimeLabels.humanizeAge(s)` equals the expected string, for each `s` in seconds (`DAY` = 86400): 0 -> `"0s"`; 59 -> `"59s"`; 60 -> `"1m"`; 3599 -> `"59m"`; 3600 -> `"1h"`; `DAY - 1` -> `"23h"`; `DAY` -> `"1d"`; `DAY * 30 - 1` -> `"29d"`; `DAY * 30` -> `"1 month"`; `DAY * 60` -> `"2 months"`; `DAY * 365 - 1` -> `"12 months"`; `DAY * 365` -> `"1 year"`; `DAY * 730` -> `"2 years"`.
 - **`humanizeAge_negativeReadsAsZero`**: An age of -5 seconds reads as `0s`.
   - `TimeLabels.humanizeAge(-5)` equals `"0s"`.
-- **`toRelativeDateLabel_todayPastAndFutureDays`**: Today, yesterday and 3 days ago give "today", "yesterday", "3 days ago"; tomorrow and 3 days ahead give "tomorrow" and "in 3 days".
-  - `assertLabel` on `TimeLabels::toRelativeDateLabel`: for the date string of today shifted by an offset, the label equals the expected text. Today -> `"today"`; today minus 1 day -> `"yesterday"`; minus 3 days -> `"3 days ago"`; plus 1 day -> `"tomorrow"`; plus 3 days -> `"in 3 days"`.
-- **`toCoarseRelativeDateLabel_yearsMonthsThenDays`**: 1 and 11 years back give "1 year ago" and "11 years ago", 1 and 5 months give "1 month ago" and "5 months ago", and 27 days and 1 day fall through to "27 days ago" and "yesterday".
-  - `assertLabel` on `TimeLabels::toCoarseRelativeDateLabel`: for the date string of today shifted back, the label equals the expected text. Minus 1 year -> `"1 year ago"`; minus 11 years -> `"11 years ago"`; minus 1 month -> `"1 month ago"`; minus 5 months -> `"5 months ago"`; minus 27 days -> `"27 days ago"`; minus 1 day -> `"yesterday"`.
+- **`toRelativeDateLabel_ofText_comparesWithTodayOnTheClock`**: The date string of 3 days before today on the clock reads "3 days ago".
+  - `assertLabel("3 days ago", d -> d.minusDays(3), TimeLabels::toRelativeDateLabel)`: the label of today's date minus 3 days, as text, equals `"3 days ago"`.
+- **`toCoarseRelativeDateLabel_ofText_comparesWithTodayOnTheClock`**: The date string of 11 years before today on the clock reads "11 years ago".
+  - `assertLabel("11 years ago", d -> d.minusYears(11), TimeLabels::toCoarseRelativeDateLabel)`: the coarse label of today's date minus 11 years, as text, equals `"11 years ago"`.
 - **`toLocalDate_cutsTheInstantAtTheGivenZone`**: An instant is cut to the calendar date in the given zone, and local midnight in UTC-3 is the boundary.
   - `TimeLabels.toLocalDate(Instant.parse("2026-10-22T01:07:00Z"), zone)` equals 2026-10-22 for `UTC` and 2026-10-21 for `BUENOS_AIRES`.
   - For `BUENOS_AIRES`: `2026-10-22T02:59:59Z` gives 2026-10-21 and `2026-10-22T03:00:00Z` gives 2026-10-22.
@@ -2516,7 +2343,7 @@ Test: [`PolledJsonTest.java`](../src/test/java/org/wynnvets/fetcher/polling/Poll
 
 Test: [`PollingServiceTest.java`](../src/test/java/org/wynnvets/fetcher/polling/PollingServiceTest.java) · Subject: [`PollingService`](../src/client/java/org/wynnvets/fetcher/polling/PollingService.java)
 
-`PollingService` owns a poller's lifecycle: a named daemon scheduled executor that runs a caller-supplied task at a fixed rate, with idempotent `start` and a `stop` that can be followed by a fresh `start`. The suite pins start and stop behaviour, the initial delay, interrupt handling in `stop`, the thread identity, and the guard that keeps an escaping `Error` from cancelling the schedule. These are the repo's concurrent tests, so every wait is bounded, periods are tens of milliseconds, and assertions rely on latches and tick counts rather than elapsed time. An `@AfterEach` clears the interrupt flag and stops the service. The negative waits (300 ms after a stop, 150 ms before a delayed start) can only fail if the property is actually broken.
+`PollingService` owns a poller's lifecycle: a named daemon scheduled executor that runs a caller-supplied task at a fixed rate, with idempotent `start` and a `stop` that can be followed by a fresh `start`. The suite pins start and stop behaviour, the initial delay, interrupt handling in `stop`, the thread identity, and the guard that keeps an escaping `Error` from cancelling the schedule. The tests run real threads and the Gradle `test` task has no timeout, so every wait is bounded, periods are tens of milliseconds, and assertions rely on latches and tick counts rather than elapsed time. An `@AfterEach` clears the interrupt flag and stops the service. The negative waits (300 ms after a stop, 150 ms before a delayed start) can only fail if the property is actually broken.
 
 - **`startSchedulesTheTask`**: `start()` returns true and the task runs within 2 seconds.
   - `service.start()` is true, for a `PollingService` named `VetsMod-Test-Start` whose task counts down latch `ran` (count 1), initial delay 0, period 20 ms.
@@ -2572,7 +2399,7 @@ Test: [`StaffRanksPollerTest.java`](../src/test/java/org/wynnvets/fetcher/pollin
 - **`anOnlineFrameStillWinsOverAStalePollEntry`**: A pushed rank answers ahead of the poll's.
   - After parsing `[{"username": "Metrafish", "rank": "strategist"}]` and `applyLiveStaffEvent("Metrafish", UUID, "chief", true)`, `confirmedRankFor("metrafish")` equals `Optional.of("chief")`.
 - **`aLiveEntryAppliedBeforeTheFetchAndAbsentFromItIsDropped`**: A poll that started after the push and lacks the name drops it.
-  - After the push, then `parseStaffRanks("[]", started)` with `started` read after it, `confirmedRankFor("Metrafish")` equals `Optional.empty()`.
+  - After the push, then `parseStaffRanks("[]", started)` with `started` a second past a `System.nanoTime()` read after it (so a coarse clock cannot give the entry and the start the same tick), `confirmedRankFor("Metrafish")` equals `Optional.empty()`.
 - **`aLiveEntryAppliedAfterTheFetchStartedSurvivesIt`**: A push that lands while a poll is in flight survives that poll.
   - With `started` read before the push, after `parseStaffRanks("[]", started)`, `confirmedRankFor("Metrafish")` equals `Optional.of("chief")`.
 - **`aLiveEntryTheResponseStillListsSurvives`**: A later poll that still lists the name keeps the pushed rank.
@@ -2681,7 +2508,7 @@ Test: [`ReturnersReauthTest.java`](../src/test/java/org/wynnvets/guild/Returners
 
 Test: [`StaffRankCheckerTest.java`](../src/test/java/org/wynnvets/guild/StaffRankCheckerTest.java) · Subject: [`StaffRankChecker`](../src/client/java/org/wynnvets/guild/StaffRankChecker.java)
 
-`StaffRankChecker` decides whether the player is guild staff by running `/gu rank` and classifying Wynncraft's reply. The suite covers its three package-private response predicates, `isStaffRankUnauthorizedResponse` (three required fragments), `isStaffRankAuthorizedResponse` (two required fragments) and `isNotInGuildResponse` (one, the captured guildless reply), the combined `isStaffRankReply` that `ChatLogMixin` hides replies with, and the pure `shouldClearStaffFlag` decision. It pins that all three predicates are unordered, case-insensitive substring tests that return false for null or empty input, that they never fire on each other's real server lines, and that case folding uses `Locale.ROOT` so a Turkish default locale does not break recognition. The locale tests set `Locale.setDefault` and an `@AfterEach` restores it.
+`StaffRankChecker` decides whether the player is guild staff by running `/gu rank` and classifying Wynncraft's reply. The suite covers its three package-private response predicates, `isStaffRankUnauthorizedResponse` (three required fragments), `isStaffRankAuthorizedResponse` (two required fragments) and `isNotInGuildResponse` (one, the captured guildless reply), the combined `isStaffRankReply` that `ChatLogMixin` hides replies with, and the pure `shouldClearStaffFlag` decision. It pins that all three predicates are case-insensitive substring tests that need every fragment and return false for null or empty input, that they never fire on each other's real server lines, and that case folding uses `Locale.ROOT` so a Turkish default locale does not break recognition. The locale tests set `Locale.setDefault` and an `@AfterEach` restores it.
 
 - **`unauthorized_matchesTheRealServerLine`**: "You must be a Captain or higher to use this command!" is recognised as the unauthorized response.
   - `StaffRankChecker.isStaffRankUnauthorizedResponse(UNAUTHORIZED)` is true, where `UNAUTHORIZED` = `"You must be a Captain or higher to use this command!"`.
@@ -2692,8 +2519,6 @@ Test: [`StaffRankCheckerTest.java`](../src/test/java/org/wynnvets/guild/StaffRan
   - `isStaffRankUnauthorizedResponse("You must be a Chief or higher to use this command!")` is false (rank word not Captain).
   - `isStaffRankUnauthorizedResponse("You must be a Captain!")` is false (no trailing clause).
   - `isStaffRankUnauthorizedResponse("Captain Holidaze asked you to use this command")` is false (no opening clause).
-- **`unauthorized_fragmentsAreUnorderedSoAnyLineCarryingAllThreeMatches`**: A line containing all three fragments in reverse order ("to use this command captain says you must be a member") still matches, pinning the false-positive surface.
-  - `isStaffRankUnauthorizedResponse("to use this command captain says you must be a member")` is true (the three fragments in reverse order).
 - **`unauthorized_nullAndEmpty`**: `null` and the empty string return false.
   - `isStaffRankUnauthorizedResponse(null)` is false.
   - `isStaffRankUnauthorizedResponse("")` is false.
@@ -2733,7 +2558,7 @@ Test: [`StaffRankCheckerTest.java`](../src/test/java/org/wynnvets/guild/StaffRan
 
 Test: [`ItemDefinitionsTest.java`](../src/test/java/org/wynnvets/items/ItemDefinitionsTest.java) · Subject: [`ItemDefinitions`](../src/client/java/org/wynnvets/items/ItemDefinitions.java), [`definitions.yml`](../src/client/resources/definitions.yml)
 
-`ItemDefinitions` loads per-category lists of item-name regexes (legacy, no-lore legacy, misc legacy, unenchanted, not-pedestal, not-junk, new-format override, blocked screen titles, inventory suppressors), plus the `min_rerolls` filter/threshold pairs, from `definitions.yml` and answers name-matching queries against them. The suite pins per-pattern case sensitivity, full-match semantics, every section dropping an empty entry, the `isLegacy` veto in `isUnenchanted`, every name and title predicate answering false for null, a repeated section failing the parse, and how YAML quoting and comments reach the regex. It loads the real `definitions.yml` from the classpath in a static initialiser, appends small YAML fixtures through the package-private `parse(InputStream)`, and reloads the real file after every test, since `load()` clears all collections.
+`ItemDefinitions` loads per-category lists of item-name regexes (legacy, no-lore legacy, misc legacy, unenchanted, not-pedestal, not-junk, new-format override, blocked screen titles, inventory suppressors), plus the `min_rerolls` filter/threshold pairs, from `definitions.yml` and answers name-matching queries against them. The suite pins per-pattern case sensitivity, full-match semantics, every section dropping an empty entry, the `isLegacy` veto in `isUnenchanted`, every name and title predicate answering false for null, a repeated section failing the parse, and how YAML quoting reaches the regex. It loads the real `definitions.yml` from the classpath in a static initialiser, appends small YAML fixtures through the package-private `parse(InputStream)`, and reloads the real file after every test, since `load()` clears all collections.
 
 - **`isLegacy_caseSensitivityIsPerPatternNotPerCategory`**: "SANTA HAT" and "santa hat" match the `(?i)` Santa Hat entry, while "Wolf Fang" and "Corrupted Treasure" match only in their exact case.
   - `ItemDefinitions.isLegacy("SANTA HAT")` is true (the real file's `(?i)^Santa Hat.*$` entry folds case)
@@ -2751,10 +2576,6 @@ Test: [`ItemDefinitionsTest.java`](../src/test/java/org/wynnvets/items/ItemDefin
 - **`predicatesRequireAFullMatchNotASubstring`**: With an unanchored fixture pattern "Anchorless", the exact name matches but "My Anchorless Probe" does not, showing `matches()` rather than `find()`.
   - After parsing a fixture whose `definitions` list holds the unanchored pattern `Anchorless`, `ItemDefinitions.isLegacy("Anchorless")` is true
   - With that same fixture, `ItemDefinitions.isLegacy("My Anchorless Probe")` is false (the pattern must match the whole name, not a substring)
-- **`anchoredPatternsFromTheRealFileStillRejectSubstrings`**: "Ability Shard" is unenchanted, but "My Ability Shard" and "Ability Shards" are not.
-  - `ItemDefinitions.isUnenchanted("Ability Shard")` is true (real-file entry `^Ability Shard$`)
-  - `ItemDefinitions.isUnenchanted("My Ability Shard")` is false
-  - `ItemDefinitions.isUnenchanted("Ability Shards")` is false
 - **`isUnenchanted_isVetoedByIsLegacy`**: A name present in both `definitions` and `unenchanted` is legacy and not unenchanted, while a name only in `unenchanted` still answers true.
   - After parsing a fixture with `^VetoProbe$` in `definitions` and `unenchanted`, and `^VetoOnly$` in `unenchanted` only, `ItemDefinitions.isLegacy("VetoProbe")` is true
   - `ItemDefinitions.isUnenchanted("VetoProbe")` is false (a name that is legacy is not unenchanted, though it is in the unenchanted list)
@@ -2762,9 +2583,6 @@ Test: [`ItemDefinitionsTest.java`](../src/test/java/org/wynnvets/items/ItemDefin
 - **`everySectionDropsAnEmptyEntry`**: An empty entry in any of the nine pattern sections is dropped, so no predicate answers true for the empty name, and the section's other entries still load.
   - After parsing a fixture with `""` under every pattern section (and `"^SuppressorProbe$"` under `inventory_suppressors`), `ItemDefinitions.isLegacy("")`, `isMiscLegacy("")`, `isNoLoreLegacy("")`, `isNewFormatOverride("")`, `isUnenchanted("")`, `isNotJunk("")`, `isNotPedestal("")`, `isBlockedScreenTitle("")` and `isInventorySuppressor("")` are each false (9 assertions)
   - With that same fixture, `ItemDefinitions.isInventorySuppressor("SuppressorProbe")` is true
-- **`trailingCommentsAreStrippedFromQuotedAndPlainEntriesAlike`**: Entries with a trailing `#` comment, whether double-quoted or bare, compile without the comment and match "QuotedProbe" and "BareProbe".
-  - After parsing a fixture with `"^QuotedProbe$" # this comment is discarded` and `^BareProbe$ # and so is this one` under `definitions`, `ItemDefinitions.isLegacy("QuotedProbe")` is true
-  - With that same fixture, `ItemDefinitions.isLegacy("BareProbe")` is true (the unquoted entry's trailing comment is not compiled into the pattern)
 - **`aRegexBackslashSurvivesInSingleQuotes`**: A single-quoted `'^Q\?$'` keeps its backslash, so it matches "Q?" and not "Q", and the real file's `???` entry matches `isUnenchanted("???")`.
   - After parsing a fixture with the single-quoted entry `'^Q\?$'` under `definitions`, `ItemDefinitions.isLegacy("Q?")` is true (the backslash is kept, so the regex matches a literal `?`)
   - With that same fixture, `ItemDefinitions.isLegacy("Q")` is false
@@ -2781,9 +2599,6 @@ Test: [`ItemDefinitionsTest.java`](../src/test/java/org/wynnvets/items/ItemDefin
   - With that same fixture, `ItemDefinitions.isLegacy("A_B")` is false (the regex never saw `\_` as a plain underscore)
   - `ItemDefinitions.isNoLoreLegacy("Fierté")` is true (real-file `no_lore_legacy` entry `(?i)^Fierté$`, whose double-quoted YAML escape decodes to `é`)
   - `ItemDefinitions.isNoLoreLegacy("fierté")` is true (`(?i)` folds the ASCII letters)
-- **`wholeLineCommentsAreSkippedByTheParserItself`**: A commented-out list entry is ignored while the next entry is loaded, so "DisabledProbe" does not match and "EnabledProbe" does.
-  - After parsing a fixture with the commented-out entry `#- "^DisabledProbe$"` and the live entry `- "^EnabledProbe$"` under `definitions`, `ItemDefinitions.isLegacy("DisabledProbe")` is false
-  - With that same fixture, `ItemDefinitions.isLegacy("EnabledProbe")` is true
 - **`sectionsEndAtTheDocumentSeparator`**: An entry after a `---` document break that is a bare list names no category and is dropped, while the entry before the break is kept.
   - After parsing a fixture with `definitions: - "^BeforeSeparator$"`, then `---`, then a bare list `- "^AfterSeparator$"`, `ItemDefinitions.isLegacy("BeforeSeparator")` is true
   - With that same fixture, `ItemDefinitions.isLegacy("AfterSeparator")` is false (the bare-list document names no category and is dropped)
@@ -2972,7 +2787,7 @@ Test: [`LaurelCommandsTest.java`](../src/test/java/org/wynnvets/laurels/LaurelCo
 `LaurelCommands` is `/wv laurels`. The suite pins its pure parts: which steps `update` runs for the server's `collect` list, how `runSteps` chains them, the fields of the frames it sends, and the chat lines an ack becomes. The command tree and the network send are not exercised. `runSteps` ends in `DistributeRuns.finished()`, which returns at once when no run is active, so the chain is mostly run on its own; one case runs it inside a real `DistributeRuns.submit`. `ack(json)` parses an ack object, `texts(lines)` reads a lines list as strings and `assertColour` compares a line's colour with a `ChatFormatting`. Two steps (`XP_STEP` and `STREAK_STEP`, with an empty body) stand in for `LaurelCommands.STEPS`, and `recordingStep(ran, name, handsBack)` builds a step that appends its name to `ran` and calls `next` only when `handsBack` is true.
 
 - **`beforeTheFirstFetchEveryStepRuns`**: A `null` `collect` keeps every step.
-  - `selectSteps(steps, null)` is the same list instance as `steps`.
+  - `selectSteps(steps, null)` equals `steps` (`[XP_STEP, STREAK_STEP]`).
 - **`anEmptyCollectListSelectsNothing`**: An empty `collect` selects no step.
   - `selectSteps([XP_STEP, STREAK_STEP], {})` equals an empty list.
 - **`onlyTheStepsTheServerAsksForRunInTheirOwnOrder`**: A step is kept when its metric is in `collect`, in the order the steps were given.
@@ -3033,7 +2848,7 @@ Test: [`StreakCrawlTest.java`](../src/test/java/org/wynnvets/laurels/StreakCrawl
 
 - **`theStreakLineOfATypicalTileIsRead`**: The streak line is found among the other lore lines.
   - `parseStreak` equals `OptionalInt.of(76)` for `Rank: Chief`, `Guild Objective:`, `- Gather Ores: 200/200`, `- Streak: 76`.
-- **`aStreakLineIsReadWhateverComesBeforeIt`**: No objective header is needed.
+- **`aLoneStreakLineIsRead`**: A streak line on its own is read; no objective header is needed.
   - `parseStreak(["- Streak: 3"])` equals `OptionalInt.of(3)`.
 - **`aZeroStreakIsAStreak`**: A zero is a value, not a miss.
   - `parseStreak(["- Streak: 0"])` equals `OptionalInt.of(0)`.
@@ -3123,9 +2938,8 @@ Test: [`PartyRosterListenerTest.java`](../src/test/java/org/wynnvets/listeners/P
 - **`emptySnapshotPartyWithOrganisersSuppresses`**: `Snapshot.EMPTY` (no party) returns false even with an in-window stamp and a non-empty organiser list.
   - `shouldSend(Snapshot.EMPTY, anni, NOW + 1h, NOW)` is false, where `anni` lists `Organiser`.
 - **`heartbeatDelay_isThirtySecondsWhenTheGatePassedAndNoneWhenSuppressed`**: The heartbeat re-arms 30 s after a flush that passed the gate and not at all after a suppressed one, which is how heartbeats stop by themselves.
-  - `heartbeatDelayMs(true)` equals 30000 and `HEARTBEAT_MS`; `heartbeatDelayMs(false)` equals -1.
-- **`emptySnapshotOutsideWindowSuppressed`**: `Snapshot.EMPTY` with a stamp 4 hours out returns false.
-  - `shouldSend(Snapshot.EMPTY, anni, NOW + 4h, NOW)` is false, where `anni` lists `Organiser`.
+  - `heartbeatDelayMs(true)` equals 30000.
+  - `heartbeatDelayMs(false)` equals -1.
 
 ### `RankChangeListenerTest`
 
@@ -3162,16 +2976,14 @@ Test: [`RankChangeListenerTest.java`](../src/test/java/org/wynnvets/listeners/Ra
 
 Test: [`UrlWrapJoinerTest.java`](../src/test/java/org/wynnvets/listeners/UrlWrapJoinerTest.java) · Subject: [`UrlWrapJoiner`](../src/client/java/org/wynnvets/listeners/UrlWrapJoiner.java)
 
-`UrlWrapJoiner.join(rawPlain, messageContent)` joins a URL that Wynncraft hard-broke across chat lines, reading the raw line (before Wynntils' unwrap folds each newline and its prefix into one space) and gluing the fragments in the unwrapped message. The suite replays the three captures from an in-game session (a URL broken in place across three lines; a word wrap that kept its trailing space; a word wrap that dropped it), then pins the rules on synthetic lines: a break is hard only with no space before the newline and a non-space start on the next line, a chain continues only while a fragment fills its line, only the first occurrence is joined, and a chain the unwrapped text does not hold changes nothing. Every glyph-art code point is a unicode escape (surrogate pairs for supplementary ones). `HEAD_FIRST` and `HEAD_CONT` are the first-line and continuation-line headers, `WRAP` the continuation prefix (U+CFFFC, U+E001, U+D0006, then a space), `URL` is `https://anni.wynnvets.org/`, and `a(n)` is `n` letters `a`.
+`UrlWrapJoiner.join(rawPlain, messageContent)` joins a URL that Wynncraft hard-broke across chat lines, reading the raw line (before Wynntils' unwrap folds each newline and its prefix into one space) and gluing the fragments in the unwrapped message. The suite replays the three captures from an in-game session (a URL broken in place across three lines; a word wrap that kept its trailing space; a word wrap that dropped it), then pins the rules on synthetic lines: a break is hard only with no space before the newline and a non-space start on the next line, a chain continues only while a fragment fills its line, only the first occurrence is joined, and a chain the unwrapped text does not hold changes nothing. Every glyph-art code point is a unicode escape (surrogate pairs for supplementary ones). `HEAD_FIRST` and `HEAD_CONT` are the first-line and continuation-line headers, `WRAP` the continuation prefix (U+CFFFC, U+E001, U+D0006, then a space), `URL` is `https://anni.wynnvets.org/`, and `a(n)` is `n` letters `a`. Each capture's unwrapped message is the literal text the debug log recorded.
 
 - **`aUrlBrokenInPlaceAcrossThreeLinesIsJoined`**: The capture where Wynncraft broke the URL mid-token, with no space at either break, comes back as one URL followed by the word.
-  - `join(raw, unwrapped)` equals `"a " + URL + a(74) + " Then"`, where `raw` is `HEAD_FIRST + "Wenweia: a " + URL + a(12)`, a newline, `WRAP + a(51)`, a newline, `WRAP + a(11) + " Then"`, and `unwrapped` is `"a " + URL + a(12) + " " + a(51) + " " + a(11) + " Then"` (74 is 12 + 51 + 11).
+  - `join(raw, unwrapped)` equals `"a " + URL + a(74) + " Then"`, where `raw` is `HEAD_FIRST + "Wenweia: a " + URL + a(12)`, a newline, `WRAP + a(51)`, a newline, `WRAP + a(11) + " Then"`, and `unwrapped` is the logged `"a https://anni.wynnvets.org/"` + 12 `a`s, a space, 51 `a`s, a space, 11 `a`s and `" Then"` (74 is 12 + 51 + 11).
 - **`aWordWrapThatKeptItsTrailingSpaceLeavesTheUrlAndTheWordAfterItAlone`**: A line that ends in `padding ` before the newline and whose next line holds the whole URL and `Then more` is not a hard break, so `Then` stays apart from the URL.
-  - `join(raw, unwrapped)` equals `unwrapped`, where `unwrapped` is `"padding padding padding padding  " + URL + "me Then more"` (two spaces: the kept one and the unwrap's).
+  - `join(raw, unwrapped)` equals `unwrapped`, where `unwrapped` is the logged `"padding padding padding padding  https://anni.wynnvets.org/me Then more"` (two spaces: the kept one and the unwrap's).
 - **`aWordWrapThatDroppedItsTrailingSpaceLeavesTheUrlAndTheWordAfterItAlone`**: The same text wrapped without trailing spaces (the URL mid-line, `Then` ending a line) is left alone.
-  - `join(raw, unwrapped)` equals `unwrapped`, where `unwrapped` is `"padding "` eight times, then `URL + "me Then more"`.
-- **`theCapturedUnwrappedTextsAreTheOnesTheFixturesRebuild`**: The unwrapped texts the three fixtures build equal the `plain` lines the log recorded.
-  - Each of the three literal texts from the log equals the corresponding text the other tests build with `URL`, `a(n)` and `"padding "`.
+  - `join(raw, unwrapped)` equals `unwrapped`, where `unwrapped` is the logged text: `padding ` eight times, then `https://anni.wynnvets.org/me Then more`.
 - **`noUrlIsUntouched`**: A line with a newline but no URL returns the same instance.
   - `join(raw, "hello there world")` is the same instance as its second argument.
 - **`noNewlineIsUntouched`**: A line with a URL but no newline returns the same instance.
@@ -3204,14 +3016,10 @@ Test: [`UrlWrapJoinerTest.java`](../src/test/java/org/wynnvets/listeners/UrlWrap
 
 Test: [`VetsLoggerTest.java`](../src/test/java/org/wynnvets/logging/VetsLoggerTest.java) · Subject: [`VetsLogger`](../src/main/java/org/wynnvets/logging/VetsLogger.java)
 
-`VetsLogger` is the mod's central logger, with a debug level that is off until switched on (for example by `/wv debug true`). The suite pins only the debug flag accessors: it is false by default, `setDebugEnabled(true)` turns it on, and `setDebugEnabled(false)` turns it off again. An `@AfterEach` resets the flag to false so the static state does not leak between tests.
+`VetsLogger` is the mod's central logger, with a debug level that is off until switched on (by `/wv debug true`, or by `VetsmodClient` from the stored config). The suite pins only that the debug flag starts off, so a player gets no debug lines unless something turns them on. An `@AfterEach` resets the flag to false so the static state does not leak between tests.
 
 - **`defaultIsFalse`**: `isDebugEnabled()` is false when nothing has enabled it.
   - `VetsLogger.isDebugEnabled()` is false on a fresh state (the `@AfterEach` resets the flag to false).
-- **`setEnabledTogglesFlag`**: After `setDebugEnabled(true)`, `isDebugEnabled()` is true.
-  - `VetsLogger.isDebugEnabled()` is true after `setDebugEnabled(true)`.
-- **`setDisabledRestoresFalse`**: After enabling and then disabling, `isDebugEnabled()` is false.
-  - `VetsLogger.isDebugEnabled()` is false after `setDebugEnabled(true)` then `setDebugEnabled(false)`.
 
 ## `org.wynnvets.mwe.anni`
 
@@ -3306,12 +3114,12 @@ Test: [`AnniRsvpCommandTest.java`](../src/test/java/org/wynnvets/mwe/anni/comman
 - **`successComponent_revoke_withdrawn_saysWithdrawn`**: A revoke with `result` `withdrawn` prints the withdrawn line in gray.
   - The text equals `"Your RSVP has been withdrawn."`.
   - The style colour equals gray.
-- **`successComponent_revoke_nullResult_saysWithdrawn`**: A revoke whose server sent no `result` keeps the old line.
+- **`successComponent_revoke_nullResult_saysWithdrawn`**: A revoke whose server sent no `result` gets the withdrawn line.
   - The text equals `"Your RSVP has been withdrawn."`, for a two-argument `Ack(true, null)`.
   - The style colour equals gray.
-- **`successComponent_hard_unchanged`**: A hard RSVP reads as before.
+- **`successComponent_hard_saysHardRsvpd`**: A hard RSVP says it was recorded as hard.
   - The text equals `"You have HARD RSVP'd for the next anni."`, for `result` `recorded`.
-- **`successComponent_soft_unchanged`**: A soft RSVP reads as before.
+- **`successComponent_soft_saysSoftRsvpd`**: A soft RSVP says it was recorded as soft.
   - The text equals `"You have SOFT RSVP'd for the next anni."`, for an ack with no `result`.
 - **`successComponent_nothingToWithdrawOnAHardRsvp_isIgnored`**: `nothing_to_withdraw` changes only a revoke's line.
   - The text equals `"You have HARD RSVP'd for the next anni."`, for a `hard` notice with `result` `nothing_to_withdraw`.
@@ -3363,8 +3171,6 @@ Test: [`AnniRsvpClientTest.java`](../src/test/java/org/wynnvets/mwe/anni/network
 - **`parseAck_nonStringResult_readsAsNull`**: A `result` that is not a string reads as null.
   - `result()` is null, for `{"status": "ok", "result": 3}`.
   - `result()` is null, for `{"status": "ok", "result": null}`.
-- **`ack_twoArgConstructor_hasNoResult`**: The two-argument constructor leaves `result` null.
-  - `ack.ok()` is false, `ack.detail()` equals `"not connected"` and `ack.result()` is null, for `new Ack(false, "not connected")`.
 
 ## `org.wynnvets.mwe.anni.outline`
 
@@ -3372,7 +3178,7 @@ Test: [`AnniRsvpClientTest.java`](../src/test/java/org/wynnvets/mwe/anni/network
 
 Test: [`AnniOutlinePaletteTest.java`](../src/test/java/org/wynnvets/mwe/anni/outline/AnniOutlinePaletteTest.java) · Subject: [`AnniOutlinePalette`](../src/client/java/org/wynnvets/mwe/anni/outline/AnniOutlinePalette.java)
 
-`AnniOutlinePalette.chatFormattingForRole` maps an anni role code (fill, tank, heal/healer, tertiary, secondary, primary) to the `ChatFormatting` colour the highlight overlay uses, falling back to gray. The suite pins the seven-arm table, the gray fallback for null, empty, unknown and untrimmed input, case-insensitive matching, and that the fold is independent of the JVM default locale. The palette declares no static state and no Wynntils types, which is what lets it load in a test; the locale test sets `Locale.setDefault` and an `@AfterEach` restores it.
+`AnniOutlinePalette.chatFormattingForRole` maps an anni role code (fill, tank, heal/healer, tertiary, secondary, primary) to the `ChatFormatting` colour the highlight overlay uses, falling back to gray; the chat surfaces read the same table through `AnniHoverBuilder.roleColor`, which delegates here. The suite pins the seven-arm table, the gray fallback for null, empty, unknown and untrimmed input, case-insensitive matching, and that the fold is independent of the JVM default locale. The palette declares no static state and no Wynntils types, which is what lets it load in a test; the locale test sets `Locale.setDefault` and an `@AfterEach` restores it.
 
 - **`chatFormattingForRole_mapsEveryKnownRole`**: FILL is white, TANK aqua, HEAL and HEALER both green, TERTIARY light purple, SECONDARY yellow and PRIMARY red.
   - `AnniOutlinePalette.chatFormattingForRole(role)` is the same instance as the listed `ChatFormatting` for: `"FILL"` WHITE, `"TANK"` AQUA, `"HEAL"` GREEN, `"HEALER"` GREEN, `"TERTIARY"` LIGHT_PURPLE, `"SECONDARY"` YELLOW, `"PRIMARY"` RED.
@@ -3413,28 +3219,6 @@ Test: [`AnniCommandRendererTest.java`](../src/test/java/org/wynnvets/mwe/anni/re
   - `AnniCommandRenderer.formatCoarseHours(s)` equals the expected string, for each `s` in seconds: -5 -> `"<1m"`; 0 -> `"<1m"`; 1 -> `"1m"`; 119 -> `"1m"`; 120 -> `"2m"`; 3599 -> `"59m"`; 3600 -> `"1h"`; 5399 -> `"1h"`; 5400 -> `"2h"`; 60664 * 3600 -> `"60664h"`.
 - **`uncertainty_atEachBoundary`**: `formatUncertainty` gives "0h" for 0 or less, "1min" for 0.001, "29min" for 0.49, "1h" for 0.5 and 1.49, "2h" for 1.5 and "3h" for 3.06.
   - `AnniCommandRenderer.formatUncertainty(h)` equals the expected string, for each `h` in hours (double): -1.0 -> `"0h"`; 0.0 -> `"0h"`; 0.001 -> `"1min"`; 0.49 -> `"29min"`; 0.5 -> `"1h"`; 1.49 -> `"1h"`; 1.5 -> `"2h"`; 3.06 -> `"3h"`.
-
-### `AnniHoverBuilderTest`
-
-Test: [`AnniHoverBuilderTest.java`](../src/test/java/org/wynnvets/mwe/anni/render/AnniHoverBuilderTest.java) · Subject: [`AnniHoverBuilder`](../src/client/java/org/wynnvets/mwe/anni/render/AnniHoverBuilder.java), [`AnniOutlinePalette`](../src/client/java/org/wynnvets/mwe/anni/outline/AnniOutlinePalette.java)
-
-`AnniHoverBuilder.roleColor` is the chat surfaces' entry point for the role-to-colour mapping, and it delegates to `AnniOutlinePalette.chatFormattingForRole`. The suite pins the seven-arm table, the gray fallback, case-insensitive matching and locale independence through that delegation. It also holds that chat and outline agree on every key, checked under `Locale.ROOT` and a Turkish default over one shared key list. The tests that change the default locale are restored by an `@AfterEach`.
-
-- **`roleColor_mapsEveryKnownRole`**: FILL is white, TANK aqua, HEAL and HEALER both green, TERTIARY light purple, SECONDARY yellow and PRIMARY red.
-  - `AnniHoverBuilder.roleColor(r)` is the same instance as the expected `ChatFormatting`, for each role `r`: `"FILL"` -> `WHITE`; `"TANK"` -> `AQUA`; `"HEAL"` -> `GREEN`; `"HEALER"` -> `GREEN` (same arm as HEAL); `"TERTIARY"` -> `LIGHT_PURPLE`; `"SECONDARY"` -> `YELLOW`; `"PRIMARY"` -> `RED`.
-- **`roleColor_nullAndUnknownFallBackToGray`**: `null`, "", "SUPPORT" and " TANK " (untrimmed) all return gray.
-  - `AnniHoverBuilder.roleColor(r)` is the same instance as `ChatFormatting.GRAY`, for each `r`: `null`; `""`; `"SUPPORT"`; `" TANK "` (padding is not trimmed).
-- **`roleColor_foldsCase`**: "tank", "Tank" and "tertiary" resolve to aqua, aqua and light purple.
-  - `AnniHoverBuilder.roleColor(r)` is the same instance as the expected colour, for each `r`: `"tank"` -> `AQUA`; `"Tank"` -> `AQUA`; `"tertiary"` -> `LIGHT_PURPLE`.
-- **`roleColor_isUnaffectedByATurkishDefaultLocale`**: Under a Turkish default, "fill", "primary" and "tertiary" still return white, red and light purple.
-  - With the default locale set to Turkish (`tr`), `AnniHoverBuilder.roleColor(r)` is the same instance as the expected colour, for each `r`: `"fill"` -> `WHITE`; `"primary"` -> `RED`; `"tertiary"` -> `LIGHT_PURPLE`.
-- **`roleColor_turkishFoldWouldDivergeWithoutLocaleRoot`**: Under a Turkish default, `"fill".toUpperCase()` is "FİLL" while `toUpperCase(Locale.ROOT)` is "FILL"; it asserts on `String` directly, not on `roleColor`.
-  - With the default locale set to Turkish (`tr`), `"fill".toUpperCase()` equals `"F" + U+0130 + "LL"` (U+0130 is the capital I with dot above, in place of ASCII `I`). This asserts on `String.toUpperCase`, not on `roleColor`.
-  - `"fill".toUpperCase(Locale.ROOT)` equals `"FILL"` (default locale still Turkish).
-- **`roleColor_agreesWithTheOutlinePaletteUnderLocaleRoot`**: With the default locale set to `Locale.ROOT`, `roleColor` returns the same constant as `chatFormattingForRole` for each of 18 keys (upper and lower case codes, null, empty, unknown, untrimmed).
-  - With the default locale set to `Locale.ROOT`, for each `key` in `EQUIVALENCE_KEYS` (18 entries: `FILL`, `TANK`, `HEAL`, `HEALER`, `TERTIARY`, `SECONDARY`, `PRIMARY`, their lower-case forms `fill`, `tank`, `heal`, `healer`, `tertiary`, `secondary`, `primary`, then `null`, `""`, `SUPPORT`, ` TANK `): `AnniHoverBuilder.roleColor(key)` is the same instance as `AnniOutlinePalette.chatFormattingForRole(key)`.
-- **`roleColor_agreesWithTheOutlinePaletteUnderATurkishDefaultLocale`**: The same 18-key agreement check holds under a Turkish default, where lower-case "fill", "primary" and "tertiary" are the keys a default-locale fold would break.
-  - With the default locale set to Turkish (`tr`), for each `key` in the same 18-entry `EQUIVALENCE_KEYS` (upper-case and lower-case role codes, `null`, `""`, `SUPPORT`, ` TANK `): `AnniHoverBuilder.roleColor(key)` is the same instance as `AnniOutlinePalette.chatFormattingForRole(key)`.
 
 ### `AnniOnboardingBlocksTest`
 
@@ -3542,26 +3326,20 @@ Test: [`AnniSnapshotsTest.java`](../src/test/java/org/wynnvets/mwe/anni/state/An
 
 Test: [`AnniWindowsTest.java`](../src/test/java/org/wynnvets/mwe/anni/state/AnniWindowsTest.java) · Subject: [`AnniWindows`](../src/client/java/org/wynnvets/mwe/anni/state/AnniWindows.java)
 
-`AnniWindows` holds the shared anni timing constants and two predicates: `inHotWindow(secondsUntil)`, true from two hours before the anni stamp until 30 minutes after it, and `hotWindowClosed(anchorStamp, now)`, the watcher's inverted form of the close edge. The suite pins the three constants and checks both predicates at ten boundary values (-1801, -1800, -1799, 0, 5399, 5400, 5401, 7199, 7200, 7201), with both edges inclusive and the two predicates breaking at the same second. There is no clock: `now` is passed in.
+`AnniWindows` holds the shared anni timing constants and two predicates: `inHotWindow(secondsUntil)`, true from two hours before the anni stamp until 30 minutes after it, and `hotWindowClosed(anchorStamp, now)`, the watcher's inverted form of the close edge. The suite pins `BAR_WINDOW_SECONDS`, the one constant with no predicate, and checks both predicates at ten boundary values (-1801, -1800, -1799, 0, 5399, 5400, 5401, 7199, 7200, 7201), with both edges inclusive and the two predicates breaking at the same second. There is no clock: `now` is passed in.
 
-- **`constantsHoldTheValuesTheCallSitesUsedToDeclare`**: `HOT_WINDOW_BEFORE_SECONDS` is 7200, `HOT_WINDOW_AFTER_SECONDS` is 1800 and `BAR_WINDOW_SECONDS` is 5400.
-  - `AnniWindows.HOT_WINDOW_BEFORE_SECONDS` equals `7200L` (2 h, the open edge).
-  - `AnniWindows.HOT_WINDOW_AFTER_SECONDS` equals `1800L` (30 min, the close edge after the stamp).
-  - `AnniWindows.BAR_WINDOW_SECONDS` equals `5400L` (90 min).
-- **`barWindowIsAConstantAndNotAPredicate`**: `BAR_WINDOW_SECONDS` equals 90 times 60; the window deliberately has no predicate to test.
-  - `AnniWindows.BAR_WINDOW_SECONDS` equals `90L * 60L` (5400).
+- **`barWindowIsNinetyMinutes`**: `BAR_WINDOW_SECONDS` is 5400. It has no predicate, so its value is all there is to pin; its two comparisons, in `AnniSnapshotPoller` and `VetsBossBarManager`, stay at their call sites with floors of their own.
+  - `AnniWindows.BAR_WINDOW_SECONDS` equals `5400L` (90 min: the boss bar and the snapshot poll start then).
 - **`inHotWindow_openEdgeIsInclusive`**: `inHotWindow` is true for 7199 and 7200 seconds until the anni and false for 7201.
   - `AnniWindows.inHotWindow(s)` for `s` = `7199L` is true, `7200L` is true, `7201L` is false.
 - **`inHotWindow_closeEdgeIsInclusive`**: `inHotWindow` is false for -1801 and true for -1800 and -1799.
   - `AnniWindows.inHotWindow(s)` for `s` = `-1801L` is false, `-1800L` is true, `-1799L` is true.
 - **`inHotWindow_acceptsEveryInteriorBoundaryValue`**: `inHotWindow` is true for 0, 5399, 5400 and 5401, so the 90-minute mark is interior to the window.
   - `AnniWindows.inHotWindow(s)` is true for `s` = `0L` (the stamp itself), `5399L`, `5400L`, `5401L`.
-- **`inHotWindow_isFalseOnlyOutsideBothEdges`**: Across all ten boundary values, `inHotWindow` equals "at least -1800 and at most 7200".
-  - for each `secondsUntil` in `-1801L, -1800L, -1799L, 0L, 5399L, 5400L, 5401L, 7199L, 7200L, 7201L`: `AnniWindows.inHotWindow(secondsUntil)` equals `secondsUntil >= -1800L && secondsUntil <= 7200L`; that is false for `-1801L` and `7201L`, true for the other eight.
 - **`hotWindowClosed_agreesWithInHotWindowsCloseEdge`**: `hotWindowClosed` is false when the anchor is 1799 or 1800 seconds before `now` and true at 1801.
   - `AnniWindows.hotWindowClosed(NOW + s, NOW)` for `s` = `-1799L` is false, `-1800L` is false, `-1801L` is true, where `NOW` = `1_700_000_000L`.
-- **`hotWindowClosed_isTheComplementOfTheCloseEdgeAtEveryBoundaryValue`**: Across all ten boundary values, `hotWindowClosed` is true exactly when the seconds-until value is below -1800.
-  - for each `secondsUntil` in `-1801L, -1800L, -1799L, 0L, 5399L, 5400L, 5401L, 7199L, 7200L, 7201L`: `AnniWindows.hotWindowClosed(NOW + secondsUntil, NOW)` equals `secondsUntil < -1800L`; that is true only for `-1801L` and false for the other nine.
+- **`hotWindowClosed_isTheComplementOfInHotWindowOnceTheWindowHasOpened`**: Across all ten boundary values, the two arrangements agree: once the window has opened (at most `HOT_WINDOW_BEFORE_SECONDS` until the stamp), `hotWindowClosed` is true exactly when `inHotWindow` is false; before it opens, it is not closed.
+  - for each `secondsUntil` in `-1801L, -1800L, -1799L, 0L, 5399L, 5400L, 5401L, 7199L, 7200L, 7201L`: `AnniWindows.hotWindowClosed(NOW + secondsUntil, NOW)` equals `secondsUntil <= AnniWindows.HOT_WINDOW_BEFORE_SECONDS && !AnniWindows.inHotWindow(secondsUntil)`; that is true only for `-1801L` and false for the other nine.
 - **`hotWindowClosed_isFalseForAStampStillInTheFuture`**: An anchor 7200 or 7201 seconds ahead of `now` is not closed.
   - `AnniWindows.hotWindowClosed(NOW + 7200L, NOW)` is false.
   - `AnniWindows.hotWindowClosed(NOW + 7201L, NOW)` is false.
@@ -3572,7 +3350,7 @@ Test: [`AnniWindowsTest.java`](../src/test/java/org/wynnvets/mwe/anni/state/Anni
 
 Test: [`ColorMathTest.java`](../src/test/java/org/wynnvets/rendering/colors/ColorMathTest.java) · Subject: [`ColorMath`](../src/client/java/org/wynnvets/rendering/colors/ColorMath.java)
 
-`ColorMath` is arithmetic on one colour: its channels, luma, strongest channel and the mod's single RGB interpolation. The suite pins in-range behaviour (endpoints, midpoint rounding half up, independent channels, alpha discarded) and, deliberately, that `t` is not clamped: out-of-range values bleed into the neighbouring channel or the sign bit, so adding a clamp has to be argued rather than tidied in. The `double` overload of `interpolateRgb` is pinned to the same literals. The class has no supertypes, no static fields and no Minecraft imports, so the suite loads zero Minecraft.
+`ColorMath` is arithmetic on one colour: its channels, luma, strongest channel and the mod's single RGB interpolation. The suite pins the interpolation for `t` in `[0, 1]`, the only range its callers feed (endpoints, midpoint rounding half up, independent channels, alpha discarded), and the `double` overload of `interpolateRgb` to the same literals. What it does outside that range is described in `ColorMath`'s Javadoc and not pinned. The class has no supertypes, no static fields and no Minecraft imports, so the suite loads zero Minecraft.
 
 - **`endpointsReturnTheirInputColour`**: Black to white gives black at `t` 0 and white at `t` 1.
   - `ColorMath.interpolateRgb(BLACK, WHITE, 0f)` equals `0x000000`, where `BLACK` = `0x000000` and `WHITE` = `0xFFFFFF`.
@@ -3585,19 +3363,10 @@ Test: [`ColorMathTest.java`](../src/test/java/org/wynnvets/rendering/colors/Colo
 - **`anAlphaByteOnTheInputIsDiscarded`**: ARGB inputs 0xFF123456 at `t` 0 give 0x123456, and 0xFF000000 at `t` 1 gives 0x000000, so no alpha bits reach the result.
   - `ColorMath.interpolateRgb(0xFF123456, 0xFF123456, 0f)` equals `0x123456`.
   - `ColorMath.interpolateRgb(0xFF000000, 0xFF000000, 1f)` equals `0x000000`.
-- **`tAboveOneOverShootsAndBleedsIntoTheNeighbouringChannel`**: Black to white gives 0x017F7F7F at `t` 1.5 and 0x01FFFFFE at `t` 2, with no clamp.
-  - `ColorMath.interpolateRgb(BLACK, WHITE, 1.5f)` equals `0x017F7F7F`.
-  - `ColorMath.interpolateRgb(BLACK, WHITE, 2f)` equals `0x01FFFFFE`.
-- **`tBelowZeroUnderShootsIntoNegativeChannelsAndTheSignBit`**: Black to white at `t` -0.5 gives 0xFFFFFF81, as negative channels collapse the whole word.
-  - `ColorMath.interpolateRgb(BLACK, WHITE, -0.5f)` equals `0xFFFFFF81`.
-
 - **`theDoubleOverloadRoundsLikeTheFloatOneInRange`**: The `double` overload gives the float one's answers at `t` 0.5 and 1.
   - `interpolateRgb(BLACK, WHITE, 0.5)` equals `0x808080`.
   - `interpolateRgb(0x102030, 0x405060, 0.5)` equals `0x283848`.
   - `interpolateRgb(BLACK, WHITE, 1.0)` equals `WHITE`.
-- **`theDoubleOverloadDoesNotClampEither`**: The same literals as the float overload's out-of-range pins.
-  - `interpolateRgb(BLACK, WHITE, 1.5)` equals `0x017F7F7F`.
-  - `interpolateRgb(BLACK, WHITE, -0.5)` equals `0xFFFFFF81`.
 - **`theDoubleOverloadDropsAnAlphaByte`**: An alpha byte on either input does not reach the result.
   - `interpolateRgb(0xFF123456, 0xFF123456, 0.25)` equals `0x123456`.
 - **`channelsReadTheirOwnEightBits`**: The channel readers return the byte at their shift.
@@ -3666,12 +3435,11 @@ Test: [`RecoloursTest.java`](../src/test/java/org/wynnvets/rendering/colors/Reco
 
 Test: [`VanillaGuiColorsTest.java`](../src/test/java/org/wynnvets/rendering/colors/VanillaGuiColorsTest.java) · Subject: [`VanillaGuiColors`](../src/client/java/org/wynnvets/rendering/colors/VanillaGuiColors.java)
 
-`VanillaGuiColors` holds the vanilla container colours the mod draws in, as ARGB for `GuiGraphics`. The suite pins that every one is opaque, since `fill` and `drawString` skip a colour whose alpha is 0, and that each is the value vanilla draws. The class holds constants only, so the suite loads no Minecraft.
+`VanillaGuiColors` holds the vanilla container colours the mod draws in, as ARGB for `GuiGraphics`. The suite pins that every one is opaque, since `fill` and `drawString` skip a colour whose alpha is 0. It finds the constants by reflection, so a colour added later is checked without touching the test. The class holds constants only, so the suite loads no Minecraft.
 
-- **`everyColourIsOpaque`**: `SLOT_HIGHLIGHT` has alpha `0xFF`.
-  - `SLOT_HIGHLIGHT >>> 24` equals `0xFF`.
-- **`theColoursAreVanillas`**: It is `gui/container/inventory.png`'s light slot edge.
-  - `SLOT_HIGHLIGHT & 0xFFFFFF` equals `0xFFFFFF`.
+- **`everyColourIsOpaque`**: Every `public static final int` field of `VanillaGuiColors` has alpha `0xFF`.
+  - For each such field: `field.getInt(null) >>> 24` equals `0xFF` (message: the field's name).
+  - The list of fields found is not empty: a reflection walk that found nothing would check nothing.
 
 ## `org.wynnvets.rendering.image`
 
@@ -3739,9 +3507,10 @@ Test: [`PixelsTest.java`](../src/test/java/org/wynnvets/rendering/image/PixelsTe
   - `mean(blank(2, 2))` is null: nothing visible.
 - **`applyReplacesEveryPixelInPlace`**: `apply` runs an operator over every pixel and stores the result.
   - A 2x1 image `{1, 2}` after `apply(pixel -> pixel + 10)` has `argb()` equal to `{11, 12}`.
-- **`aCopySharesNothingWithItsOriginal`**: A copy has the size of the original, and writing to it leaves the original alone.
+- **`aCopySharesNothingWithItsOriginal`**: A copy has the size and pixels of the original, and writing to it leaves the original alone.
   - `copy.width()` equals 2 and `copy.height()` equals 1.
-  - After `copy.set(0, 0, 9)`, the original's `get(0, 0)` still equals 1.
+  - After `copy.set(0, 0, 9)`, `copy.argb()` equals `{9, 2}`: the original's pixels, then the write.
+  - The original's `get(0, 0)` still equals 1.
 - **`aRectWritesItselfAsAYamlFlowList`**: A `Rect` writes itself the way the rule files do.
   - `new Rect(97, 17, 74, 36).toYaml()` equals `[97, 17, 74, 36]`.
 
@@ -3805,13 +3574,13 @@ Test: [`RetroCommandsTest.java`](../src/test/java/org/wynnvets/retro/RetroComman
 
 `RetroCommands` builds the Brigadier `/wv retro` tree. The suite builds it and checks the shape its Javadoc documents, and pins what the parts commands work out. No command is run: an answer goes through Wynntils' chat and a stored setting through `VetsConfig`. `names(node)` lists a node's children's names in order.
 
-- **`turningRetroOnEndsWithItsCreditsOnHoverAndAClickToTheReadme`**: `toggleLine(true, RELOADING)` reads `Retro textures on. Reloading resources… (Hover for credits)`; its last sibling's hover names `wynntils.net`, `wynncraft.com`, `mojang.com`, `vanillatweaks.net` and the README's `Credits section`, and its click opens that section on GitHub.
-- **`everyAnswerThatRetroIsOnHasTheCreditsAndOffHasNone`**: `UNCHANGED` and `NO_WYNNCRAFT_PACK` when on end with ` (Hover for credits)`; `RELOADING` and `UNCHANGED` when off do not mention credits.
 - **`treeBuildsWithItsDocumentedShape`**: `buildCommandTree().build()` yields `retro`.
   - `retro.getName()` equals `"retro"`.
   - `retro.getCommand()` is not null: a bare `retro` says its state.
   - Its children are `on`, `off`, `parts` and `only`.
   - For each of `on` and `off`: it has a command and no children.
+- **`turningRetroOnEndsWithItsCreditsOnHoverAndAClickToTheReadme`**: `toggleLine(true, RELOADING)` reads `Retro textures on. Reloading resources… (Hover for credits)`; its last sibling's hover names `wynntils.net`, `wynncraft.com`, `mojang.com`, `vanillatweaks.net` and the README's `Credits section`, and its click opens that section on GitHub.
+- **`everyAnswerThatRetroIsOnHasTheCreditsAndOffHasNone`**: `UNCHANGED` and `NO_WYNNCRAFT_PACK` when on end with ` (Hover for credits)`; `RELOADING` and `UNCHANGED` when off do not mention credits.
 - **`partsListsAndTakesAPartOnOrOff`**: The `parts` child.
   - It has a command: a bare `parts` lists them.
   - Its one child is the `part` argument, which has no command.
@@ -3873,7 +3642,7 @@ Test: [`RetroModeManagerTest.java`](../src/test/java/org/wynnvets/retro/RetroMod
 
 Test: [`WynntilsConfigOverridesTest.java`](../src/test/java/org/wynnvets/retro/WynntilsConfigOverridesTest.java) · Subject: [`WynntilsConfigOverrides`](../src/client/java/org/wynnvets/retro/WynntilsConfigOverrides.java), [`WynntilsSettings`](../src/client/java/org/wynnvets/retro/WynntilsSettings.java)
 
-`WynntilsConfigOverrides` switches Wynntils settings while retro is on and puts them back. The suite pins its snapshot as stored in `retroWynntilsSnapshot` (the text form), and what applying and restoring do to a setting, over `FakeSettings` and `FakeSetting`, stand-ins for `WynntilsSettings` and its `Setting`: `FakeSetting` holds a text value (the text `unreadable` reads as nothing) and can refuse to set or to read back, and `FakeSettings` finds settings by `"<feature> <setting>"`, holds a stored snapshot and records what was done in order. `LiveWynntilsSettings` needs Wynntils and is not tested.
+`WynntilsConfigOverrides` switches Wynntils settings while retro is on and puts them back. The suite pins its snapshot as stored in `retroWynntilsSnapshot` (the text form), and what applying and restoring do to a setting, over `FakeSettings` and `FakeSetting`, stand-ins for `WynntilsSettings` and its `Setting`: `FakeSetting` holds a text value (the text `unreadable` reads as nothing) and can refuse to set or to read back, and `FakeSettings` finds settings by `"<feature> <setting>"`, holds a stored snapshot and records what was done in order, each call with the value `Feature setting` then holds (`null` when the fixture has no such setting). `LiveWynntilsSettings` needs Wynntils and is not tested.
 
 - **`applyingSavesThePlayersValueBeforeItChangesAnything`**: `apply` writes the snapshot before it changes the setting, then saves Wynntils' config.
   - A `FakeSetting` holding `players` (set by the player) becomes `retro`.
@@ -3906,7 +3675,8 @@ Test: [`WynntilsConfigOverridesTest.java`](../src/test/java/org/wynnvets/retro/W
   - The snapshot is empty.
   - With it on again, it holds `retro`.
   - The snapshot decodes to one entry: original `players`, user-edited, applied `retro`.
-  - After it goes off again and `restore` finds nothing to do, it holds `players`.
+  - With it off again, it holds `players`: put back again.
+  - `restore` then finds nothing to do, and the snapshot equals `""`: it clears a snapshot with nothing in it.
 - **`applyingDoesNothingUntilWynntilsHasItsFeatures`**: Before Wynntils has loaded its features, `apply` touches nothing.
   - With `loaded` false the setting still holds `players` and no snapshot was written.
 - **`restoringPutsThePlayersValueBackAndClearsTheSnapshot`**: `restore` sets the saved value, saves Wynntils' config, then clears the snapshot.
@@ -3963,6 +3733,7 @@ The parser's reading of `AssetSections`: the image edits, copies, recipes, blank
 - **`aSourceCopyPicksItsRecolourByItsRecipe`**: `SourceCopy.recolour()` is the recipe's recolour for the row's colour, and null for a plain copy.
   - `SourceCopy.of(art).recolour()` is `null` and its `source()` is the art.
   - A multiply recipe gives `Recolours.tint(colour)`, a scale recipe `Recolours.scale(from, colour)` and a hue recipe `Recolours.hueOnly(from, colour)`, each equal pixel for pixel on a probe.
+  - The hue recipe's recolour of `0xFF402010`, whose strongest channel is not `from`'s (`0x102030`), equals `0xFF402010`: a pixel off the recipe's hue is left as it is, which a scale would not leave.
 - **`aScaleOrMultiplyRecipeLeavesTheArtsOutlineAndAHueRecipePassesOverGrey`**: A near-grey dark pixel is the art's outline: the multiply and scale recipes leave it, and a hue recipe does not touch grey at all; a lighter grey is dyed.
   - For a multiply, a scale (`0xD8D8D8`) and a hue (`0x345FDA`) recipe, `recolour(0x6CB0F0)` of `0xFF353535` equals `0xFF353535`.
   - A lighter grey, `0xFF808080`, comes out as `Recolours.tint(colour)` for the multiply recipe and `Recolours.scale(main, colour)` for the scale recipe.
@@ -4004,8 +3775,8 @@ Test: [`ManifestParserTest.java`](../src/test/java/org/wynnvets/retro/manifest/M
 - **`anUnknownSectionIsIgnored`**: A misspelt `same_nmae` section is dropped while `same_name` still loads.
   - `manifest.sameName().size()` equals 1.
   - `manifest.sameName().get(0).pattern()` equals `"minecraft:block/.*"`.
-- **`emptyFilesGiveAnEmptyManifest`**: Two empty inputs give a manifest with every list and map empty.
-  - `sources()`, `keepWynncraft()`, `tints()`, `aliases()`, `sameName()`, `layerGroups()`, `itemModels()`, `potions()`, `equipment()`, `recipes()`, `imageEdits()`, `wynncraftCopies()`, `sourceCopies()`, `wynntilsTextures()`, `gearBoxIcons()`, `lang().locales()`, `lang().strings()` and `ingredients()` are each empty (18 assertions).
+- **`emptyFilesGiveAnEmptyManifest`**: `RetroManifest.empty()`, the manifest of two empty inputs that `RetroModeManager.manifest()` falls back to, has every list and map empty.
+  - `parts().parts()`, `sources()`, `keepWynncraft()`, `tints()`, `aliases()`, `sameName()`, `layerGroups()`, `itemModels()`, `potions()`, `equipment()`, `recipes()`, `imageEdits()`, `wynncraftCopies()`, `sourceCopies()`, `wynntilsTextures()`, `gearBoxIcons()`, `accessoryTiers().tiers()`, `lang().locales()`, `lang().strings()`, `ingredients()`, `screens().slotFills()` and `wynntilsConfig()` are each empty (22 assertions).
 - **`anEmptyPatternIsIgnored`**: An empty and a null `same_name` entry, an empty alias key and an empty ingredient stem are dropped.
   - `manifest.sameName().size()` equals 1: the section's `'minecraft:block/.*'` entry still loads.
   - `manifest.aliases()` is empty.
@@ -4015,8 +3786,6 @@ Test: [`ManifestParserTest.java`](../src/test/java/org/wynnvets/retro/manifest/M
   - The `potions` family `x: {colour: '00AA00'}` throws `IllegalArgumentException`.
   - The family `x: {colour: #00AA00` (unquoted, so empty) throws `IllegalArgumentException`.
   - The family `x: empty` throws `IllegalArgumentException`: every potion row is a mapping with a liquid's colour.
-- **`theEmptyManifestHasNoRows`**: `RetroManifest.empty()` has every family empty.
-  - `textures().sources()`, `models().ingredients()`, `assets().lang().strings()`, `stacks().accessoryTiers().tiers()`, `screens().slotFills()` and `wynntilsConfig()` are each empty.
 - **`aRowKeyItsSectionDoesNotHaveFailsTheParse`**: A misspelt or foreign key in a row fails the parse, whichever section the row is in.
   - Over seventeen rows (a `strenght` in a tint, a `note` in an item model, a `colour` in an image edit, a `huo_of` in a recipe, an `avomood` in a potion, a `from` in a content book state, a `regoin` in a Wynntils texture, `string` for `strings` in `lang`, extras in `stack_models`, `outlined_icons`, `accessory_tiers`, `slot_fills` and `slot_values`), `parseTextures` throws `IllegalArgumentException` whose message contains `unknown key`.
 - **`wynntilsConfigReadsFeatureSettingAndValueInFileOrder`**: Two `ItemHighlight` settings and one `CustomPlayerListOverlay` setting.
@@ -4054,10 +3823,8 @@ Test: [`ManifestParserTest.java`](../src/test/java/org/wynnvets/retro/manifest/M
 
 Test: [`ModelSectionsTest.java`](../src/test/java/org/wynnvets/retro/manifest/ModelSectionsTest.java) · Subject: [`ModelSections`](../src/client/java/org/wynnvets/retro/manifest/ModelSections.java), [`ItemTables`](../src/client/java/org/wynnvets/retro/manifest/ItemTables.java)
 
-The parser's reading of `ModelSections` and `ItemTables`: the item models, equipment and potion rows, the tables and the order of a table's rows against the item models', on small fixtures.
+The parser's reading of `ModelSections` and `ItemTables`: the item models, equipment and potion rows, the tables and the order of a table's rows against the item models', on small fixtures. An `item_models` row with a key it does not use is `ManifestParserTest#aRowKeyItsSectionDoesNotHaveFailsTheParse`'s.
 
-- **`itemModelRowsRefuseKeysTheyDoNotUse`**: An `item_models` row with a key it does not use fails the parse.
-  - A row with `texture`, `parent` and a spare `note` throws `IllegalArgumentException`.
 - **`aPlainStringItemModelRowIsATextureHeldFlat`**: A string value is a texture, held flat, and must be a full id with only groups the pattern has.
   - `'minecraft:item/wynn/(\w+)': 'minecraft:item/$1'` parses to texture `minecraft:item/$1`, parent `ParentKind.GENERATED` and no model.
   - `'item/stick'`, `'minecraft:item/$2'`, `''` and `5` each throw `IllegalArgumentException`.
@@ -4090,19 +3857,18 @@ The parser's reading of `ModelSections` and `ItemTables`: the item models, equip
 
 Test: [`PartSectionsTest.java`](../src/test/java/org/wynnvets/retro/manifest/PartSectionsTest.java) · Subject: [`PartSections`](../src/client/java/org/wynnvets/retro/manifest/PartSections.java)
 
-The parser's reading of `PartSections`, on small fixtures.
+The parser's reading of `PartSections`, on small fixtures. An empty file's lack of rows is `ManifestParserTest#emptyFilesGiveAnEmptyManifest`'s.
 
 - **`aRowReadsItsAboutItsPatternsAndItsFeatures`**: A `weapons` row with every key.
   - `part()` equals `WEAPONS`.
   - `about()` equals `Weapons`.
   - The first of `textures()` has the pattern `minecraft:a/.*`.
-  - `models()` has 2 patterns.
+  - The patterns of `models()` equal `["minecraft:b/.*", "minecraft:c"]`, in file order.
   - `wynntils()` equals `{Feature}`.
 - **`onlyAboutIsRequiredAndTheRowsKeepTheirOrder`**: `hud` then `blocks`, each with only `about`.
   - The keys equal `[HUD, BLOCKS]`.
   - `hud`'s `textures()` is empty.
   - `hud`'s `wynntils()` is empty.
-- **`noSectionMeansNoRows`**: An empty file gives no rows.
 - **`aMalformedRowFailsTheParse`**:
   - For each of a name that is no part, an upper-case one, no `about`, an unknown key, an empty feature, and `models` that is not a list: the parse throws `IllegalArgumentException`.
   - A pattern that does not compile throws `PatternSyntaxException`.
@@ -4133,9 +3899,9 @@ Test: [`RetroPartTest.java`](../src/test/java/org/wynnvets/retro/manifest/RetroP
   - `parseOff(null)` is empty.
   - `allBut(parseOff(""))` equals `all()`.
 - **`aNameThisClientDoesNotKnowIsIgnoredSoADowngradeSurvives`**: `parseOff("from_a_newer_client, hud ,,MOBS")` equals `{HUD, MOBS}`.
-- **`takingPartsLeavesTheRest`**: `allBut({WEAPONS})`.
-  - It has one part fewer than `values()`.
-  - It lacks `WEAPONS` and has `ITEMS`.
+- **`takingPartsLeavesTheRest`**: `allBut({WEAPONS})`, which is unmodifiable, as `partsOn()` shares it.
+  - It equals `EnumSet.complementOf(EnumSet.of(WEAPONS))`.
+  - `clear()` on it throws `UnsupportedOperationException`.
 
 ### `ScreenSectionsTest`
 
@@ -4172,7 +3938,10 @@ Test: [`ShippedAssetsTest.java`](../src/test/java/org/wynnvets/retro/manifest/Sh
 
 The shipped asset rows against the client jar: the source copies and recipes, the image edits, the Wynntils frames and the language.
 
-- **`anOilTintsOnlyTheWater`**: `copyHueOnly(manifest)` of the real file holds `material/oil_salmon` and `material/gem_dernic`, and not `material/ingot_cobalt`.
+- **`oilsAndGemsTakeAHueRecipeAndIngotsDoNot`**: An oil's or a gem's copy dyes only its own hue; an ingot's does not.
+  - `copyHueOnly(manifest)` of the real file holds `material/oil_salmon`.
+  - It holds `material/gem_dernic`.
+  - It does not hold `material/ingot_cobalt`.
 - **`aRecipeGivesItsArtInAColourFromOneLine`**: The shipped `bucket` recipe dyes the water of the water bucket and nothing else.
   - `bucket.recolour(0x7E9A50)` of the water pixel `0xFF345FDA` equals `0xFF7E9A50`.
   - Of the rim `0xFF808080` it equals `0xFF808080`: the bucket stays a bucket.
@@ -4181,8 +3950,7 @@ The shipped asset rows against the client jar: the source copies and recipes, th
 - **`theGreyPlantsAreBakedGreen`**: `block/vine`, `fern`, `large_fern_top`, `short_grass`, `lily_pad`, `grass_block_top` and `grass_block_side_overlay` are grey and take their colour from the vanilla item's definition or the biome; Wynncraft's items are potions, whose white tint leaves them grey.
   - `copyTints(manifest)`, of the copies under `vetsmod:block/retro/green/` by name, equals vine `0x48B518`, lily_pad `0x71C35C`, and `0x7CBD6B` for the other five: vanilla's constants, and `colormap/grass.png` at (127, 127).
   - Each of those copies is of `minecraft:block/<name>`.
-  - `itemStub` of the 7 vine, 7 fern, 4 large fern, 2 short grass and 5 lily pad models is a `TintProof` whose art is `vetsmod:block/retro/green/<plant>`.
-  - `itemStub("minecraft:item/wynn/outer_void/drop/arable_chunk")` equals `ItemParent("vetsmod:item/retro/arable_chunk")`, and that model's `top` and `overlay` are tinted copies.
+  - `model("vetsmod:item/retro/arable_chunk")`'s `top` and `overlay` are tinted copies. Which items draw each copy is `ShippedItemModelsTest`'s (`PINNED_MODELS` and `everyPlantIngredientFallsThroughToItsGreenCopy`).
 - **`everyOverhealthHeartIsACopyOfVanillasHeartOfItsFill`**: For each of `OVERHEALTH_COLOURS` and each fill, the copy's source at `overhealthTexture(colour, fill)` is `minecraft:gui/sprites/hud/heart/<fill>`, so `RetroHud`'s sprites exist.
 - **`theSourceCopiesAreTheKeysHookAndTheGearBoxesChest`**: `block/tripwire_hook` is kept (its blockstate draws a blank, and Wynncraft ships no such texture, so it stays today's vanilla hook), so the keys draw a copy of the 2013 one; the chest is an entity texture, which no item atlas takes, so the gear boxes' chest model draws a copy in the blocks atlas.
   - The copies' sources map `vetsmod:block/retro/tripwire_hook` to `minecraft:block/tripwire_hook` and `vetsmod:block/retro/chest` to `minecraft:entity/chest/normal`.
@@ -4253,16 +4021,15 @@ The shipped equipment rows: that every Wynncraft equipment asset (`WYNNCRAFT_EQU
   - For each row of the real file, its pattern matches `minecraft:<asset>` for at least one key of `WYNNCRAFT_EQUIPMENT`.
 - **`everyEquipmentTargetIsAVanillaAssetWhoseTexturesSameNameCopies`**: The generator copies vanilla's file as it is, so each layer's texture must be one the client jar has, and one `same_name` gives its 2013 art; vanilla stands for every source here.
   - The vanilla assets the rows pick for `WYNNCRAFT_EQUIPMENT` equal `{minecraft:leather, minecraft:chainmail, minecraft:iron, minecraft:gold, minecraft:diamond, minecraft:netherite}`.
-  - For each: the `layers` of `equipment(target)` is not empty.
+  - For each: the `layers` of `ShippedFiles.json(target, "equipment")` is not empty (that helper asserts the resource is not null).
   - For each layer and each of its entries, with `id` = `<namespace>:entity/equipment/<layer>/<texture>`: `textureInClientJar(id)` is true.
   - `decide(id, CLIENT_JAR)` equals `Copy(id, VANILLA)`.
-  - In the helper `equipment`, the resource is not null.
 
 ### `ShippedItemModelsTest`
 
 Test: [`ShippedItemModelsTest.java`](../src/test/java/org/wynnvets/retro/manifest/ShippedItemModelsTest.java) · Subject: [`ModelSections`](../src/client/java/org/wynnvets/retro/manifest/ModelSections.java), [`ItemTables`](../src/client/java/org/wynnvets/retro/manifest/ItemTables.java), [`retro_ingredients.yml`](../src/client/resources/retro_ingredients.yml)
 
-The shipped item model rows and tables against the client jar and vetsmod's own assets: that the rows cover the pinned models and send them to the art each row names, that every stub is held like the item it shows and its parent ships with a blank, and the ingredients. `PINNED_MODELS` maps Wynncraft item models, taken from the pack, to what their stub shows: the texture a tint-proof stub draws, or the item model a model stub parents, as a path under `minecraft:` or in full for one of vetsmod's own. It covers weapons, armour and tools, keys, scrolls and papers, meals, saddles, gear boxes, the pouches, powders, runes, wards, the tier layer, the content book, the ability shard, the augments, Hashr's Crown, the compass menu's buttons, the tomes, and of each table's family one name of each kind. `realTables`, `realSections`, `tableModel`, `original` and `assertHeldLikeItsItem` are the helpers.
+The shipped item model rows and tables against the client jar and vetsmod's own assets: that the rows cover the pinned models and send them to the art each row names, that every stub is held like the item it shows and its parent ships with a blank, and the ingredients. `PINNED_MODELS` maps Wynncraft item models, taken from the pack, to what their stub shows: the texture a tint-proof stub draws, or the item model a model stub parents, as a path under `minecraft:` or in full for one of vetsmod's own. It covers weapons, armour and tools, keys, scrolls and papers, meals, saddles, gear boxes, the pouches, powders, runes, wards, the tier layer, the content book, the ability shard, the augments, Hashr's Crown, the compass menu's buttons, the tomes, the green plants (the undergrowth fragment among them), and of each table's family one name of each kind. Each powder is the dye Wynncraft's own `items/<colour>_dye.json` sends to it (pack `a43ae4e6`), as potion stacks draw the same models; both sizes of an element have a dye of their own. `realTables`, `realSections`, `tableModel`, `original`, `assertHeldLikeItsItem` and `generatedAccessoryModels` (the models `accessory_tiers` writes, empty slots included) are the helpers.
 
 - **`redstoneTorchesAreVanillasCandlesAndEveryParentExists`**:
   - `blockModels()` equals the four rows: the two torches to `block/candle_one_candle_lit` and `block/candle_one_candle`, and the two wall torches to `vetsmod:block/retro/wall_candle_lit` and `wall_candle`.
@@ -4309,14 +4076,15 @@ The shipped item model rows and tables against the client jar and vetsmod's own 
   - `textures`' `particle` equals `#art`.
   - `Atlas.of(stub.blank())` equals `Optional.of(atlas)`.
 - **`theBlanksAreFullyTransparent`**: Both blanks are 16 by 16 and every pixel has alpha 0.
-  - For each `Atlas`: the resource `/assets/vetsmod/textures/<folder>/retro/blank.png` is not null.
-  - Its `ImageIO.read` image's width equals 16.
+  - For each `Atlas`: the width of `texture("vetsmod:<folder>/retro/blank")` equals 16 (that helper asserts the resource is not null).
   - Its height equals 16.
   - For each of the 256 pixels: `getRGB(x, y) >>> 24` equals 0.
 - **`modelsNoRowCoversKeepWynncraftsModel`**: Materials with no 2013 armour, Wynncraft's own armour, cosmetics, potions (which the `potions` rows cover instead), accessories, ingredients, the models Wynntils reads itself, and the neighbours of the families the rows cover (a key ingredient, dungeon fragments and tokens, props, the GUI's scroll, food and lootrun icons, the loot cache, the pouch screen's buttons, the emerald pouch, the blank rune, the tier layer's fade, and the frying pan) get no item stub.
   - `covered` equals `List.of()`, where `covered` collects each of `armor/boots/copper_boots`, `armor/chestplate/pale_copper_chestplate`, `armor/helmet/quartz_helmet`, `armor/leggings/hidden_leggings`, `armor/chestplate/tan_chestplate`, `armor/helmet/shaman_helmet`, `potion/mana_full`, `skin/hat/adventurer_hat`, `accessory/ring/ring_base_a`, `ingredient/gold_nugget`, `ingredient/skeleton_key`, `dungeon/fragment/decrepit_sewers`, `dungeon/token/ice_barrows`, `prop/quest_scroll`, `skin/dagger/frying_pan`, `outer_void/drop/frying_pan`, `gui/item_upgrader/scrolls`, `gui/trade_market/filter/scroll`, `gui/trade_market/filter/food`, `gui/lootrun/boon/loot`, `loot/cache`, `pouch/ingredient_add`, `pouch/ingredient_default`, `pouch/emerald_full`, `rune/blank`, `gui/layer/tier/fade`, `minecraft:item/oak_boat` and `minecraft:w1000` for which `itemStub(model)` is present.
-- **`everyIngredientModelIsInTheClientJar`**: Each ingredient row's model exists.
-  - For each ingredient row whose value is not `keep`: `onClasspath(value, "models", ".json")` is true.
+- **`everyIngredientModelShipsOrIsGenerated`**: Each ingredient row's model exists: a vanilla one in the client jar, a vetsmod one as an accessory the pack writes, which the file spells out in full since it has only ids to name a parent with.
+  - For each ingredient row whose value is not `keep` and starts with `vetsmod:`: `generatedAccessoryModels()` contains the value.
+  - For each other such row: `onClasspath(value, "models", ".json")` is true.
+  - At least one row is a `vetsmod:` one: the file has rows on generated accessories.
 - **`ingredientsWithNoVanillaParentGetTheirLegacyIconOrKeepWynncrafts`**: Stems whose Wynncraft model (pack `a43ae4e6`) parents no vanilla model get the vanilla item of their legacy icon, or keep Wynncraft's model when that icon only selected Wynncraft's own art.
   - `ingredientParent("aspect_of_the_void")` equals `Optional.of("minecraft:item/enderman_spawn_egg")`: legacy `383:58`, and Wynncraft's model parents the missing `item/spawn_egg`.
   - `ingredientParent("penguin_egg")` equals `Optional.of("minecraft:item/egg")`: legacy `383:0`, a spawn egg naming no mob.
@@ -4326,7 +4094,7 @@ The shipped item model rows and tables against the client jar and vetsmod's own 
   - `burial_talisman` gives `vetsmod:item/retro/accessory/necklace_netherite`.
   - `liff_leaf`, with no row of its own, has its `item_models` stub from `modelStub`.
   - For each of `butterfly_buckler` and `router_shield`: `ingredientParent` equals `Optional.empty()`.
-- **`everyPlantIngredientFallsThroughToItsGreenCopy`**: Twenty-six plant ingredients have no row in `retro_ingredients.yml`, so `item_models` draws each on its green copy.
+- **`everyPlantIngredientFallsThroughToItsGreenCopy`**: The plant ingredients in `greenCopies` have no row in `retro_ingredients.yml`, so `item_models` draws each on its green copy.
   - For each stem, `modelStub` is a `TintProof` of `vetsmod:block/retro/green/<copy>`, parent `GENERATED`, atlas `BLOCKS`.
   - `ingredients()` has no key for the stem.
 - **`theGearBoxChestIsVanillasChestModelDrawnFromOneAtlas`**: `vetsmod:item/retro/chest` is 1.21.11's `ChestModel` (`createSingleBodyLayer`) as block-model elements in a template both chests share (`template_retro_chest`), held as vanilla's chest item is, every face on the chest's copy in the blocks atlas.
@@ -4339,9 +4107,6 @@ The shipped item model rows and tables against the client jar and vetsmod's own 
   - For each face: its `texture` equals `#chest`; it has no `tintindex`; its `uv`, in the texture's pixels (4 per unit), is as wide as the face (the element's x size for `north`, `south`, `up` and `down`, its z size for `east` and `west`) and as high (its y size for a side, its z size for `up` and `down`); and every pixel of the jar's chest texture inside it has alpha `0xFF`, so no face samples the empty parts of the chest's layout.
 - **`theGearBoxesAreTheChestInTheGuiAndInTheHand`**: Wynncraft draws a gear box from `gui/loot/<tier>` in the GUI and `loot/<tier>` elsewhere (`potion.json` selects on the display context); set boxes draw `loot/set` throughout.
   - For each tier of `unique`, `rare`, `legendary`, `fabled`, `mythic` and `set`, and each folder of `gui/loot/` and `loot/`: `itemStub("minecraft:item/wynn/<folder><tier>")` equals `Optional.of(ItemParent("vetsmod:item/retro/chest"))`.
-- **`eachPowderIsTheDyeWynncraftsOwnItemsSendToIt`**: Both sizes of each element draw the dye Wynncraft's own `items/<colour>_dye.json` send to that powder.
-  - Each of the ten powder models has a `TintProof` stub of its dye (air gray and light gray, earth lime and green, thunder yellow and orange, water light blue and cyan, fire pink and red), parent `GENERATED`, atlas `ITEMS`.
-  - Each dye texture is in the client jar.
 
 ### `ShippedManifestTest`
 
@@ -4455,20 +4220,19 @@ The shipped stack rows: that every outlined icon has art, and every gear box typ
 
 - **`everyOutlinedIconHasArtThatExists`**: The real file's keys are the five weapon types and the six tome types but `GUILD_TOME`, which is the real shield in `gear_box_icons`, and each texture is in the client jar.
 - **`everyGearTypeOfABoxShowsTheItemRetroShowsItsClassOrPieceAs`**: The gear types a box can be, as Wynntils' `UnidentifiedItemIconFeature` draws them (its icons also cover the tome and charm, which are not boxes).
-  - The keys of `gearBoxIcons()` equal `{SPEAR, WAND, DAGGER, BOW, RELIK, HELMET, CHESTPLATE, LEGGINGS, BOOTS, RING, NECKLACE, BRACELET}`.
-  - For each weapon type and a pinned model of its class (`weapon/warrior/spear_air_a`, `weapon/mage/wand_basic_wood`, `weapon/assassin/dagger_fire_c`, `weapon/archer/bow_thunder_b`, `weapon/shaman/relik_basic_wooden`): `inFull` of the `layer0` of the client jar's model `<namespace>:item/<item>` of its icon equals `shown` of that model's stub, so the icon is the item the class's stubs show.
+  - The keys of `gearBoxIcons()` equal `{HELMET, CHESTPLATE, LEGGINGS, BOOTS, RING, NECKLACE, BRACELET, GUILD_TOME}`.
+  - For each weapon type and a pinned model of its class (`weapon/warrior/spear_air_a`, `weapon/mage/wand_basic_wood`, `weapon/assassin/dagger_fire_c`, `weapon/archer/bow_thunder_b`, `weapon/shaman/relik_basic_wooden`): `outlinedIcons().get(type).art()` equals the `art()` of that model's `itemStub`, so a weapon's icon is the art its class's stubs show.
   - For each piece: its icon equals `minecraft:iron_<piece>`.
   - `RING`'s icon equals `minecraft:gold_nugget`.
   - `NECKLACE`'s equals `minecraft:lead`.
   - `BRACELET`'s equals `minecraft:clock`.
-  - For each icon: `onClasspath(item, "items", ".json")` is true: the jar has the item definition the pack copies.
-  - `RetroAssetIds.itemDefinitionCopy(item)` equals `vetsmod:retro/<namespace>/<item>`.
+  - For each icon: `onClasspath(item, "items", ".json")` is true: the jar has the item definition the pack copies. The copy's id is `RetroAssetIdsTest`'s.
 
 ### `ShippedTexturesTest`
 
 Test: [`ShippedTexturesTest.java`](../src/test/java/org/wynnvets/retro/manifest/ShippedTexturesTest.java) · Subject: [`TextureSections`](../src/client/java/org/wynnvets/retro/manifest/TextureSections.java), [`retro_textures.yml`](../src/client/resources/retro_textures.yml)
 
-The shipped texture rows against the client jar: the sources, the aliases, the variants, the tints and the decisions the rows give the textures Wynncraft repaints. `PINNED_TINTS` and `PINNED_VARIANTS` pin the ids taken from the Wynncraft pack.
+The shipped texture rows against the client jar: the sources, the aliases, the variants, the tints and the decisions the rows give the textures Wynncraft repaints. `PINNED_TINTS` and `PINNED_VARIANTS` pin the ids taken from the Wynncraft pack; `PINNED_TINTS` holds, beside the plants and blocks it tints, Wynncraft's dark variants (each its stone darkened as Wynncraft darkened it, against Wynncraft's own copy of that stone) and its molten rock (the 2013 magma).
 
 - **`wynncraftsGreenPlantsTakeItsColourUnderTheBiomesTint`**: `decide` of the fern, large fern, short and tall grass, vine and a short grass variant is a `Tint` with an `Auto` factor.
 - **`theRealSourcesReadVanillaTweaksFirstAndTheGuiFromVanilla`**: The shipped `sources` rows.
@@ -4508,10 +4272,9 @@ The shipped texture rows against the client jar: the sources, the aliases, the v
 - **`everyTintRowCoversAPinnedTexture`**: No `tints` row is a typo or a stale name.
   - For each row of the real file, its pattern matches `minecraft:<texture>` for at least one key of `PINNED_TINTS`.
 - **`everyTextureATintReadsIsAVanillaBlockTexture`**: A tint's source and its `match` texture come from the sources, for which vanilla stands here, and a `relative_to` texture is read from Wynncraft's pack or, where Wynncraft ships none, vanilla's. A like also reads what the row it names reads for the texture it names.
-  - For each pinned decision, and for the decision a like carries (`like()`), for its `from()` and its `match` or `relative_to` texture (a colour, `auto`, a like or no tint reads its source alone): `textureInClientJar` is true.
+  - For each key of `PINNED_TINTS`: the real rules' `decide("minecraft:<texture>", CLIENT_JAR)` is a `TextureDecision.Tint`.
+  - For that decision, and for the decision a like carries (`like()`), for its `from()` and its `match` or `relative_to` texture (a colour, `auto`, a like or no tint reads its source alone): `textureInClientJar` is true.
   - `Atlas.of` equals `Optional.of(Atlas.BLOCKS)`.
-- **`theDarkStoneVariantsAreTheirStoneDarkenedAsWynncraftDarkenedIt`**: More of pack `a43ae4e6`'s dark variants, against Wynncraft's own copy of their stone.
-  - For each of `dark_stone_0` (`stone`), `dark_cobblestone` (`cobblestone`), `dark_cracked_stone_bricks_0` and `dark_cracked_stone_bricks` (`cracked_stone_bricks`), and `dark_mossy_stone_bricks` and `dark_mossy_stone_bricks_1` (`mossy_stone_bricks`): `decide("minecraft:block/variants/<variant>", CLIENT_JAR)` equals `tint("block/<stone>", relative("block/<stone>"))`.
 - **`aTintBeatsTheSameNameCopy`**: Under `EVERYTHING_BLANK` every source has every texture, so `same_name` would copy it; the tint comes first, and a block reads Programmer Art first.
   - `decide("minecraft:block/note_block")` equals `Tint("minecraft:block/note_block", PROGRAMMER_ART, match(block/oak_log), 1, 1)`.
 - **`skyWoodIsThePlainOakLogOnEveryFace`**: Under `EVERYTHING_BLANK`, `decide` of `purpur_block`, `purpur_pillar` and `purpur_pillar_side` equals `Copy("minecraft:block/oak_log", PROGRAMMER_ART)`, and of `purpur_pillar_top` equals `Copy("minecraft:block/oak_log_top", PROGRAMMER_ART)`.
@@ -4537,8 +4300,7 @@ The shipped texture rows against the client jar: the sources, the aliases, the v
   - `entity/sheep/sheep`, `entity/sheep/sheep_wool` and `entity/sheep/sheep_wool_undercoat` each equal `Keep(LAYER_GROUP)` (3 assertions): Programmer Art has no undercoat.
   - `entity/wolf/wolf` equals `Copy("minecraft:entity/wolf/wolf", PROGRAMMER_ART)`.
   - `entity/wolf/wolf_collar` equals `Copy("minecraft:entity/wolf/wolf_collar", PROGRAMMER_ART)`.
-- **`moltenRockIsTheAnimated2013MagmaTintedLikeWynncrafts`**: The double petrified oak slab and the old double wood slab draw Wynncraft's `variants/molten_rock` and `_0` to `_2`, animated strips; the tint reads magma, whose `.mcmeta` goes with it, and keeps the strip whole.
-  - For each of `molten_rock`, `molten_rock_0` and `molten_rock_1`: `decide("minecraft:block/variants/<variant>", CLIENT_JAR)` equals `tint("block/magma", Auto())`.
+- **`theMagmaTheMoltenRockReadsIsAnAnimatedStrip`**: The double petrified oak slab and the old double wood slab draw Wynncraft's `variants/molten_rock` and `_0` to `_2`, animated strips; their tint (`PINNED_TINTS`) reads magma, whose `.mcmeta` goes with it, and keeps the strip whole.
   - `onClasspath("minecraft:block/magma", "textures", ".png.mcmeta")` is true.
   - `texture("minecraft:block/magma")`'s height is a multiple of its width: a strip of square frames.
   - Its height is more than its width: more than one frame.
@@ -4644,7 +4406,7 @@ Test: [`PackFilesTest.java`](../src/test/java/org/wynnvets/retro/pack/PackFilesT
 
 Test: [`RetroPackInjectorTest.java`](../src/test/java/org/wynnvets/retro/pack/RetroPackInjectorTest.java) · Subject: [`RetroPackInjector`](../src/client/java/org/wynnvets/retro/pack/RetroPackInjector.java)
 
-`RetroPackInjector` adds the retro pack to a reload above the highest Wynncraft pack. The suite pins how it tells Wynncraft's pack: by its id's prefix and a file only it has (`isWynncraftPack`), which pack is highest (`highestWynncraftPack`), and `isRetroPack`, over `MemoryPack`s. Adding the pack to a reload needs a running client and is not tested.
+`RetroPackInjector` adds the retro pack to a reload above the highest Wynncraft pack. The suite pins how it tells Wynncraft's pack: by its id's prefix and a file only it has (`isWynncraftPack`), which pack is highest (`highestWynncraftPack`), and `isRetroPack`, over `MemoryPack`s and an empty `RetroPackResources`. Adding the pack to a reload needs a running client and is not tested.
 
 - **`wynncraftsPackIsAServerOrPreloadedPackWithTheProbe`**: A pack is Wynncraft's when its id starts with `server/` or `wynntils_preloaded/` and it holds `minecraft:font/banner/box.json`.
   - `isWynncraftPack` is true for `server/abc` and `wynntils_preloaded/abc` packs with the probe.
@@ -4654,7 +4416,8 @@ Test: [`RetroPackInjectorTest.java`](../src/test/java/org/wynnvets/retro/pack/Re
 - **`theHighestWynncraftPackIsChosen`**: The retro pack goes above the highest Wynncraft pack in the list.
   - Over `[vanilla, wynntils_preloaded/abc, mine, server/abc, mine]`, `highestWynncraftPack` is 3.
   - Over `[vanilla, mine]` and over the empty list it is -1.
-- **`onlyTheInjectorsOwnPackIsARetroPack`**: A pack other than the retro pack is not one.
+- **`onlyTheInjectorsOwnPackIsARetroPack`**: The injector's own `RetroPackResources` is a retro pack, and another pack is not, whatever its id.
+  - `isRetroPack(new RetroPackResources(Map::of, Map::of))` is true.
   - `isRetroPack(new MemoryPack("retro"))` is false.
 
 ### `RetroPackResourcesTest`
@@ -4813,7 +4576,7 @@ With a part off, `TextureStep` asks `DrawnArt` which textures the on parts draw 
 - **`aCycleOfParentsEnds`**: `off` equals both models' art, each in a slot of its own, for two models that parent each other.
 - **`withEveryPartOnNothingIsWalkedAndTheRulesDecide`**: Every part on, over an unreadable model.
   - `skipped` is empty: no model was read.
-  - `out.decisions` equals `decideAll` of the one texture.
+  - `out.decisions` equals `{"minecraft:item/feather": Copy("minecraft:item/feather", VANILLA)}`: the `same_name` copy, with no part's decision over it.
   - `counts` has no `PARTS_OFF`.
   - The texture is written.
 - **`withAPartOffTheModelsAreWalked`**: The same packs with `tools` off: the first skipped line names the unreadable model.
@@ -4824,10 +4587,12 @@ Test: [`GenerationStepsTest.java`](../src/test/java/org/wynnvets/retro/pack/gene
 
 Each generation step run alone, or in `RetroPackGenerator.STEPS`' order, over rule-file fixtures and two packs held in memory (`vanilla`, the only source, and `wynncraft`, above it). Images go through Minecraft's own PNG decoder, as in play. The sections are: the order, `TextureStep`, the copies, textures at their live size, generated items, and the stubs. The helpers `run`, `file`, `text`, `image` and `count` run a step over a fixture and read its `PackOutput`.
 
-- **`theStepsRunInTheirStatedOrder`**: `STEPS` is the one statement of the order.
-  - The step classes equal `TextureStep`, `WynncraftCopyStep`, `SourceCopyStep`, `BlankTextureStep`, `WynntilsTextureStep`, `AccessoryTierStep`, `ModelStubStep`, `BlockModelStep`, `EquipmentStep`, `ItemDefinitionStep`, `OutlinedIconStep`, in that order.
-- **`everyStepThatWritesWhatAStubNamesComesBeforeTheStubs`**: A stub resolves what earlier steps wrote.
-  - The texture, copy, blank, Wynntils texture and accessory steps are all before `ModelStubStep`, which is before `BlockModelStep`.
+- **`theStepsRunInTheOrderTheirFilesNeed`**: The constraints `STEPS`' order has to meet, not the list itself: a stub resolves what earlier steps wrote, and a later step's file replaces an earlier one's at the same path.
+  - For each of the texture, Wynncraft copy, source copy, blank, Wynntils texture and accessory steps: `STEPS` contains it, and it comes before `ModelStubStep`.
+  - `ModelStubStep` comes before `BlockModelStep`.
+  - `STEPS` contains `EquipmentStep`, `ItemDefinitionStep` and `OutlinedIconStep`, the steps that read no other step's files.
+  - `TextureStep` comes before `BlankTextureStep`: a blank texture outranks the texture rules' file.
+  - `TextureStep` comes before `WynntilsTextureStep`: a Wynntils texture outranks the texture rules' file.
 - **`aStubResolvesTheAccessoryAnEarlierStepWrote`**: An ingredient row that parents a generated accessory is written when the accessory step ran first.
   - `nose_ring.json` is `{"parent":"vetsmod:item/retro/accessory/ring_iron"}`, and nothing is skipped.
 - **`theSameStubBeforeTheAccessoryIsSkipped`**: The same two steps in the other order skip the stub, which is what the order prevents.
@@ -5093,8 +4858,6 @@ Test: [`TintFactorsTest.java`](../src/test/java/org/wynnvets/retro/pack/generate
   - `contrast(blank(2, 2), 0.5)` leaves it all zero: nothing visible, nothing to move.
 - **`aTintChangesTheContrastAfterTheColourAroundTheTintedMean`**: `0xFF646464` and `0xFFC8C8C8`, red times 1.5 and half the contrast.
   - After `tint(image, [1.5, 1, 1], 0.5)`, `argb()` equals `[0xFFB07D7D, 0xFFE5AFAF]`: red becomes 150 and 255 (stopped from 300), a mean of 202.5, then 176.25 and 228.75 rounded; green and blue 125 and 175 around 150. The contrast first would give red 188 and 255.
-- **`aTintAtFullContrastIsTheMultiplyAlone`**: `0xFF5A3CC8`, `0x806E28C8` and `0x00FFFFFF`.
-  - `tint(image, [0.5, 2, 0.25], 1)` gives the same `argb()` as `multiply(copy, 0.5, 2, 0.25)`.
 - **`contrastAroundTheImagesOwnMeanMatchesThePlainContrast`**: With factors of 1, the plain contrast pivots on the image's own mean.
   - `tint(image, {1, 1, 1}, 0.45)` and `tint(copy, {1, 1, 1}, 0.45, <the same image's mean>)` give equal `argb()` arrays.
 - **`theTintedMeanIsTheMeanAfterTheClampedMultiplyAndLeavesTheImage`**: `0xFF5A3CC8`, `0x806E28C8` and `0x00FFFFFF`, by (0.5, 5, 0.25).
@@ -5182,7 +4945,7 @@ Test: [`RetroContainerTitlesTest.java`](../src/test/java/org/wynnvets/retro/rend
   - A nameless U+E006 with no row gives `null`.
 - **`aGlyphCountsInTheInterfaceFontAlone`**: U+E006 gives its row in the `interface` font, and `null` in `offset/store/front`, the store's ribbon.
 - **`theStoreKeepsWynncraftsLabel`**: The real rows give `null` for `StoreContainer` and `StorePageContainer`, even with a glyph that has a row.
-- **`theShippedGlyphRowsAreTheMerchantAndThePowderMaster`**: `glyphTitle` of the real rows: U+E006 `Merchant`, U+E01A to U+E01C the Powder Master's three screens, U+E03E `Party Finder: Join`, U+F044 and U+F048 after U+E053 `Jeweling` and `Woodworking`, U+E003 (Character Info) `null`.
+- **`theShippedGlyphRowsNameTheirScreens`**: `glyphTitle` of the real rows: U+E006 `Merchant`, U+E01A to U+E01C the Powder Master's three screens, U+E03E `Party Finder: Join`, U+F044 and U+F048 after U+E053 `Jeweling` and `Woodworking`, U+E003 (Character Info) `null`.
 - **`theInventoryLabelIsDrawnOnlyWhereRetroDrewTheContainers`**: `inventory` is `Component.literal("Inventory")`, `bank` a `Relabelled` for `AccountBankContainer` titled `Account Bank`, with no bounds, not full-screen, and `contentBook` one for `ContentBookContainer` titled `Content Book`, with no bounds, full-screen.
   - `inventoryLabel(bank, inventory)` is the same object as `inventory`.
   - `inventoryLabel(null, inventory).getString()` equals `""`: a screen that keeps Wynncraft's label keeps its art there too.
@@ -5351,14 +5114,14 @@ Test: [`RetroSlotIconsTest.java`](../src/test/java/org/wynnvets/retro/render/Ret
 
 `RetroSlotIcons` draws a gear box's or a tome's type, and the Ability Tree's glint, over a slot's item. The suite pins its pure parts: where the icon sits on a slot, how big it is drawn, which item the shipped `gear_box_icons` rows draw for a gear type, and on which screen the Ability Tree button glints. Drawing needs Wynntils' item model and a running client and is not tested.
 
-- **`theIconIsThreeQuartersOfTheSlotCentredOnIt`**:
-  - `ICON_SCALE` equals `0.75f`, and `iconOffset(ICON_SCALE)` equals `2f`.
-  - `iconOffset(ICON_SCALE) * 2 + 16 * ICON_SCALE` equals `16f`: the offset, the icon and the offset fill the slot, so as much slot shows on each side.
+- **`theIconIsThreeQuartersOfTheSlotCentredOnIt`**: A 12-pixel icon leaves 2 pixels of the 16-pixel slot on each side.
+  - `iconOffset(ICON_SCALE)` equals `2f`.
 - **`anOutlinedIconsTextureIsGrownSoItsArtStaysItsRowsSize`**:
   - `drawnScale` of a row of outline 3 and scale 0.375 equals `0.515625f`, three pixels of outline each side growing the texture from 16 to 22, and its offset equals `3.875f`.
   - `drawnScale` with no outline equals the row's scale.
-- **`aTypeWithNoOutlinedRowIsDrawnAtTheIconScale`**: A type with an `outlined_icons` row is drawn at that group's scale; any other, at `ICON_SCALE`.
-  - `iconScale(outlined, "SPEAR")` equals `drawnScale` of the `SPEAR` row, and likewise for `ARMOUR_TOME`.
+- **`aTypeIsDrawnAtItsOutlinedRowsScaleOrElseTheIconScale`**: A type with a shipped `outlined_icons` row is drawn at that row's scale, grown by its outline; any other, at `ICON_SCALE`.
+  - `iconScale(outlined, "SPEAR")` equals `0.703125f`: 0.625 * 18 / 16, one pixel of outline each side.
+  - `iconScale(outlined, "ARMOUR_TOME")` equals `0.515625f`: 0.375 * 22 / 16, three pixels each side.
   - `iconScale(outlined, "HELMET")` equals `ICON_SCALE`.
   - So does `GUILD_TOME`: the Allegiance tome's shield is a `gear_box_icons` item, not a smaller tome icon.
 - **`theAbilityTreesGlintIsOnlyOnAScreenRetroRelabelled`**: The Ability Tree button glints on a relabelled screen, and not on the tree screen's Ability Points button, which is the same Wynntils item.
@@ -5483,16 +5246,6 @@ Test: [`RetroStackModelsTest.java`](../src/test/java/org/wynnvets/retro/render/R
   - With `crafting` off, `Active Blesses` still gives `minecraft:nether_star`.
   - With `items` off, `Active Blesses` gives `null`.
 
-### `RetroStacksTest`
-
-Test: [`RetroStacksTest.java`](../src/test/java/org/wynnvets/retro/render/RetroStacksTest.java) · Subject: [`RetroStacks`](../src/client/java/org/wynnvets/retro/render/RetroStacks.java)
-
-`RetroStacks` builds the stacks retro's rows name and parses the ids those rows name. The stacks need the Minecraft bootstrap and are not tested; the suite pins the parsed id.
-
-- **`anIdIsParsedOnce`**: `RetroStacks.id` returns the same parsed id for the same string.
-  - `id("minecraft:paper").toString()` equals `minecraft:paper`.
-  - Two calls return the same instance.
-
 ## `org.wynnvets.retro.rules`
 
 ### `ModelRulesTest`
@@ -5598,8 +5351,9 @@ Test: [`PartFilterTest.java`](../src/test/java/org/wynnvets/retro/rules/PartFilt
 
 Test: [`RetroAssetIdsTest.java`](../src/test/java/org/wynnvets/retro/rules/RetroAssetIdsTest.java) · Subject: [`RetroAssetIds`](../src/client/java/org/wynnvets/retro/rules/RetroAssetIds.java)
 
-`RetroAssetIds` is the one place that spells the ids the retro pack generates. The expected ids are literals, so a change to a template fails here even though every caller shares it.
+`RetroAssetIds` is the one place that spells the ids the retro pack generates. The expected ids are literals, so a change to a template fails here even though every caller shares it. That the ingredients file's `vetsmod:` rows name accessories `accessory_tiers` generates is `ShippedItemModelsTest#everyIngredientModelShipsOrIsGenerated`'s.
 
+- **`anOverhealthHeartsSpriteIsItsTextureInTheGuiAtlas`**: `overhealthSprite("orange", HEART_FULL)` equals `vetsmod:retro/heart/orange_full`; `overhealthTexture("green", HEART_HALF)` equals `vetsmod:gui/sprites/retro/heart/green_half`.
 - **`anItemDefinitionsCopyIsInVetsmodsNamespaceUnderTheItemsOwnId`**: The static `itemDefinitionCopy`, the id the pack copies a `gear_box_icons` item's vanilla definition to.
   - `itemDefinitionCopy("minecraft:iron_shovel")` equals `"vetsmod:retro/minecraft/iron_shovel"`.
   - `itemDefinitionCopy("avomod2:potion_mana")` equals `"vetsmod:retro/avomod2/potion_mana"`: any namespace keeps its own folder.
@@ -5618,16 +5372,12 @@ Test: [`RetroAssetIdsTest.java`](../src/test/java/org/wynnvets/retro/rules/Retro
   - `outlinedIconPath("WEAPON_TOME")` equals `retro/icon/weapon_tome`.
   - `outlinedIconItem("SPEAR")` equals `vetsmod:retro/icon/spear`.
   - `generatedAsset(outlinedIconPath("SPEAR"))` equals `vetsmod:item/retro/icon/spear`.
-- **`anOverhealthHeartsSpriteIsItsTextureInTheGuiAtlas`**: `overhealthSprite("orange", HEART_FULL)` equals `vetsmod:retro/heart/orange_full`; `overhealthTexture("green", HEART_HALF)` equals `vetsmod:gui/sprites/retro/heart/green_half`.
 - **`aTableCopyNamesItsFamilyOrActivity`**: A table's copies live under `material/` and `book/`.
   - `materialCopy("paper", "oak")` equals `vetsmod:item/retro/material/paper_oak`.
   - `bookCopy("raid", "locked")` equals `vetsmod:item/retro/book/raid_locked`.
 - **`aStubsParentAndBlankFollowItsKindAndAtlas`**: The tint-proof parent and the blank are named by parent kind and atlas.
   - `tintProofParent(HANDHELD, ITEMS)` equals `vetsmod:item/retro/tint_proof_handheld_item`; `(GENERATED, BLOCKS)` equals `...tint_proof_generated_block`.
   - `blank(ITEMS)` equals `vetsmod:item/retro/blank` and `blank(BLOCKS)` equals `vetsmod:block/retro/blank`.
-- **`theIngredientsFilesAccessoryRowsAreGeneratedAccessories`**: Each `retro_ingredients.yml` row that names a `vetsmod:item/retro/accessory/` model names one `accessory_tiers` generates.
-  - The file has at least one such row.
-  - Each such value is among `generatedAsset(accessoryPath(type, tier))` for the shipped types and tiers.
 
 ### `RuleUsageTest`
 
@@ -5743,11 +5493,11 @@ Test: [`TextureRulesTest.java`](../src/test/java/org/wynnvets/retro/rules/Textur
 
 Test: [`ConfigValueTextTest.java`](../src/test/java/org/wynnvets/util/ConfigValueTextTest.java) · Subject: [`ConfigValueText`](../src/client/java/org/wynnvets/util/ConfigValueText.java)
 
-`ConfigValueText` renders a "this config key is currently that value" chat line for boolean, int, tri-state and string values, with a `Form` (list or single, controlling indent) and a `Verb` (equals, set to, reset to). The suite pins that every line is a gray label run with exactly one value sibling, the value colour for each kind, and that form and verb vary independently. A shared `assertLine` helper checks the full text, the sibling count, the gray label and the value colour. It does not pin which form and verb any real call site passes.
+`ConfigValueText` renders a "this config key is currently that value" chat line for boolean, int, tri-state and string values, with a `Form` (list or single, controlling indent) and a `Verb` (equals, set to, reset to). The suite pins that every line is a gray label run with exactly one flat value sibling, the value colour for each kind, and that form and verb vary independently. A shared `assertLine` helper checks the full text, the sibling count, the gray label, the value colour and that the value has no siblings of its own. It does not pin which form and verb any real call site passes.
 
 Asserting helpers:
 
-- **`assertLine`**: Given a line component, a label, a value text and a value `ChatFormatting`: the line's `getString()` equals `label + valueText`; the line has exactly 1 sibling; the line's own style colour value equals `ChatFormatting.GRAY`'s colour; the sibling's `getString()` equals `valueText`; the sibling's style colour value equals `valueColour`'s colour.
+- **`assertLine`**: Given a line component, a label, a value text and a value `ChatFormatting`: the line's `getString()` equals `label + valueText`; the line has exactly 1 sibling; the line's own style colour value equals `ChatFormatting.GRAY`'s colour; the sibling's `getString()` equals `valueText`; the sibling's style colour value equals `valueColour`'s colour; the sibling has 0 siblings of its own (the value is flat).
 
 Tests:
 
@@ -5778,10 +5528,6 @@ Tests:
   - `line.getSiblings().size()` equals 1.
   - `line.getStyle().getColor().getValue()` equals `ChatFormatting.GRAY`'s colour int (the label is gray).
   - The first sibling's style colour value equals `0x663399` (the supplied RGB is kept, not mapped to a named colour).
-- **`everyKindProducesALabelRunPlusExactlyOneValueSibling`**: For boolean, int, tri-state and string lines, each has a gray label, exactly one sibling, and that sibling has no children of its own.
-  - For each `line` in four lines (`booleanLine(Form.LIST, "k", Verb.EQUALS, true)`, `intLine(Form.SINGLE, "k", Verb.SET_TO, 1L)`, `triStateLine(Form.SINGLE, "k", Verb.RESET_TO, null)`, `stringLine(Form.LIST, "k", Verb.EQUALS, literal "v" styled AQUA)`): `line.getSiblings().size()` equals 1.
-  - For each of the same four lines: `line.getStyle().getColor().getValue()` equals `ChatFormatting.GRAY`'s colour int.
-  - For each of the same four lines: the first sibling has 0 siblings of its own (equals 0).
 
 ### `DurationsTest`
 
@@ -5822,19 +5568,7 @@ Test: [`JsonTest.java`](../src/test/java/org/wynnvets/util/JsonTest.java) · Sub
   - `Json.optString(withValue(array("inner")), "k", "fb")` equals `"inner"` (`k` is a one-element array, unwrapped to its element)
 - **`optString_theFallbackIsReturnedVerbatimIncludingNull`**: A `null` fallback on a missing key returns `null`.
   - `Json.optString(new JsonObject(), "k", null)` is null (key missing, fallback is null)
-- **`stringOrNull_isOptStringWithANullFallback`**: A present value is returned, and missing, JSON null, wrong-typed and null-receiver cases all return `null`.
-  - `Json.stringOrNull(withString("value"), "k")` equals `"value"`
-  - `Json.stringOrNull(new JsonObject(), "k")` is null (missing)
-  - `Json.stringOrNull(withValue(JsonNull.INSTANCE), "k")` is null (JSON null)
-  - `Json.stringOrNull(withValue(new JsonObject()), "k")` is null (wrong type)
-  - `Json.stringOrNull(null, "k")` is null (null receiver)
-- **`stringOrEmpty_isOptStringWithAnEmptyStringFallback`**: A present value is returned, and missing, JSON null, wrong-typed and null-receiver cases all return `""`.
-  - `Json.stringOrEmpty(withString("value"), "k")` equals `"value"`
-  - `Json.stringOrEmpty(new JsonObject(), "k")` equals `""` (missing)
-  - `Json.stringOrEmpty(withValue(JsonNull.INSTANCE), "k")` equals `""` (JSON null)
-  - `Json.stringOrEmpty(withValue(new JsonObject()), "k")` equals `""` (wrong type)
-  - `Json.stringOrEmpty(null, "k")` equals `""` (null receiver)
-- **`theThreeStringEntryPointsDifferOnlyOnWhatTheMissAnswers`**: The three accessors agree on present and present-but-empty values, and each returns only its own fallback on every failure mode.
+- **`theThreeStringEntryPointsDifferOnlyOnWhatTheMissAnswers`**: The combined spec of the two conveniences: `stringOrNull` and `stringOrEmpty` are `optString` with a fixed fallback, so the three agree on present and present-but-empty values, and each returns only its own fallback on every failure mode.
   - With `present = withString("value")`: `Json.optString(present, "k", "fb")`, `Json.stringOrNull(present, "k")` and `Json.stringOrEmpty(present, "k")` each equal `"value"`
   - With `empty = withString("")`: `Json.optString(empty, "k", "fb")`, `Json.stringOrNull(empty, "k")` and `Json.stringOrEmpty(empty, "k")` each equal `""`
   - For each `miss` in an empty object, an object with `k` set to JSON null, and an object with `k` set to an object: `Json.optString(miss, "k", "fb")` equals `"fb"`, `Json.stringOrNull(miss, "k")` is null, and `Json.stringOrEmpty(miss, "k")` equals `""`
@@ -5854,7 +5588,7 @@ Test: [`JsonTest.java`](../src/test/java/org/wynnvets/util/JsonTest.java) · Sub
   - `Json.optInt(withNumber(3.9), "k", -1)` equals 3
   - `Json.optInt(withNumber(-3.9), "k", -1)` equals -3
 - **`optInt_anOverflowingLiteralNarrowsRatherThanFallingBack`**: The long `4294967298` is narrowed to an int (2) and does not return the fallback.
-  - `Json.optInt(withNumber(4_294_967_298L), "k", -1)` equals `(int) 4_294_967_298L` (which is 2; the long is narrowed, not replaced by the fallback)
+  - `Json.optInt(withNumber(4_294_967_298L), "k", -1)` equals 2 (2^32 + 2, narrowed, not replaced by the fallback)
 - **`optInt_aSingletonArrayIsUnwrappedToo`**: A one-element array `[7]` reads as 7.
   - `Json.optInt(withValue(array(7)), "k", -1)` equals 7 (`k` is a one-element array holding 7, unwrapped)
 - **`isTrueAndIsFalse_answerOnlyForTheirOwnJsonBoolean`**: Each test answers for its own JSON boolean and not the other.

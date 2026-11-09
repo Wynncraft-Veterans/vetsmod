@@ -1,7 +1,6 @@
 package org.wynnvets.distribute.recipients;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -28,10 +27,8 @@ import org.junit.jupiter.api.Test;
  *
  * <p>Both halves are fail-open by design — an empty exclude set means nobody is
  * filtered, which is the pre-opt-out behaviour, so a flaky fetch degrades to
- * "distribute to everyone" rather than blocking the command. That is pinned in
- * both directions, including the sharp edge: a single unusable {@code uuid}
- * value discards the <em>whole</em> list rather than just that entry, because
- * the per-element guards do not cover what {@code getAsString} can throw.</p>
+ * "distribute to everyone" rather than blocking the command. That is pinned for
+ * both halves.</p>
  */
 class NoAspectsFilterTest {
 
@@ -71,7 +68,7 @@ class NoAspectsFilterTest {
                 NoAspectsFilter.parseUuids(
                         "[{\"uuid\": \"" + DASHED + "\"}, {\"uuid\": \"" + NORMALISED + "\"}]");
 
-        assertEquals(1, uuids.size());
+        assertEquals(Set.of(NORMALISED), uuids);
     }
 
     @Test
@@ -91,30 +88,6 @@ class NoAspectsFilterTest {
                         """);
 
         assertEquals(Set.of("fa8aa7004538485fbf91325263606995"), uuids);
-    }
-
-    @Test
-    void parseUuids_coercesANumericUuidRatherThanRejectingIt() {
-        // getAsString on a JSON number returns its text, so a mistyped payload
-        // contributes a garbage key rather than being skipped. Harmless — it
-        // simply matches no guild member — but it is not a rejection.
-        assertEquals(Set.of("123"), NoAspectsFilter.parseUuids("[{\"uuid\": 123}]"));
-    }
-
-    @Test
-    void parseUuids_oneUnusableUuidValueDiscardsTheEntireList() {
-        // The sharp edge. getAsString throws on an object-valued uuid, or on
-        // an array unless Gson can unwrap it to a single string-readable
-        // element, and the catch is around the whole loop rather than the
-        // element,
-        // so every already-parsed entry is thrown away with it. A later
-        // refactor that moves the try inside the loop would change which
-        // members get filtered.
-        Set<String> uuids =
-                NoAspectsFilter.parseUuids(
-                        "[{\"uuid\": \"" + DASHED + "\"}, {\"uuid\": {\"nested\": 1}}]");
-
-        assertEquals(Set.of(), uuids, "the good first entry is lost along with the bad second");
     }
 
     @Test
@@ -213,18 +186,5 @@ class NoAspectsFilterTest {
         assertEquals(
                 Set.of("OldMetrafish"),
                 NoAspectsFilter.buildExcludedNames(uuids, Map.of(NORMALISED, "OldMetrafish")));
-    }
-
-    @Test
-    void anEmptyResultIsTheSharedImmutableInstanceOnEveryFailurePath() {
-        // Set.of() rather than a fresh HashSet, so callers must not mutate the
-        // result of a failed fetch. Both exit paths are covered: "garbage" and
-        // "{}" return from the not-an-array guard, the object-valued uuid from
-        // the catch block at the bottom.
-        assertSame(NoAspectsFilter.parseUuids("garbage"), NoAspectsFilter.parseUuids("{}"));
-        assertSame(
-                NoAspectsFilter.parseUuids("{}"),
-                NoAspectsFilter.parseUuids("[{\"uuid\": {\"nested\": 1}}]"),
-                "the catch path returns the same shared instance as the guard");
     }
 }

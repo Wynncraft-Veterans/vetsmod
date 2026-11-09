@@ -2,16 +2,12 @@ package org.wynnvets.retro.rules;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.wynnvets.retro.manifest.ParentKind;
 import org.wynnvets.retro.manifest.RetroManifest;
-import org.wynnvets.retro.manifest.StackSections;
 
 /**
  * Tests for {@link RetroAssetIds}. The expected ids are literals, so a change to a template fails
@@ -100,28 +96,5 @@ class RetroAssetIdsTest {
                 RetroAssetIds.tintProofParent(ParentKind.GENERATED, Atlas.BLOCKS));
         assertEquals("vetsmod:item/retro/blank", RetroAssetIds.blank(Atlas.ITEMS));
         assertEquals("vetsmod:block/retro/blank", RetroAssetIds.blank(Atlas.BLOCKS));
-    }
-
-    @Test
-    void theIngredientsFilesAccessoryRowsAreGeneratedAccessories() throws IOException {
-        // Those rows spell the ids out, as the file has only ids to name a parent with.
-        RetroManifest manifest = RetroManifest.load();
-        StackSections.AccessoryTiers rows = manifest.stacks().accessoryTiers();
-        Set<String> generated = new HashSet<>();
-        for (String type : rows.art().keySet()) {
-            for (StackSections.AccessoryTier tier : rows.tiers()) {
-                generated.add(
-                        RetroAssetIds.generatedAsset(
-                                RetroAssetIds.accessoryPath(type, tier.name())));
-            }
-        }
-        Map<String, String> ingredients = manifest.models().ingredients();
-        boolean any = false;
-        for (Map.Entry<String, String> row : ingredients.entrySet()) {
-            if (!row.getValue().startsWith("vetsmod:item/retro/accessory/")) continue;
-            any = true;
-            assertTrue(generated.contains(row.getValue()), row.getKey());
-        }
-        assertTrue(any, "the file has such rows");
     }
 }

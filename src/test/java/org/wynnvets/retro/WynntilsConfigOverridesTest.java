@@ -97,7 +97,7 @@ class WynntilsConfigOverridesTest {
 
         @Override
         public void save() {
-            done.add("save " + settings.get("Feature setting").value);
+            done.add("save " + featureValue());
         }
 
         @Override
@@ -107,8 +107,14 @@ class WynntilsConfigOverridesTest {
 
         @Override
         public void writeSnapshot(String text) {
-            done.add("snapshot " + settings.get("Feature setting").value);
+            done.add("snapshot " + featureValue());
             snapshot = text;
+        }
+
+        /** The value of {@code Feature setting} as a step left it, or {@code null} without one. */
+        private String featureValue() {
+            FakeSetting setting = settings.get("Feature setting");
+            return setting == null ? null : setting.value;
         }
 
         FakeSettings with(FakeSetting setting) {
@@ -166,9 +172,8 @@ class WynntilsConfigOverridesTest {
 
     @Test
     void aSettingThisWynntilsLacksKeepsItsEntryWhenApplying() {
-        FakeSettings settings = new FakeSettings().with(new FakeSetting("x", false));
         Saved gone = new Saved("Gone", "setting", "players", true, "retro");
-        settings.savedAs(gone);
+        FakeSettings settings = new FakeSettings().savedAs(gone);
 
         WynntilsConfigOverrides.apply(
                 settings, List.of(new WynntilsSetting("Gone", "setting", "retro")));
@@ -278,8 +283,9 @@ class WynntilsConfigOverridesTest {
 
         WynntilsConfigOverrides.apply(
                 settings, WynntilsConfigOverrides.rowsOn(rows, partOwningTheFeature(noHud)));
+        assertEquals("players", setting.value, "put back again");
         WynntilsConfigOverrides.restore(settings);
-        assertEquals("players", setting.value, "restoring after it finds nothing to do");
+        assertEquals("", settings.snapshot, "restoring clears a snapshot with nothing in it");
     }
 
     @Test
@@ -334,8 +340,8 @@ class WynntilsConfigOverridesTest {
 
     @Test
     void aSettingThatCannotBeFoundKeepsItsEntry() {
-        FakeSettings settings = new FakeSettings().with(new FakeSetting("x", false));
-        settings.savedAs(new Saved("Gone", "setting", "players", true, "retro"));
+        FakeSettings settings =
+                new FakeSettings().savedAs(new Saved("Gone", "setting", "players", true, "retro"));
 
         WynntilsConfigOverrides.restore(settings);
 

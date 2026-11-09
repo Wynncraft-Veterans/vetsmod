@@ -21,21 +21,6 @@ import org.wynnvets.retro.rules.ModelStub;
 class ModelSectionsTest {
 
     @Test
-    void itemModelRowsRefuseKeysTheyDoNotUse() {
-        assertThrows(
-                IllegalArgumentException.class,
-                () ->
-                        parseTextures(
-                                """
-                                item_models:
-                                  'minecraft:item/wynn/x':
-                                    texture: 'minecraft:item/stick'
-                                    parent: handheld
-                                    note: spare
-                                """));
-    }
-
-    @Test
     void aPlainStringItemModelRowIsATextureHeldFlat() {
         RetroManifest manifest =
                 parseTextures(

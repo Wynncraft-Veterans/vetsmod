@@ -29,7 +29,7 @@ import org.wynnvets.retro.manifest.ScreenSections.ContainerTitle;
 class RetroContainerTitlesTest {
 
     /** Wynncraft's account bank title: a space glyph, the bank art, a space glyph, its title. */
-    private static final String BANK_GLYPHS = "󏿰󏽨";
+    private static final String BANK_GLYPHS = "\uDAFF\uDFF0\uE00F\uDAFF\uDF68\uF000";
 
     private static MutableComponent inFont(String text, String font) {
         return Component.literal(text)
@@ -50,7 +50,7 @@ class RetroContainerTitlesTest {
         Component title =
                 Component.empty()
                         .append(inFont(BANK_GLYPHS, "interface"))
-                        .append(inFont("󏿸", "space"))
+                        .append(inFont("\uDAFF\uDFF8", "space"))
                         .append(Component.literal("Returners: Members"));
 
         assertEquals("Returners: Members", RetroContainerTitles.readableTitle(title));
@@ -83,7 +83,8 @@ class RetroContainerTitlesTest {
     @Test
     void glyphsFormattingCodesAndExtraSpacesAreStrippedFromText() {
         Component title =
-                Component.literal("   §6Daily󏿰   Rewards ").withStyle(ChatFormatting.DARK_GRAY);
+                Component.literal("  \uE005 \u00A76Daily\uDAFF\uDFF0   Rewards ")
+                        .withStyle(ChatFormatting.DARK_GRAY);
 
         assertEquals("Daily Rewards", RetroContainerTitles.readableTitle(title));
         // U+0378 is unassigned inside the BMP, which PillCodec.isCustomGlyph would keep.
@@ -190,7 +191,7 @@ class RetroContainerTitlesTest {
     }
 
     @Test
-    void theShippedGlyphRowsAreTheMerchantAndThePowderMaster() throws IOException {
+    void theShippedGlyphRowsNameTheirScreens() throws IOException {
         Map<Integer, String> glyphs = RetroManifest.load().screens().glyphTitles();
 
         assertEquals(

@@ -1,7 +1,6 @@
 package org.wynnvets.distribute.command;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.mojang.brigadier.StringReader;
@@ -119,13 +118,5 @@ class NameOrSelectorArgumentTest {
     void getExamples_areTheTwoDocumentedForms() {
         // Brigadier uses these for ambiguity detection between sibling nodes.
         assertEquals(List.of("PlayerName", "@random"), List.copyOf(TYPE.getExamples()));
-    }
-
-    @Test
-    void nameOrSelector_returnsTheSharedInstance() {
-        assertSame(
-                NameOrSelectorArgument.nameOrSelector(),
-                NameOrSelectorArgument.nameOrSelector(),
-                "the type is stateless and registered once");
     }
 }

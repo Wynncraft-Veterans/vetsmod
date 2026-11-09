@@ -15,14 +15,6 @@ import org.junit.jupiter.api.Test;
  * <p>Fixtures are plain text with formatting stripped but PUA glyphs retained,
  * because the entry point is fed {@code message.getString()}.</p>
  *
- * <p>Two live false-positive surfaces are pinned rather than described, since
- * both look like sloppiness a later pass would tidy away and both are load
- * bearing: {@code isOutboundRecipientTarget} matches the recipient segment with
- * {@code contains}, so a message to {@code holidazed} is accepted as one to
- * {@code holidaze}; and {@code containsCensoredVariant} treats {@code *} in the
- * <em>message</em> as a wildcard, so a run of asterisks at least as long as the
- * payload matches anything at all.</p>
- *
  * <p>{@code shouldSuppressFeedback} is deliberately not covered. Populating its
  * queue would need a second seam plus a reset hook that does not exist.</p>
  *
@@ -62,17 +54,10 @@ class MessageFanoutDispatcherTest {
     }
 
     @Test
-    void isOutboundRecipientTarget_recipientIsASubstringTestSoPrefixesFalseMatch() {
-        // Live false-positive surface: a message addressed to "holidazed" is
-        // accepted as one addressed to "holidaze". Narrowing this to equals() would
-        // change which feedback lines are attributed to which dispatch.
-        assertTrue(
-                MessageFanoutDispatcher.isOutboundRecipientTarget(
-                        "you " + SEP + " holidazed: hi", "holidaze"));
+    void isOutboundRecipientTarget_aLongerNameDoesNotMatchAShorterRecipient() {
         assertFalse(
                 MessageFanoutDispatcher.isOutboundRecipientTarget(
-                        "you " + SEP + " holidaze: hi", "holidazed"),
-                "the containment only runs one way");
+                        "you " + SEP + " holidaze: hi", "holidazed"));
     }
 
     @Test
@@ -234,16 +219,8 @@ class MessageFanoutDispatcherTest {
     }
 
     @Test
-    void containsCensoredVariant_aRunOfStarsMatchesAnyPayloadOfThatLength() {
-        // Live false-positive surface, and the reason the caller only reaches
-        // here after the plain contains() has already failed: the wildcard is
-        // unbounded, so an all-asterisk region matches every payload short
-        // enough to fit inside it.
-        assertTrue(MessageFanoutDispatcher.containsCensoredVariant("*****", "hello"));
-        assertTrue(MessageFanoutDispatcher.containsCensoredVariant("*****", "world"));
-        assertFalse(
-                MessageFanoutDispatcher.containsCensoredVariant("****", "hello"),
-                "the run still has to be at least as long as the payload");
+    void containsCensoredVariant_theRegionMustBeAsLongAsThePayload() {
+        assertFalse(MessageFanoutDispatcher.containsCensoredVariant("****", "hello"));
     }
 
     @Test
@@ -291,23 +268,5 @@ class MessageFanoutDispatcherTest {
         assertTrue(
                 MessageFanoutDispatcher.containsNormalizedPayload(
                         "hello, world, friend", "hello, friend"));
-    }
-
-    @Test
-    void containsNormalizedPayload_tokenBoundariesComeFromPunctuationOnlyNotSpaces() {
-        // Non-obvious ordering: normalisation strips whitespace *before*
-        // extractEchoTokens splits on non-alphanumerics, so a space never
-        // produces a token boundary. Space-separated words collapse into one
-        // token and the subsequence walk cannot see through them. Any later
-        // refactor that tokenises the raw text instead of the normalised text
-        // changes which echoes are recognised.
-        assertEquals(
-                List.of("helloworldfriend"),
-                MessageFanoutDispatcher.extractEchoTokens(
-                        MessageFanoutDispatcher.normalizeForEchoComparison("hello world friend")));
-        assertFalse(
-                MessageFanoutDispatcher.containsNormalizedPayload(
-                        "hello world friend", "hello friend"),
-                "the same pair separated by spaces rather than commas does not match");
     }
 }

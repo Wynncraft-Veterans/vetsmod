@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.wynnvets.retro.manifest.ShippedFiles.CLIENT_JAR;
 import static org.wynnvets.retro.manifest.ShippedFiles.EVERYTHING_BLANK;
+import static org.wynnvets.retro.manifest.ShippedFiles.assetFile;
 import static org.wynnvets.retro.manifest.ShippedFiles.realTextureRules;
 import static org.wynnvets.retro.manifest.ShippedFiles.textureInClientJar;
 import static org.wynnvets.retro.manifest.ShippedFiles.vanillaTweaksFile;
@@ -75,13 +76,12 @@ class ShippedVanillaTweaksTest {
         TextureRules rules = realTextureRules();
         for (String fill : List.of("half", "full", "half_blinking", "full_blinking")) {
             String texture = "minecraft:gui/sprites/hud/heart/withered_" + fill;
-            String file = "/assets/minecraft/textures/gui/sprites/hud/heart/withered_";
             assertEquals(
                     new TextureDecision.Copy(texture, RetroSource.VANILLA_TWEAKS),
                     rules.decide(texture, EVERYTHING_BLANK),
                     texture);
             assertNotEquals(
-                    new String(bytes(file + fill + ".png"), "ISO-8859-1"),
+                    new String(bytes(assetFile(texture, "textures", ".png")), "ISO-8859-1"),
                     new String(bytes(vanillaTweaksFile(texture)), "ISO-8859-1"),
                     texture + " is the tweak's, not vanilla's");
         }

@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
+import java.util.Map;
 import net.minecraft.server.packs.PackResources;
 import org.junit.jupiter.api.Test;
 
@@ -59,6 +60,8 @@ class RetroPackInjectorTest {
 
     @Test
     void onlyTheInjectorsOwnPackIsARetroPack() {
-        assertFalse(RetroPackInjector.isRetroPack(new MemoryPack("retro")));
+        assertTrue(RetroPackInjector.isRetroPack(new RetroPackResources(Map::of, Map::of)));
+        assertFalse(
+                RetroPackInjector.isRetroPack(new MemoryPack("retro")), "another pack by its id");
     }
 }

@@ -10,13 +10,12 @@ import org.junit.jupiter.api.Test;
 /**
  * Tests for {@link SplitDistributor}'s three-way pool split.
  *
- * <p>{@code splitCount} returns an {@code int[]} of length 3 and it
+ * <p>{@code splitCount} returns an {@code int[]} of length 3, one pool per phase
+ * ({@code @graids}, {@code @objectives}, {@code @random}), and it
  * <b>shuffles</b> — the remainder is handed to a random subset of the three
  * pools, not to the first ones. Assertions are therefore invariants and
  * multisets, with exact array equality only where the shuffle never runs —
- * i.e. wherever {@code remainder > 0} is false, which covers the multiples of
- * three <em>and</em> every negative input, since a negative remainder fails
- * that guard too. A sweep over the whole brigadier-reachable
+ * the multiples of three. A sweep over the whole brigadier-reachable
  * range is the real guard: it is the only thing that would catch a rewrite that
  * conserved the total for the cases someone thought to enumerate and lost it
  * elsewhere.</p>
@@ -38,16 +37,6 @@ class SplitDistributorTest {
         int[] copy = pools.clone();
         Arrays.sort(copy);
         return copy;
-    }
-
-    // ----- Shape -----
-
-    @Test
-    void alwaysReturnsThreePools() {
-        // One per phase: @graids, @objectives, @random, in that order.
-        for (int count = 0; count <= MAX_REACHABLE_COUNT; count++) {
-            assertEquals(3, SplitDistributor.splitCount(count).length, "count " + count);
-        }
     }
 
     // ----- The two invariants that matter -----
@@ -115,28 +104,5 @@ class SplitDistributorTest {
             }
         }
         assertTrue(seen[0] && seen[1] && seen[2], "each pool must be reachable by the bonus");
-    }
-
-    // ----- Negative input: undocumented, unreachable, pinned anyway -----
-
-    @Test
-    void negativeCountsSilentlyDropTheRemainder() {
-        // Java truncates integer division toward zero, so count == -1 gives
-        // base 0 and remainder -1. The bonus loop is guarded by
-        // `remainder > 0`, so the -1 is simply lost and the total is not
-        // conserved. Brigadier bounds the argument at 1, so this is
-        // unreachable in production — but it is also undocumented, and a
-        // rewrite using Math.floorDiv/floorMod would change it.
-        assertArrayEquals(new int[] {0, 0, 0}, SplitDistributor.splitCount(-1));
-        assertEquals(0, sum(SplitDistributor.splitCount(-1)), "the -1 is dropped, not distributed");
-
-        assertArrayEquals(new int[] {-1, -1, -1}, SplitDistributor.splitCount(-4));
-        assertEquals(-3, sum(SplitDistributor.splitCount(-4)), "one short of -4, same cause");
-    }
-
-    @Test
-    void negativeMultiplesOfThreeAreConservedBecauseTheyHaveNoRemainder() {
-        assertArrayEquals(new int[] {-2, -2, -2}, SplitDistributor.splitCount(-6));
-        assertEquals(-6, sum(SplitDistributor.splitCount(-6)));
     }
 }

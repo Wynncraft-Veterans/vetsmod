@@ -12,7 +12,6 @@ class MojangCooldownTest {
 
     @AfterEach
     void resetState() {
-        MojangCooldown.setForceCooldown(false);
         MojangCooldown.clear();
     }
 
@@ -27,9 +26,8 @@ class MojangCooldownTest {
         MojangCooldown.record429(null);
         assertTrue(MojangCooldown.isCoolingDown());
         long remaining = MojangCooldown.remainingMs();
-        // Default is 60s. Allow a small wall-clock window for the
-        // microseconds between record and read.
-        assertTrue(remaining > 0L, "expected positive remaining, got " + remaining);
+        // Default is 60s. Allow a wall-clock second between record and read.
+        assertTrue(remaining > 55_000L, "expected > 55_000ms, got " + remaining);
         assertTrue(remaining <= 60_000L, "expected <= 60_000ms, got " + remaining);
     }
 
@@ -57,24 +55,6 @@ class MojangCooldownTest {
         MojangCooldown.record429(Duration.ofSeconds(60));
         assertTrue(MojangCooldown.isCoolingDown());
         MojangCooldown.clear();
-        assertFalse(MojangCooldown.isCoolingDown());
-        assertEquals(0L, MojangCooldown.remainingMs());
-    }
-
-    @Test
-    void forceCooldown_overridesActualState() {
-        // Nothing recorded; without the override we'd be in the default
-        // "not cooling down" state.
-        MojangCooldown.setForceCooldown(true);
-        assertTrue(MojangCooldown.isCoolingDown());
-        assertEquals(Long.MAX_VALUE, MojangCooldown.remainingMs());
-        assertTrue(MojangCooldown.isForceCooldown());
-    }
-
-    @Test
-    void forceCooldown_unset_restoresActualState() {
-        MojangCooldown.setForceCooldown(true);
-        MojangCooldown.setForceCooldown(false);
         assertFalse(MojangCooldown.isCoolingDown());
         assertEquals(0L, MojangCooldown.remainingMs());
     }

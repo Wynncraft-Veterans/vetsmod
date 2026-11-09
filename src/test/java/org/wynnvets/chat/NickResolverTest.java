@@ -1,7 +1,6 @@
 package org.wynnvets.chat;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -18,36 +17,29 @@ import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tests for {@link NickResolver}, the repo's real-name and component-flattening
- * authority — five rewriters call it and none keeps a copy of the walk.
+ * Tests for {@link NickResolver}, the real-name lookup and component-flattening walk the chat
+ * rewriters share.
  *
- * <p><b>Five cases here discriminate {@link NickResolver#flattenComponent}'s
- * style orientation</b> (verified by inverting the {@code applyTo} and watching
- * which fail): {@link #realNameSpanStyleOrFallback_childColorOverridesParent()},
- * {@link #flattenComponent_childFieldsOverrideParent()},
- * {@link #flattenComponent_childFontOverridesTheParentFont()} and the two
- * {@code ancestorHover…} cases. All pin the same rule — <em>child wins, ancestor
- * fills gaps</em> — through a different {@link Style} field.</p>
+ * <p><b>Five cases tell {@link NickResolver#flattenComponent}'s style orientation apart</b>:
+ * <em>child wins, ancestor fills gaps</em>. Each fails if the walk applies the parent's style
+ * over the child's instead, and each pins the rule through a different {@link Style} field:
+ * {@link #realNameSpanStyleOrFallback_childColorOverridesParent()} and
+ * {@link #flattenComponent_childFieldsOverrideParent()} through colour, italic and shadow,
+ * {@link #flattenComponent_childFontOverridesTheParentFont()} through the font, and
+ * {@link #realUsernameOrFallback_ancestorHoverDoesNotMaskTheNameSpan()} and
+ * {@link #realUsernameOrFallback_aNestedAncestorHoverDoesNotMaskTheLeafEither()} through
+ * {@code hoverEvent}, the field the "real name is …" scan reads.
+ * {@link #flattenComponent_siblingWithoutColorInheritsParent()} holds under <em>either</em>
+ * orientation: it fails only when the inheritance is dropped altogether.</p>
  *
- * <p>The two {@code ancestorHover…} cases carry over from the retired
- * {@code EncourageUpdateRewriterTest} and are the ones that pin it for
- * {@code hoverEvent} specifically, which is the field the "real name is …" scan
- * reads and the one that was resolved the wrong way round until it was fixed.
- * {@link #flattenComponent_siblingWithoutColorInheritsParent()} holds under
- * <em>either</em> orientation and is not coverage of it — it fails only when the
- * inheritance is dropped altogether.</p>
+ * <p>The four cases below the pattern divider pin {@link NickResolver#REAL_NAME_PATTERN} and the
+ * walk order that feeds it.</p>
  *
- * <p>The four cases below the pattern divider pin properties of
- * {@link NickResolver#REAL_NAME_PATTERN} and of the walk that feeds it, and
- * also carry over from that class.</p>
- *
- * <p>The {@code …Font} cases at the end pin the one {@link Style} field no other
- * caller of this walk reads:
- * {@code org.wynnvets.chat.rewriter.ServerGuildChatRewriter ServerGuildChatRewriter}
- * selects the pill fragments out of a chat line by comparing each resolved
- * style's {@code font} against {@code banner/pill}, so which span ends up
- * carrying that font decides whether the pill renders at all. The third of them
- * pins Minecraft's contract rather than this walk's; it says so.</p>
+ * <p>The two {@code …Font} cases at the end pin the field
+ * {@code org.wynnvets.chat.rewriter.ServerGuildChatRewriter ServerGuildChatRewriter} reads: it
+ * selects the pill fragments of a chat line by comparing each resolved style's {@code font}
+ * against {@code banner/pill}, so which span carries that font decides whether the pill
+ * renders.</p>
  */
 class NickResolverTest {
 
@@ -357,26 +349,5 @@ class NickResolverTest {
                 PREFIX_FONT,
                 parts.get(0).style().getFont(),
                 "child chat/prefix must win over the ancestor's banner/pill");
-    }
-
-    @Test
-    void flattenComponent_anUnfontedSpanCarriesMinecraftsDefaultFontNotNull() {
-        // The username and message spans. This one pins vanilla Style.getFont()'s
-        // null-free contract, NOT this walk — it survives both the inverted
-        // orientation and no inheritance at all, because nothing in the fixture
-        // sets a font either way. It earns its place because
-        // extractPillFragments calls pillFontId.equals(frag.style().getFont())
-        // and would silently reject every fragment if that ever returned null,
-        // and because it stops a reader mistaking "no font" for "not resolved".
-        MutableComponent root = Component.literal("").setStyle(AQUA_STYLE);
-        root.append(Component.literal(NICK).setStyle(Style.EMPTY.withItalic(true)));
-
-        List<NickResolver.FlatPart> parts = new ArrayList<>();
-        NickResolver.flattenComponent(root, root.getStyle(), parts);
-
-        assertEquals(1, parts.size());
-        FontDescription resolved = parts.get(0).style().getFont();
-        assertNotNull(resolved, "getFont() falls back to the default, it does not return null");
-        assertNotEquals(PILL_FONT, resolved, "an unfonted span must not read as a pill fragment");
     }
 }

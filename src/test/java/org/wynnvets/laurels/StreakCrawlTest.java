@@ -53,7 +53,7 @@ class StreakCrawlTest {
     }
 
     @Test
-    void aStreakLineIsReadWhateverComesBeforeIt() {
+    void aLoneStreakLineIsRead() {
         assertEquals(OptionalInt.of(3), StreakCrawl.parseStreak(List.of("- Streak: 3")));
     }
 

@@ -127,7 +127,7 @@ class CheckReportRendererTest {
     }
 
     @Test
-    void guildlessPayload_unchanged() {
+    void guildlessPayload_isGuildlessWhateverTheRoster() {
         User guildless = Json.GSON.fromJson("{\"username\": \"Metrafish\"}", User.class);
         assertEquals("Guild: guildless", guild(guildless, new GuildEvidence(ABSENT, null, false)));
         // An unknown roster adds nothing for a payload that names no guild.
@@ -251,7 +251,7 @@ class CheckReportRendererTest {
     }
 
     @Test
-    void discordLine_snapshotUnavailableAndNotLinked_unchanged() {
+    void discordLine_snapshotUnavailableOrNotLinked() {
         GuildEvidence none = new GuildEvidence(ABSENT, null, false);
         assertEquals("Discord link: (snapshot unavailable)", discord(null, null, none));
         assertEquals(
@@ -309,7 +309,7 @@ class CheckReportRendererTest {
     }
 
     @Test
-    void lastSeenFallback_selfAndTabList_unchanged() {
+    void lastSeenFallback_selfAndTabList_readNow() {
         MembershipSnapshot seen = snapshotSeen(Instant.now().getEpochSecond() - 300, "NA35");
         assertEquals("Last seen on Wynncraft: now  (self)", lastSeen(seen, "WC7", true));
         assertEquals("Last seen on Wynncraft: now  (tab-list: WC7)", lastSeen(seen, "WC7", false));

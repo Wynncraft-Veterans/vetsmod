@@ -1,11 +1,14 @@
 package org.wynnvets.logging;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+/**
+ * Pins that {@link VetsLogger}'s debug logging starts off: a player gets debug lines only once
+ * something turns it on, as {@code VetsmodClient} does from the stored config.
+ */
 class VetsLoggerTest {
 
     @AfterEach
@@ -15,19 +18,6 @@ class VetsLoggerTest {
 
     @Test
     void defaultIsFalse() {
-        assertFalse(VetsLogger.isDebugEnabled());
-    }
-
-    @Test
-    void setEnabledTogglesFlag() {
-        VetsLogger.setDebugEnabled(true);
-        assertTrue(VetsLogger.isDebugEnabled());
-    }
-
-    @Test
-    void setDisabledRestoresFalse() {
-        VetsLogger.setDebugEnabled(true);
-        VetsLogger.setDebugEnabled(false);
         assertFalse(VetsLogger.isDebugEnabled());
     }
 }

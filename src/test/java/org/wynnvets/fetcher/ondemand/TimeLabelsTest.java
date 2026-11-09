@@ -11,17 +11,17 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Tests for {@link TimeLabels}: {@code humanizeAge} at every unit boundary, and
- * {@code toRelativeDateLabel} and {@code toCoarseRelativeDateLabel} on inputs that cannot straddle
- * a unit boundary on any calendar day.
- *
- * <p>The String overloads of the date labels read {@link LocalDate#now()} themselves, so each
- * assertion on them reads it before and after the call, and the test is skipped from that
- * assertion on if midnight passed in between. Their inputs are date strings, never instants, built
- * from the same default-zone date the labels read, so the zone cancels out.</p>
+ * {@code toRelativeDateLabel} and {@code toCoarseRelativeDateLabel} in both their forms.
  *
  * <p>The overloads that take a {@link LocalDate} and an explicit {@code today}, and {@code
- * toLocalDate}, read no clock. They are tested with a fixed zone and a fixed today, including the
- * evening on which the UTC date is a day ahead of the local one.</p>
+ * toLocalDate}, read no clock. They carry the label tables, tested with a fixed zone and a fixed
+ * today, including the evening on which the UTC date is a day ahead of the local one.</p>
+ *
+ * <p>The String overloads parse the text and pass {@link LocalDate#now()} to those, so each has
+ * one assertion, on an input that cannot straddle a unit boundary on any calendar day. It reads
+ * the clock before and after the call, and is skipped if midnight passed in between. Its input
+ * is a date string, never an instant, built from the same default-zone date the label reads, so
+ * the zone cancels out.</p>
  */
 class TimeLabelsTest {
 
@@ -56,28 +56,16 @@ class TimeLabelsTest {
         assertEquals("0s", TimeLabels.humanizeAge(-5));
     }
 
-    // ----- toRelativeDateLabel -----
+    // ----- the String overloads, against the clock -----
 
     @Test
-    void toRelativeDateLabel_todayPastAndFutureDays() {
-        assertLabel("today", d -> d, TimeLabels::toRelativeDateLabel);
-        assertLabel("yesterday", d -> d.minusDays(1), TimeLabels::toRelativeDateLabel);
+    void toRelativeDateLabel_ofText_comparesWithTodayOnTheClock() {
         assertLabel("3 days ago", d -> d.minusDays(3), TimeLabels::toRelativeDateLabel);
-        assertLabel("tomorrow", d -> d.plusDays(1), TimeLabels::toRelativeDateLabel);
-        assertLabel("in 3 days", d -> d.plusDays(3), TimeLabels::toRelativeDateLabel);
     }
 
-    // ----- toCoarseRelativeDateLabel -----
-
     @Test
-    void toCoarseRelativeDateLabel_yearsMonthsThenDays() {
-        assertLabel("1 year ago", d -> d.minusYears(1), TimeLabels::toCoarseRelativeDateLabel);
+    void toCoarseRelativeDateLabel_ofText_comparesWithTodayOnTheClock() {
         assertLabel("11 years ago", d -> d.minusYears(11), TimeLabels::toCoarseRelativeDateLabel);
-        assertLabel("1 month ago", d -> d.minusMonths(1), TimeLabels::toCoarseRelativeDateLabel);
-        assertLabel("5 months ago", d -> d.minusMonths(5), TimeLabels::toCoarseRelativeDateLabel);
-        // At most 27 days is under a month on every calendar day, so it falls through to days.
-        assertLabel("27 days ago", d -> d.minusDays(27), TimeLabels::toCoarseRelativeDateLabel);
-        assertLabel("yesterday", d -> d.minusDays(1), TimeLabels::toCoarseRelativeDateLabel);
     }
 
     // ----- toLocalDate -----

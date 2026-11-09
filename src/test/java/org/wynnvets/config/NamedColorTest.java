@@ -6,19 +6,17 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.List;
 import java.util.Locale;
 import org.junit.jupiter.api.Test;
 
 /**
  * Tests for all five {@link NamedColor} methods.
  *
- * <p>The class is pure {@code java.util} — five imports, one 40-entry
- * {@code LinkedHashMap}, no {@code ChatFormatting}, no {@code TextColor}, no
- * hex parsing. Its only consumer, {@code LegacyItemStyle}, is named in prose
- * below but never referenced from code here: that class builds a Wynntils
- * {@code Texture[]} in its static initializer and dies with
- * {@code NoClassDefFoundError} the moment it is touched.</p>
+ * <p>The class is pure {@code java.util} — one {@code LinkedHashMap}, no
+ * {@code ChatFormatting}, no {@code TextColor}, no hex parsing. Its only consumer,
+ * {@code LegacyItemStyle}, is named in prose below but never referenced from code
+ * here: that class builds a Wynntils {@code Texture[]} in its static initializer and
+ * dies with {@code NoClassDefFoundError} the moment it is touched.</p>
  *
  * <p>{@code isValid} and {@code getRgb} fold case with {@link Locale#ROOT}, so they
  * answer the same under any default locale;
@@ -27,17 +25,6 @@ import org.junit.jupiter.api.Test;
 class NamedColorTest {
 
     // ── getNames ──────────────────────────────────────────────────────
-
-    @Test
-    void getNames_hasFortyEntriesInInsertionOrder() {
-        List<String> names = List.copyOf(NamedColor.getNames());
-        assertEquals(40, names.size(), "the registry holds 40 named colours");
-        // LinkedHashMap, so the set is ordered; Brigadier re-sorts it for
-        // tab-completion, so the order is pinned here rather than seen in
-        // game. The first/last entries below still anchor insertion order.
-        assertEquals("black", names.get(0), "insertion order starts at the first § colour");
-        assertEquals("transparent", names.get(39), "the special entry is last");
-    }
 
     @Test
     void getNames_isUnmodifiable() {

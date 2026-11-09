@@ -32,9 +32,9 @@ import org.wynnvets.util.Json;
  * is also pinned to mark an auth ack as awaited when it sends, and not when the
  * socket is down.
  *
- * <p>A recording socket stands in for the inbound connection: it never connects, records each
- * frame as {@link WsClient#sendAsync(JsonObject)} would write it ({@link WsClient#toWire}), and
- * reports a settable connection state. The expected strings are literals. The frames that carry
+ * <p>A {@link RecordingWsClient} stands in for the inbound connection: it never connects, records
+ * each frame as {@link WsClient#sendAsync(JsonObject)} would write it ({@link WsClient#toWire}),
+ * and reports a settable connection state. The expected strings are literals. The frames that carry
  * a random {@code uuid} and a clock {@code timestamp} (inbound chat and {@code rank_change}) have
  * both values checked and then masked in place, so key order is still pinned, and a staff-action
  * frame's random {@code req} is checked and masked the same way. Every test ends with no inbound
@@ -43,39 +43,8 @@ import org.wynnvets.util.Json;
  */
 class V1ApiManagerFramesTest {
 
-    /** A socket that never connects: it records frames and reports {@link #connected}. */
-    private static final class RecordingWsClient extends WsClient {
-        final List<String> wire = new ArrayList<>();
-        volatile boolean connected = true;
-
-        /** What each send reports: true as if handed to the socket, false as if it failed. */
-        volatile boolean sends = true;
-
-        /** The socket number {@link #generation()} reports. */
-        volatile long generation = 1;
-
-        @Override
-        public long generation() {
-            return generation;
-        }
-
-        RecordingWsClient() {
-            super(URI.create("wss://wynnvets.org/v1/inbound"), "test", json -> {});
-        }
-
-        @Override
-        public CompletableFuture<Boolean> sendAsync(JsonObject json) {
-            wire.add(WsClient.toWire(json));
-            return CompletableFuture.completedFuture(sends);
-        }
-
-        @Override
-        public boolean isConnected() {
-            return connected;
-        }
-    }
-
-    private final RecordingWsClient socket = new RecordingWsClient();
+    private final RecordingWsClient socket =
+            new RecordingWsClient(URI.create("wss://wynnvets.org/v1/inbound"));
 
     @AfterEach
     void reset() {

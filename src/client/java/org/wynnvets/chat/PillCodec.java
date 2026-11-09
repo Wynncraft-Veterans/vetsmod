@@ -333,9 +333,8 @@ public final class PillCodec {
      * adding the clause here would make {@link #encodeRemote(String)} read a
      * label carrying either marker as already encoded and hand it straight
      * back, unpilled. Pinned by
-     * {@code PillCodecTest.isEncoded_ignoresTheServerPillMarkersBecauseTheyAreUnassignedNotPua}
-     * and by the paired case in
-     * {@code PillCodecTest.isCustomGlyph_andIsEncodedDisagreeOnTheServerMarkers}.</p>
+     * {@code PillCodecTest.isEncoded_ignoresTheServerPillMarkersBecauseTheyAreUnassignedNotPua}.
+     * </p>
      */
     public static boolean isEncoded(String text) {
         if (text == null) {

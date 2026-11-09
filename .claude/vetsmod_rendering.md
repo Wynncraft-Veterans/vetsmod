@@ -106,12 +106,11 @@ black→white is `0x808080`, not `0x7F7F7F`), an alpha byte on either input disc
 
 Five call sites: `AnimatedGradientSequence` ×1, `GradientTextBuilder` ×2, `NametagAnimator` ×1 on the float overload, `Recolours.ramp` on the double one.
 
-**`t` is not clamped, and that is the contract.** Outside `[0, 1]` a channel rounds past
-`0..255` and the shift-and-or recombination bleeds it into the neighbouring channel or the sign
-bit — `t = 1.5` on black→white gives `0x017F7F7F`, `t = 2` gives `0x01FFFFFE`, `t = -0.5` gives
-`0xFFFFFF81`. `ColorMathTest` pins the literals so a clamp has to be
-argued rather than tidied in. Every current caller feeds a normalised `t`, so none of it is
-reachable today — which is a property of the callers, not of the method.
+**`t` is not clamped.** Outside `[0, 1]` a channel rounds past `0..255` and the shift-and-or
+recombination bleeds it into the neighbouring channel or the sign bit — `t = 1.5` on black→white
+gives `0x017F7F7F`, `t = 2` gives `0x01FFFFFE`, `t = -0.5` gives `0xFFFFFF81`. Every caller feeds
+a normalised `t`, so none of it is reachable, and `ColorMathTest` pins the interpolation only for
+`t` in `[0, 1]`.
 
 **Not a resident:** `NametagAnimator`'s `mixToward`, the `darken` built on it, and the standalone `lighten` — only `darken` delegates; `lighten` unpacks the channels itself and blends toward the literal (255, 225, 255).
 Same weighted average, then a clamp per channel. Folding them in would silently clamp

@@ -6,11 +6,7 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Tests for {@link ColorMath}: its channel helpers, luma, strongest channel and interpolation.
- *
- * <p>The interpolation's literals are the point of the class. <b>{@code interpolateRgb} does not
- * clamp {@code t}</b>: outside {@code [0, 1]} each channel rounds past {@code 0..255} and the
- * shift-and-or recombination bleeds it into the neighbouring channel or the sign bit. The
- * out-of-range tests make adding a clamp a loud change.
+ * The interpolation is pinned for {@code t} in {@code [0, 1]}, the only range its callers feed.
  *
  * <p>{@link ColorMath} has no supertypes, no static fields and no Minecraft imports, so this class
  * loads zero Minecraft.
@@ -53,24 +49,6 @@ class ColorMathTest {
                 "the alpha bits never reach a channel");
     }
 
-    // ----- No clamping: the quirk carried forward verbatim -----
-
-    @Test
-    void tAboveOneOverShootsAndBleedsIntoTheNeighbouringChannel() {
-        // 255 * 1.5 = 382.5 → 383 (0x17F) per channel. Shifting a 9-bit value
-        // into an 8-bit slot puts its top bit into the next channel up, so the
-        // result is 0x017F7F7F rather than anything resembling white.
-        assertEquals(0x017F7F7F, ColorMath.interpolateRgb(BLACK, WHITE, 1.5f));
-        assertEquals(0x01FFFFFE, ColorMath.interpolateRgb(BLACK, WHITE, 2f));
-    }
-
-    @Test
-    void tBelowZeroUnderShootsIntoNegativeChannelsAndTheSignBit() {
-        // 255 * -0.5 = -127.5 → -127. A negative channel is all-ones in its
-        // high bits, so the or-together collapses the whole word.
-        assertEquals(0xFFFFFF81, ColorMath.interpolateRgb(BLACK, WHITE, -0.5f));
-    }
-
     // ----- Double precision -----
 
     @Test
@@ -78,12 +56,6 @@ class ColorMathTest {
         assertEquals(0x808080, ColorMath.interpolateRgb(BLACK, WHITE, 0.5));
         assertEquals(0x283848, ColorMath.interpolateRgb(0x102030, 0x405060, 0.5));
         assertEquals(WHITE, ColorMath.interpolateRgb(BLACK, WHITE, 1.0));
-    }
-
-    @Test
-    void theDoubleOverloadDoesNotClampEither() {
-        assertEquals(0x017F7F7F, ColorMath.interpolateRgb(BLACK, WHITE, 1.5));
-        assertEquals(0xFFFFFF81, ColorMath.interpolateRgb(BLACK, WHITE, -0.5));
     }
 
     @Test

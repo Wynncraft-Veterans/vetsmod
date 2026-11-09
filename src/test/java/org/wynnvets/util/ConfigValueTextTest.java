@@ -13,19 +13,15 @@ import org.wynnvets.util.ConfigValueText.Verb;
 /**
  * Tests for {@link ConfigValueText}'s four value kinds and its two label axes.
  *
- * <p>This is the coverage that outlives the consolidation. Per-site pins in
- * {@code ConfigCommandsTest} and {@code DebugCommandsTest} existed only to prove
- * that the eighteen render sites it collapsed had converged onto this class
- * — a pre-consolidation count; there are fourteen calls into this class at
- * {@code 1592f7d}. They were deleted
- * once they had, so neither is in the tree; these are the tests that say what the
- * line is.</p>
+ * <p>Most lines are checked through {@code assertLine}, which pins the whole shape: the text, a
+ * GRAY label run with exactly one value sibling, and that value's text, colour and lack of
+ * siblings of its own. A label and value merged into one run would read the same as plain text,
+ * so the shape is part of each such check.</p>
  *
- * <p>One thing went with them and has not been replaced: nothing now pins which
- * {@link Form} and {@link Verb} any individual call site passes. This class
- * guarantees the renderer honours the pair it is handed, not that
- * {@code configList} asks for {@code LIST}/{@code EQUALS}. Those call sites read
- * {@code VetsConfig} and are not reachable from a test.</p>
+ * <p>Not pinned: which {@link Form} and {@link Verb} each call site passes. This class guarantees
+ * the renderer honours the pair it is handed, not that {@code configList} asks for
+ * {@code LIST}/{@code EQUALS}. Those call sites read {@code VetsConfig} and are not reachable
+ * from a test.</p>
  *
  * <p>{@link ConfigValueText} declares no static state beyond two enums, so nothing
  * loads at class-init. That is deliberate: the string kind takes an
@@ -34,7 +30,7 @@ import org.wynnvets.util.ConfigValueText.Verb;
  */
 class ConfigValueTextTest {
 
-    /** The GRAY label run and its single value sibling, asserted together. */
+    /** The GRAY label run and its single, flat value sibling, asserted together. */
     private static void assertLine(
             Component line, String label, String valueText, ChatFormatting valueColour) {
         assertEquals(label + valueText, line.getString(), "rendered text");
@@ -50,6 +46,7 @@ class ConfigValueTextTest {
                 valueColour.getColor().intValue(),
                 value.getStyle().getColor().getValue(),
                 "value colour");
+        assertEquals(0, value.getSiblings().size(), "the value is flat");
     }
 
     // ----- the label axes: form supplies the indent, verb the separator -----
@@ -193,35 +190,5 @@ class ConfigValueTextTest {
                 0x663399,
                 line.getSiblings().get(0).getStyle().getColor().getValue(),
                 "the supplied RGB survives — it is not folded onto a named colour");
-    }
-
-    // ----- the shape itself -----
-
-    /**
-     * Every kind produces the same two-run shape. A collapse that merged the
-     * label and value into one run would read the same as plain text; this
-     * pins the shape for every kind at once. The per-site pins that also
-     * checked it were deleted (see the class note).
-     */
-    @Test
-    void everyKindProducesALabelRunPlusExactlyOneValueSibling() {
-        Component[] lines = {
-            ConfigValueText.booleanLine(Form.LIST, "k", Verb.EQUALS, true),
-            ConfigValueText.intLine(Form.SINGLE, "k", Verb.SET_TO, 1L),
-            ConfigValueText.triStateLine(Form.SINGLE, "k", Verb.RESET_TO, null),
-            ConfigValueText.stringLine(
-                    Form.LIST,
-                    "k",
-                    Verb.EQUALS,
-                    Component.literal("v").withStyle(ChatFormatting.AQUA)),
-        };
-        for (Component line : lines) {
-            assertEquals(1, line.getSiblings().size(), line.getString());
-            assertEquals(
-                    ChatFormatting.GRAY.getColor().intValue(),
-                    line.getStyle().getColor().getValue(),
-                    line.getString());
-            assertEquals(0, line.getSiblings().get(0).getSiblings().size(), "the value is flat");
-        }
     }
 }

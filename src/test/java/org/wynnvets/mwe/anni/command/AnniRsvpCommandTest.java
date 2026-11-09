@@ -42,14 +42,14 @@ class AnniRsvpCommandTest {
 
     @Test
     void successComponent_revoke_nullResult_saysWithdrawn() {
-        // An older server sends no result; it keeps today's line.
+        // An older server sends no result, so it gets the withdrawn line.
         assertGray(
                 "Your RSVP has been withdrawn.",
                 AnniRsvpCommand.successComponent("revoke", new AnniRsvpClient.Ack(true, null)));
     }
 
     @Test
-    void successComponent_hard_unchanged() {
+    void successComponent_hard_saysHardRsvpd() {
         assertEquals(
                 "You have HARD RSVP'd for the next anni.",
                 AnniRsvpCommand.successComponent(
@@ -58,7 +58,7 @@ class AnniRsvpCommandTest {
     }
 
     @Test
-    void successComponent_soft_unchanged() {
+    void successComponent_soft_saysSoftRsvpd() {
         assertEquals(
                 "You have SOFT RSVP'd for the next anni.",
                 AnniRsvpCommand.successComponent("soft", new AnniRsvpClient.Ack(true, null))

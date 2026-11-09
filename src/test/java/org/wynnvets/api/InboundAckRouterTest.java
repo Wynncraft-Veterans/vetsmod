@@ -1,6 +1,5 @@
 package org.wynnvets.api;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -24,8 +23,10 @@ import org.wynnvets.util.Json;
  * <p>The auth-ok and auth-failure branches are not driven: they reach {@code VetsConfig}, whose
  * class initialisation fails outside a game launch. So the orphan rule's {@code !wasAuthAck} and
  * non-empty-queue terms are not pinned here: their discriminating inputs lead into the
- * auth-failure branch, or, for a plain error with nothing pending, change only what is logged. A
- * throwing callback is not driven either, since every callback here only records. Every test
+ * auth-failure branch, or, for a plain error with nothing pending, change only what is logged.
+ * The two tests that keep an error out of the auth-failure branch see it through the confirmed
+ * staff state, which that branch clears before anything else. A throwing callback is not driven
+ * either, since every callback here only records. Every test
  * starts and ends with no auth ack awaited, not confirmed staff, no pending callback and both echo
  * flags false (legacy mode).</p>
  */
@@ -120,25 +121,25 @@ class InboundAckRouterTest {
     @Test
     void aStaffShapedErrorWithAnEmptyQueueIsSwallowed() {
         // Losing the swallow's return would carry this auth-prefixed error on into the auth-failure
-        // branch, which cannot load here, so not throwing is what pins it.
-        JsonObject error =
+        // branch, whose first act is to clear the confirmed staff state.
+        SessionAuthState.confirmedStaff = true;
+        SessionAuthState.confirmedStaffRank = "chief";
+        InboundAckRouter.route(
                 ack(
                         "{\"status\":\"error\",\"detail\":\"auth rejected: x\",\"target_uuid\":\""
                                 + TARGET
-                                + "\"}");
-        assertDoesNotThrow(() -> InboundAckRouter.route(error));
+                                + "\"}"));
+        assertTrue(SessionAuthState.confirmedStaff);
+        assertEquals("chief", SessionAuthState.confirmedStaffRank);
     }
 
     @Test
     void aPlainErrorWithNothingPendingIsNotAnAuthFailure() {
-        // The auth-failure branch cannot load here, so not throwing pins that this error stays out
-        // of it; whether it is then logged or swallowed is not visible.
+        // Taken for an auth failure, it would clear the confirmed staff state; whether it is then
+        // logged or swallowed is not visible.
         SessionAuthState.confirmedStaff = true;
         SessionAuthState.confirmedStaffRank = "chief";
-        assertDoesNotThrow(
-                () ->
-                        InboundAckRouter.route(
-                                ack("{\"status\":\"error\",\"detail\":\"rate limited\"}")));
+        InboundAckRouter.route(ack("{\"status\":\"error\",\"detail\":\"rate limited\"}"));
         assertTrue(SessionAuthState.confirmedStaff);
         assertEquals("chief", SessionAuthState.confirmedStaffRank);
     }
@@ -211,9 +212,8 @@ class InboundAckRouterTest {
         // so it must not reach the staff command waiting for its own ack.
         V1ApiManager.helloEchoesReq = true;
         pending("head");
-        JsonObject refused =
-                ack("{\"status\":\"error\",\"detail\":\"Inbound processing is disabled\"}");
-        assertDoesNotThrow(() -> InboundAckRouter.route(refused));
+        InboundAckRouter.route(
+                ack("{\"status\":\"error\",\"detail\":\"Inbound processing is disabled\"}"));
         assertTrue(calls.isEmpty());
         assertEquals(1, V1ApiManager.pendingAcks.size());
     }

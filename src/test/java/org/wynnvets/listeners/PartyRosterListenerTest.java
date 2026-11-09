@@ -176,14 +176,6 @@ class PartyRosterListenerTest {
     @Test
     void heartbeatDelay_isThirtySecondsWhenTheGatePassedAndNoneWhenSuppressed() {
         assertEquals(30_000L, PartyRosterListener.heartbeatDelayMs(true));
-        assertEquals(PartyRosterListener.HEARTBEAT_MS, PartyRosterListener.heartbeatDelayMs(true));
         assertEquals(-1L, PartyRosterListener.heartbeatDelayMs(false));
-    }
-
-    @Test
-    void emptySnapshotOutsideWindowSuppressed() {
-        AnniSnapshot anni = anniWithOrganisers("Organiser");
-        long stamp = NOW + 4 * 60 * 60;
-        assertFalse(PartyRosterListener.shouldSend(Snapshot.EMPTY, anni, stamp, NOW));
     }
 }

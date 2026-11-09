@@ -231,11 +231,10 @@ JUnit never boots Minecraft or loads Wynntils, so the pure logic is split from t
 | Decisions and ids | `TextureRulesTest`, `ModelRulesTest`, `RuleUsageTest`, `PartFilterTest`, `RetroAssetIdsTest` |
 | Pack and generation | `RetroPackResourcesTest`, `RetroPackInjectorTest`, `PackFilesTest`, `GenerationStepsTest`, `DrawnArtTest`, `PackOutputTest`, `ModelJsonTest`, `RetroSourcesTest`, `VanillaTweaksPackTest`, `TintFactorsTest`, `RetroPackGeneratorTest` (in-memory packs from `MemoryPack`) |
 | Pixels and colours | `PixelsTest`, `PixelDrawingTest`, `PngCodecTest`, `RecoloursTest`, `ColorMathTest`, `VanillaGuiColorsTest` |
-| Semantic layer | `RetroContainerTitlesTest`, `RetroSlotsTest`, `RetroSlotValuesTest`, `RetroSlotIconsTest`, `RetroStackModelsTest`, `RetroAccessoriesTest`, `RetroInventoryEffectsTest`, `RetroHudTest`, `RetroHudReadingsTest`, `RetroHudGlyphsTest`, `RetroHeartFlashTest`, `RetroGuardTest`, `IdentityMemoTest`, `RetroStacksTest` |
+| Semantic layer | `RetroContainerTitlesTest`, `RetroSlotsTest`, `RetroSlotValuesTest`, `RetroSlotIconsTest`, `RetroStackModelsTest`, `RetroAccessoriesTest`, `RetroInventoryEffectsTest`, `RetroHudTest`, `RetroHudReadingsTest`, `RetroHudGlyphsTest`, `RetroHeartFlashTest`, `RetroGuardTest`, `IdentityMemoTest` |
 | State, commands and Wynntils settings | `RetroModeManagerTest`, `RetroCommandsTest`, `LivePackTest`, `WynntilsConfigOverridesTest` (over `FakeSettings`) |
-| Debug | `RetroDebugCommandsTest`, `AuditModelsTest`, `TextureDivergenceTest`, `LiveItemModelsTest` |
 
-`NativeImage` decoding works under JUnit (Loom puts the natives on the test classpath), so `PngCodec.decode` is tested. Not unit-tested: the mixins and the accessor, the listeners, the drawing calls themselves, the generator against real packs, the report's reading of real packs, the Wynntils settings against a real Wynntils, and the in-game look.
+`NativeImage` decoding works under JUnit (Loom puts the natives on the test classpath), so `PngCodec.decode` is tested. Not unit-tested: the mixins and the accessor, the listeners, the drawing calls themselves, the generator against real packs, the debug report and item dump (debug-only code: `CommandRegistryTest` only builds their command tree), the Wynntils settings against a real Wynntils, and the in-game look.
 
 **In-game plan** (Cleanroom, Wynncraft pack on). Check by family after a change; the report's `skipped=` and unused-row lines come first.
 

@@ -2,7 +2,6 @@ package org.wynnvets.retro.pack.generate;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -70,8 +69,7 @@ class VanillaTweaksPackTest {
     }
 
     @Test
-    void outsideARunningGameThereIsNoArtToFindAndNothingThrows() throws Exception {
-        assertNotNull(artFolder());
+    void outsideARunningGameThereIsNoArtToFindAndNothingThrows() {
         assertNull(VanillaTweaksPack.open(), "no vetsmod mod container under JUnit");
     }
 }

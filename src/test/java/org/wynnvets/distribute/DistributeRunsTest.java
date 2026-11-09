@@ -10,8 +10,8 @@ import org.junit.jupiter.api.Test;
  * submitted with.
  *
  * <p>{@code /wv distribute} submits {@code "distribution"}, and its three lines are pinned byte
- * for byte as they were before the noun was a parameter. Only the line builders are exercised:
- * the run state is static and its transitions go through the tick scheduler, which a test cannot
+ * for byte, as is the laurels update's wording. Only the line builders are exercised: the run
+ * state is static, and a queued run starts through the tick scheduler, which a test cannot
  * boot.</p>
  */
 class DistributeRunsTest {

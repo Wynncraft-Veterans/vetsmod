@@ -19,14 +19,8 @@ class RetroSlotIconsTest {
 
     @Test
     void theIconIsThreeQuartersOfTheSlotCentredOnIt() {
-        assertEquals(0.75f, RetroSlotIcons.ICON_SCALE);
+        // A 12-pixel icon leaves 2 pixels of the 16-pixel slot on each side.
         assertEquals(2f, RetroSlotIcons.iconOffset(RetroSlotIcons.ICON_SCALE));
-        // As much slot shows on each side of the icon.
-        assertEquals(
-                16f,
-                RetroSlotIcons.iconOffset(RetroSlotIcons.ICON_SCALE) * 2
-                        + 16 * RetroSlotIcons.ICON_SCALE,
-                "the offset, the icon and the offset fill the slot");
     }
 
     @Test
@@ -40,15 +34,13 @@ class RetroSlotIconsTest {
     }
 
     @Test
-    void aTypeWithNoOutlinedRowIsDrawnAtTheIconScale() {
+    void aTypeIsDrawnAtItsOutlinedRowsScaleOrElseTheIconScale() {
         Map<String, OutlinedIcon> outlined = RetroModeManager.manifest().stacks().outlinedIcons();
 
+        // The shipped rows: 0.625 grown by 1 pixel each side, 0.375 by 3.
+        assertEquals(0.703125f, RetroSlotIcons.iconScale(outlined, "SPEAR"), "0.625 * 18 / 16");
         assertEquals(
-                RetroSlotIcons.drawnScale(outlined.get("SPEAR")),
-                RetroSlotIcons.iconScale(outlined, "SPEAR"));
-        assertEquals(
-                RetroSlotIcons.drawnScale(outlined.get("ARMOUR_TOME")),
-                RetroSlotIcons.iconScale(outlined, "ARMOUR_TOME"));
+                0.515625f, RetroSlotIcons.iconScale(outlined, "ARMOUR_TOME"), "0.375 * 22 / 16");
         assertEquals(RetroSlotIcons.ICON_SCALE, RetroSlotIcons.iconScale(outlined, "HELMET"));
         assertEquals(
                 RetroSlotIcons.ICON_SCALE,

@@ -29,13 +29,13 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * startup once three days have passed since it was switched on — that check
  * runs only at client init, so a session left running keeps it on).</p>
  *
- * <p>The 18 nodes that still need an argument print their own red usage line when typed bare
+ * <p>The nodes that still need an argument print their own red usage line when typed bare
  * ({@code usage}), so a command missing an argument never reaches the server as "Invalid
  * command". A bare container literal that needs a subcommand ({@code snapshot}, {@code mode},
  * {@code scrollspot}, {@code rsvp}, {@code registry}) still goes to the server.</p>
  *
- * <p>Two gates, and only one of them restricts who may call. All 24 handlers
- * open with {@code requireDebug}, which tests
+ * <p>Two gates, and only one of them restricts who may call. Every handler
+ * opens with {@code requireDebug}, which tests
  * {@link VetsLogger#isDebugEnabled()} — a flag any player sets with
  * {@code /wv debug true}, a node that carries no permission check of its own
  * — so it is a mode flag that refuses execution, not an
@@ -62,9 +62,8 @@ public final class AnniDebugCommands {
 
     /** Build the {@code anni} literal, which the caller mounts under
      *  {@code /wv debug tree} — so every path here is
-     *  {@code /wv debug tree anni …}. 11 top-level literals, 24 executable
-     *  leaves, one handler per leaf, in this class or a sibling handler class,
-     *  and 18 inner nodes whose command is a usage line.
+     *  {@code /wv debug tree anni …}. One handler per executable leaf, in this
+     *  class or a sibling handler class; an inner node's command is a usage line.
      *  Caller is {@link org.wynnvets.debug.DebugCommands#buildCommandTree()
      *  DebugCommands#buildCommandTree()}. */
     public static LiteralArgumentBuilder<FabricClientCommandSource> buildCommandTree() {

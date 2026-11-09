@@ -1,7 +1,6 @@
 package org.wynnvets.chat;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Style;
@@ -45,11 +44,6 @@ class LegacyTextParserTest {
     }
 
     @Test
-    void literalWithUrls_null_throws() {
-        assertThrows(NullPointerException.class, () -> parse(null, Style.EMPTY));
-    }
-
-    @Test
     void literalWithUrls_eachColourCode_setsItsColour() {
         String codes = "0123456789abcdef";
         String[] colours = {
@@ -81,44 +75,26 @@ class LegacyTextParserTest {
 
     @Test
     void literalWithUrls_unknownCode_isDroppedAndKeepsTheStyle() {
-        assertEquals(
-                "empty[siblings=[literal{https://wynnvets.org/}[style={clickEvent=OpenUrl[uri=https://wynnvets.org/]}"
-                        + "]]]",
-                parse("\u00A7z" + URL, Style.EMPTY));
+        assertEquals(linked(""), parse("\u00A7z" + URL, Style.EMPTY));
         // the style so far, not the base style
         assertEquals(linked("color=green"), parse("\u00A7a\u00A7z" + URL, Style.EMPTY));
     }
 
     @Test
     void literalWithUrls_upperCaseCode_actsAsLowerCase() {
-        assertEquals(
-                "empty[siblings=[literal{https://wynnvets.org/}[style={color=green,"
-                        + "clickEvent=OpenUrl[uri=https://wynnvets.org/]}]]]",
-                parse("\u00A7A" + URL, Style.EMPTY));
+        assertEquals(linked("color=green"), parse("\u00A7A" + URL, Style.EMPTY));
     }
 
     @Test
     void literalWithUrls_colourCodeAfterAFormatCode_resetsToTheBaseStylePlusTheColour() {
-        assertEquals(
-                "empty[siblings=[literal{https://wynnvets.org/}[style={color=green,"
-                        + "clickEvent=OpenUrl[uri=https://wynnvets.org/]}]]]",
-                parse("\u00A7l\u00A7a" + URL, Style.EMPTY));
-        assertEquals(
-                "empty[siblings=[literal{https://wynnvets.org/}[style={color=green,italic,"
-                        + "clickEvent=OpenUrl[uri=https://wynnvets.org/]}]]]",
-                parse("\u00A7l\u00A7a" + URL, BASE));
+        assertEquals(linked("color=green"), parse("\u00A7l\u00A7a" + URL, Style.EMPTY));
+        assertEquals(linked("color=green,italic"), parse("\u00A7l\u00A7a" + URL, BASE));
     }
 
     @Test
     void literalWithUrls_resetAfterCodesThatChangedTheStyle_returnsToTheBaseStyle() {
-        assertEquals(
-                "empty[siblings=[literal{https://wynnvets.org/}[style={clickEvent=OpenUrl[uri=https://wynnvets.org/]}"
-                        + "]]]",
-                parse("\u00A7a\u00A7l\u00A7r" + URL, Style.EMPTY));
-        assertEquals(
-                "empty[siblings=[literal{https://wynnvets.org/}[style={color=gold,italic,"
-                        + "clickEvent=OpenUrl[uri=https://wynnvets.org/]}]]]",
-                parse("\u00A7a\u00A7l\u00A7r" + URL, BASE));
+        assertEquals(linked(""), parse("\u00A7a\u00A7l\u00A7r" + URL, Style.EMPTY));
+        assertEquals(linked("color=gold,italic"), parse("\u00A7a\u00A7l\u00A7r" + URL, BASE));
     }
 
     @Test

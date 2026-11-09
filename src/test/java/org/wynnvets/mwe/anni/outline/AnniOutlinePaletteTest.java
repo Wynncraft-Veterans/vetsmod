@@ -9,18 +9,15 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Tests for {@link AnniOutlinePalette#chatFormattingForRole(String)} — the
- * seven-arm role colour table the highlight overlay renders from.
+ * seven-arm role colour table the highlight overlay renders from, and the chat
+ * surfaces too, through
+ * {@link org.wynnvets.mwe.anni.render.AnniHoverBuilder#roleColor AnniHoverBuilder#roleColor},
+ * which delegates here.
  *
- * <p>This class was untouchable from a test until the other-vets-party
- * {@code CustomColor} moved to {@link AnniOutlineRegistry}: constructing a
- * Wynntils type in a static initializer kills the load, and Wynntils is
- * {@code modCompileOnly} so it is absent at test runtime. The palette now
- * declares no fields at all, and it imports nothing from Wynntils.</p>
- *
- * <p>{@link AnniOutlineRegistry} itself is still unloadable here: it builds a
- * {@code CustomColor} both in {@code <clinit>} and in {@code ownPartyEntry}.
- * The relocation moved the blocker into a class that already had one; it did
- * not remove it.</p>
+ * <p>The palette declares no fields and imports nothing from Wynntils, so it loads in
+ * a test. {@link AnniOutlineRegistry}, which reads it, does not: it builds a Wynntils
+ * {@code CustomColor} both in {@code <clinit>} and in {@code ownPartyEntry}, and
+ * Wynntils is {@code modCompileOnly}, so it is absent at test runtime.</p>
  */
 class AnniOutlinePaletteTest {
 
@@ -79,9 +76,8 @@ class AnniOutlinePaletteTest {
         // default-locale fold breaks. Under a Turkish default, 'i' upper-cases
         // to the dotted capital U+0130 rather than to ASCII 'I', so "fill",
         // "primary" and "tertiary" match no switch arm and fall through to
-        // GRAY — an own-party member rendered as an outsider in the outline
-        // while the chat hover, which passes Locale.ROOT, shows the right
-        // colour. Locale.ROOT here is what stops that.
+        // GRAY — an own-party member outlined, and coloured in chat, as an
+        // outsider. Locale.ROOT here is what stops that.
         Locale.setDefault(TURKISH);
 
         assertSame(ChatFormatting.WHITE, AnniOutlinePalette.chatFormattingForRole("fill"));

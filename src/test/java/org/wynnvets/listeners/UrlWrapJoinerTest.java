@@ -14,8 +14,8 @@ import org.junit.jupiter.api.Test;
  * {@code onGuildChat raw [...]} and {@code onGuildChat plain [...]} entries (the log shows the
  * newline as a backslash and an {@code n}). Every glyph-art code point is a unicode escape.
  * {@link #HEAD_FIRST} and {@link #HEAD_CONT} are the line headers, {@link #WRAP} the
- * continuation prefix, and the unwrapped message is what {@code StyledTextUtils.unwrap} left
- * after the {@code Wenweia: } header.</p>
+ * continuation prefix, and the unwrapped message, written out as the log shows it, is what
+ * {@code StyledTextUtils.unwrap} left after the {@code Wenweia: } header.</p>
  */
 class UrlWrapJoinerTest {
 
@@ -53,7 +53,9 @@ class UrlWrapJoinerTest {
                         + WRAP
                         + a(11)
                         + " Then";
-        String unwrapped = "a " + URL + a(12) + " " + a(51) + " " + a(11) + " Then";
+        String unwrapped =
+                "a https://anni.wynnvets.org/aaaaaaaaaaaa "
+                        + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa aaaaaaaaaaa Then";
 
         assertEquals("a " + URL + a(12 + 51 + 11) + " Then", UrlWrapJoiner.join(raw, unwrapped));
     }
@@ -68,7 +70,8 @@ class UrlWrapJoinerTest {
                         + URL
                         + "me Then more";
         // The unwrap keeps the kept space and adds its own, hence two spaces.
-        String unwrapped = "padding padding padding padding  " + URL + "me Then more";
+        String unwrapped =
+                "padding padding padding padding  https://anni.wynnvets.org/me Then more";
 
         assertEquals(unwrapped, UrlWrapJoiner.join(raw, unwrapped));
     }
@@ -86,23 +89,11 @@ class UrlWrapJoinerTest {
                         + "\n"
                         + WRAP
                         + "more";
-        String unwrapped = "padding ".repeat(8) + URL + "me Then more";
+        String unwrapped =
+                "padding padding padding padding padding padding padding padding "
+                        + "https://anni.wynnvets.org/me Then more";
 
         assertEquals(unwrapped, UrlWrapJoiner.join(raw, unwrapped));
-    }
-
-    @Test
-    void theCapturedUnwrappedTextsAreTheOnesTheFixturesRebuild() {
-        // Pins the fixtures against the log: the unwrapped texts the three captures produced.
-        assertEquals(
-                "a https://anni.wynnvets.org/aaaaaaaaaaaa aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa aaaaaaaaaaa Then",
-                "a " + URL + a(12) + " " + a(51) + " " + a(11) + " Then");
-        assertEquals(
-                "padding padding padding padding  https://anni.wynnvets.org/me Then more",
-                "padding padding padding padding  " + URL + "me Then more");
-        assertEquals(
-                "padding padding padding padding padding padding padding padding https://anni.wynnvets.org/me Then more",
-                "padding ".repeat(8) + URL + "me Then more");
     }
 
     // ----- synthetic cases -----

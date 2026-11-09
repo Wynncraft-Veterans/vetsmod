@@ -18,8 +18,7 @@ import org.junit.jupiter.api.Test;
  *
  * <p>The cases that matter are the ones on {@code null} — a null snapshot is a
  * legal cache state that {@code /wv debug tree anni snapshot clear} produces on
- * demand, and one of the two source bodies this class replaced would have thrown
- * on it. Deleting the {@code snapshot == null} guard turns all four of those
+ * demand. Deleting the {@code snapshot == null} guard turns all four of those
  * cases red.</p>
  */
 class AnniSnapshotsTest {

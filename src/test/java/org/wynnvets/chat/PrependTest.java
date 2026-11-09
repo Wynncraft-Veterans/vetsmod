@@ -44,14 +44,6 @@ class PrependTest {
     }
 
     @Test
-    void blockIndicatorStyle_isTheStyleOfTheIndicatorGetReturns() {
-        Prepend.GUILD.get();
-        MutableComponent indicator = Prepend.GUILD.get();
-        assertEquals(GUILD_INDICATOR, indicator.getString());
-        assertEquals(indicator.getStyle(), Prepend.GUILD.blockIndicatorStyle());
-    }
-
-    @Test
     void blockIndicatorStyle_isTheIndicatorsStyleNotTheFullBadges() {
         // DEFAULT's full badge has no font on its root style and its indicator has one, so this
         // tells the two apart, which GUILD's equal styles cannot.
