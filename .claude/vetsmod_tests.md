@@ -2819,6 +2819,9 @@ Test: [`ItemDefinitionsTest.java`](../src/test/java/org/wynnvets/items/ItemDefin
   - for each of "Brown Mushroom" and "Red Mushroom", `ItemDefinitions.isMiscLegacy(name)` is true and `ItemDefinitions.isLegacy(name)` is false (4 assertions)
   - `ItemDefinitions.isMiscLegacy("Brown Mushroom Block")` is false
   - `ItemDefinitions.isMiscLegacy("Red Mushroom Block")` is false
+- **`aPlainFeatherIsNotLegacy`**: A plain "Feather" is legacy under no definition, while the misc bucket's "Flamingo Feather" still is.
+  - `ItemDefinitions.isLegacy("Feather")` and `ItemDefinitions.isMiscLegacy("Feather")` are false
+  - `ItemDefinitions.isMiscLegacy("Flamingo Feather")` is true
 - **`wolfsFangIsNoLoreLegacyInBothApostropheForms`**: The loreless "Wolf's Fang" is no-lore legacy with a straight or typographic apostrophe, but not legacy by name alone and not the existing "Wolf Fang" entry.
   - `ItemDefinitions.isNoLoreLegacy("Wolf's Fang")` is true
   - `ItemDefinitions.isNoLoreLegacy("Wolf" + U+2019 + "s Fang")` is true
@@ -5786,13 +5789,12 @@ Test: [`DurationsTest.java`](../src/test/java/org/wynnvets/util/DurationsTest.ja
 
 `Durations` spells a stopwatch reading and a wait. The suite pins the padding, that the minutes run on past an hour, and the floor at zero.
 
-- **`hoursMinutes_padsTheMinutesAndDropsTheSeconds`**: A wait reads to the minute.
-  - `hoursMinutes` of 359, 59400 and -5 equals `0h 05m`, `16h 30m` and `0h 00m`.
-
 - **`minutesSeconds_padsTheSecondsAndNotTheMinutes`**: The seconds always have two digits.
   - `minutesSeconds` of 0, 7, 60 and 205 equals `0:00`, `0:07`, `1:00` and `3:25`.
 - **`minutesSeconds_doesNotRollOverIntoHours`**: An hour or more stays in minutes.
   - `minutesSeconds(4321)` equals `72:01`.
+- **`hoursMinutes_padsTheMinutesAndDropsTheSeconds`**: A wait reads to the minute.
+  - `hoursMinutes` of 359, 59400 and -5 equals `0h 05m`, `16h 30m` and `0h 00m`.
 - **`minutesSeconds_readsATimeBelowZeroAsZero`**: Below zero reads as nothing.
   - `minutesSeconds(-5)` equals `0:00`.
 

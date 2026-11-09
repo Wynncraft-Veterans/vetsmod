@@ -405,6 +405,14 @@ class ItemDefinitionsTest {
     }
 
     @Test
+    void aPlainFeatherIsNotLegacy() {
+        assertFalse(ItemDefinitions.isLegacy("Feather"));
+        assertFalse(ItemDefinitions.isMiscLegacy("Feather"));
+        assertTrue(
+                ItemDefinitions.isMiscLegacy("Flamingo Feather"), "the misc bucket's own feather");
+    }
+
+    @Test
     void wolfsFangIsNoLoreLegacyInBothApostropheForms() {
         assertTrue(ItemDefinitions.isNoLoreLegacy("Wolf's Fang"));
         assertTrue(ItemDefinitions.isNoLoreLegacy("Wolf\u2019s Fang"), "typographic apostrophe");
