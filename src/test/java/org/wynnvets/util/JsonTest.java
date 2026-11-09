@@ -1,7 +1,9 @@
 package org.wynnvets.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -10,7 +12,8 @@ import com.google.gson.JsonObject;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tests for {@link Json}'s four field accessors.
+ * Tests for {@link Json}'s four field accessors, in sixteen tests, then for its two strict
+ * boolean tests, {@code isTrue} and {@code isFalse}.
  *
  * <p>This is the sole survivor of five {@code JsonAccessorTest} classes — in {@code chat},
  * {@code chat.dispatcher}, {@code chat.rewriter}, {@code commands} and
@@ -228,5 +231,38 @@ class JsonTest {
     @Test
     void optInt_aSingletonArrayIsUnwrappedToo() {
         assertEquals(7, Json.optInt(withValue(array(7)), "k", -1));
+    }
+
+    // ----- isTrue and isFalse -----
+
+    @Test
+    void isTrueAndIsFalse_answerOnlyForTheirOwnJsonBoolean() {
+        JsonObject yes = new JsonObject();
+        yes.addProperty("k", true);
+        JsonObject no = new JsonObject();
+        no.addProperty("k", false);
+
+        assertTrue(Json.isTrue(yes, "k"));
+        assertFalse(Json.isFalse(yes, "k"));
+        assertTrue(Json.isFalse(no, "k"));
+        assertFalse(Json.isTrue(no, "k"));
+    }
+
+    @Test
+    void isTrueAndIsFalse_neverCoerceAndAnswerFalseForAnythingElse() {
+        JsonObject[] others = {
+            new JsonObject(),
+            withValue(JsonNull.INSTANCE),
+            withString("true"),
+            withString("false"),
+            withNumber(1),
+            withNumber(0),
+            withValue(new JsonObject()),
+            null
+        };
+        for (JsonObject other : others) {
+            assertFalse(Json.isTrue(other, "k"), String.valueOf(other));
+            assertFalse(Json.isFalse(other, "k"), String.valueOf(other));
+        }
     }
 }

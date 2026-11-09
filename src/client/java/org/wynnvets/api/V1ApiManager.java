@@ -1,6 +1,5 @@
 package org.wynnvets.api;
 
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import java.net.URI;
 import java.util.List;
@@ -376,7 +375,7 @@ public final class V1ApiManager {
                 boolean unauthEnabled =
                         json.has("unauth_enabled") && json.get("unauth_enabled").getAsBoolean();
                 org.wynnvets.guild.SessionAuthWarning.onServerInfo(unauthEnabled);
-                helloEchoesReq = hasTrueFlag(json, "req_echo");
+                helloEchoesReq = Json.isTrue(json, "req_echo");
                 outboundAuthOffered = offersAllChatTiers(json);
                 serverSupportsUnregister = offersUnregister(json);
                 sendOutboundAuthIfReady();
@@ -416,20 +415,10 @@ public final class V1ApiManager {
         outboundAuthenticated = false;
     }
 
-    /** Whether {@code frame}'s {@code key} is the JSON boolean {@code true}: the form of a
-     *  {@code server_info} capability flag. A server without the key lacks the capability. */
-    static boolean hasTrueFlag(JsonObject frame, String key) {
-        JsonElement value = frame.get(key);
-        return value != null
-                && value.isJsonPrimitive()
-                && value.getAsJsonPrimitive().isBoolean()
-                && value.getAsBoolean();
-    }
-
     /** Whether a {@code server_info} hello carries {@code unregister: true}: the server knows the
      *  {@code unregister} frame. A server without the key does not. */
     static boolean offersUnregister(JsonObject serverInfo) {
-        return hasTrueFlag(serverInfo, "unregister");
+        return Json.isTrue(serverInfo, "unregister");
     }
 
     /** Whether an auth ack's {@code tier} is a member tier, one the server gives a chat

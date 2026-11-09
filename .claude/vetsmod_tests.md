@@ -5803,7 +5803,7 @@ Test: [`DurationsTest.java`](../src/test/java/org/wynnvets/util/DurationsTest.ja
 
 Test: [`JsonTest.java`](../src/test/java/org/wynnvets/util/JsonTest.java) · Subject: [`Json`](../src/client/java/org/wynnvets/util/Json.java)
 
-`Json` holds the mod's shared Gson instance and four tolerant field accessors over an already-parsed `JsonObject`: `optString`, `stringOrNull`, `stringOrEmpty` and `optInt`. The suite pins one policy: a missing key, JSON null, wrong-typed value or null receiver gives the caller's fallback, plus the Gson quirks that still pass through (primitives coerce, a one-element array is unwrapped, `optInt` truncates and narrows). It checks return values only: the warn logged on wrong-typed values and null receivers is not asserted because there is no log-capture seam.
+`Json` holds the mod's shared Gson instance, four tolerant field accessors over an already-parsed `JsonObject` (`optString`, `stringOrNull`, `stringOrEmpty` and `optInt`) and two strict boolean tests (`isTrue` and `isFalse`). For the accessors the suite pins one policy: a missing key, JSON null, wrong-typed value or null receiver gives the caller's fallback, plus the Gson quirks that still pass through (primitives coerce, a one-element array is unwrapped, `optInt` truncates and narrows). It checks return values only: the warn logged on wrong-typed values and null receivers is not asserted because there is no log-capture seam.
 
 - **`optString_readsAStringVerbatimAndIgnoresTheFallback`**: A present string is returned as is, and an empty string is a present value, not a miss.
   - `Json.optString(withString("value"), "k", "fb")` equals `"value"` (`withString(v)` builds a `JsonObject` with property `k` set to the string `v`)
@@ -5858,6 +5858,10 @@ Test: [`JsonTest.java`](../src/test/java/org/wynnvets/util/JsonTest.java) · Sub
   - `Json.optInt(withNumber(4_294_967_298L), "k", -1)` equals `(int) 4_294_967_298L` (which is 2; the long is narrowed, not replaced by the fallback)
 - **`optInt_aSingletonArrayIsUnwrappedToo`**: A one-element array `[7]` reads as 7.
   - `Json.optInt(withValue(array(7)), "k", -1)` equals 7 (`k` is a one-element array holding 7, unwrapped)
+- **`isTrueAndIsFalse_answerOnlyForTheirOwnJsonBoolean`**: Each test answers for its own JSON boolean and not the other.
+  - `isTrue` is true and `isFalse` false for `k: true`; `isFalse` is true and `isTrue` false for `k: false`.
+- **`isTrueAndIsFalse_neverCoerceAndAnswerFalseForAnythingElse`**: Neither coerces, falls back or throws.
+  - Both are false for a missing key, JSON null, the strings `"true"` and `"false"`, the numbers 1 and 0, an object value and a `null` receiver.
 
 ### `TickDelaysTest`
 

@@ -173,13 +173,13 @@ final class StreakCrawl {
                     LaurelCommands.line(
                             ChatFormatting.YELLOW, unresolvedText(unresolved.getAsJsonArray())));
         }
-        if (isFalse(ack, "replaced")) {
+        if (Json.isFalse(ack, "replaced")) {
             lines.add(
                     LaurelCommands.line(
                             ChatFormatting.GRAY,
                             "Too few members matched, so the server kept its previous streaks."));
         }
-        if (isFalse(ack, "active")) {
+        if (Json.isFalse(ack, "active")) {
             lines.add(
                     LaurelCommands.line(
                             ChatFormatting.GRAY,
@@ -203,13 +203,5 @@ final class StreakCrawl {
         String text = label + String.join(", ", shown);
         int more = names.size() - shown.size();
         return more > 0 ? text + " and " + more + " more." : text + ".";
-    }
-
-    private static boolean isFalse(JsonObject ack, String key) {
-        JsonElement flag = ack.get(key);
-        return flag != null
-                && flag.isJsonPrimitive()
-                && flag.getAsJsonPrimitive().isBoolean()
-                && !flag.getAsBoolean();
     }
 }

@@ -1,6 +1,7 @@
 package org.wynnvets.util;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import org.wynnvets.logging.VetsLogger;
 
@@ -72,6 +73,9 @@ import org.wynnvets.logging.VetsLogger;
  *   <tr><td>all four entry points here</td><td>fallback, silently</td>
  *       <td>fallback, with a warn</td><td>fallback, with a warn</td></tr>
  * </table>
+ *
+ * <p>{@link #isTrue} and {@link #isFalse} are outside that table: they ask whether a field is one
+ * JSON boolean, so they never coerce and never warn.</p>
  *
  * <p><b>Why tolerant, and why loud.</b> The case against a tolerant body was that it "would
  * turn a loud failure into a silent fallback". Traced to where each exception actually landed,
@@ -237,5 +241,31 @@ public final class Json {
                     e.getClass().getSimpleName());
             return fallback;
         }
+    }
+
+    /**
+     * Whether {@code key} is the JSON boolean {@code true}, the form of a capability flag: a
+     * server without the key lacks the capability. A missing key, any other value and a
+     * {@code null} receiver all answer {@code false}, silently. Unlike the accessors above it
+     * never coerces, so the string {@code "true"} is not {@code true}.
+     */
+    public static boolean isTrue(JsonObject obj, String key) {
+        return isBoolean(obj, key, true);
+    }
+
+    /**
+     * Whether {@code key} is the JSON boolean {@code false}: an explicit "no", which a missing key
+     * is not. Otherwise as {@link #isTrue}.
+     */
+    public static boolean isFalse(JsonObject obj, String key) {
+        return isBoolean(obj, key, false);
+    }
+
+    private static boolean isBoolean(JsonObject obj, String key, boolean expected) {
+        JsonElement value = obj == null ? null : obj.get(key);
+        return value != null
+                && value.isJsonPrimitive()
+                && value.getAsJsonPrimitive().isBoolean()
+                && value.getAsBoolean() == expected;
     }
 }
