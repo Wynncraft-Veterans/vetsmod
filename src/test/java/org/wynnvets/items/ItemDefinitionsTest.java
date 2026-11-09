@@ -393,6 +393,18 @@ class ItemDefinitionsTest {
     }
 
     @Test
+    void vanillaMushroomsAreMiscLegacyAndOnlyMiscLegacy() {
+        // Only the Misc. Item copies are legacy, so both sit in misc_definitions alone,
+        // as exact names.
+        for (String name : new String[] {"Brown Mushroom", "Red Mushroom"}) {
+            assertTrue(ItemDefinitions.isMiscLegacy(name), name + " is misc legacy");
+            assertFalse(ItemDefinitions.isLegacy(name), name + " is not matched by name alone");
+        }
+        assertFalse(ItemDefinitions.isMiscLegacy("Brown Mushroom Block"), "full match only");
+        assertFalse(ItemDefinitions.isMiscLegacy("Red Mushroom Block"));
+    }
+
+    @Test
     void wolfsFangIsNoLoreLegacyInBothApostropheForms() {
         assertTrue(ItemDefinitions.isNoLoreLegacy("Wolf's Fang"));
         assertTrue(ItemDefinitions.isNoLoreLegacy("Wolf\u2019s Fang"), "typographic apostrophe");

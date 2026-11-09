@@ -2818,6 +2818,10 @@ Test: [`ItemDefinitionsTest.java`](../src/test/java/org/wynnvets/items/ItemDefin
   - `ItemDefinitions.isMiscLegacy("Mossy Cobblestone")` is false
   - `ItemDefinitions.isMiscLegacy("Flamingo")` is false
   - `ItemDefinitions.isMiscLegacy("Lava")` is false
+- **`vanillaMushroomsAreMiscLegacyAndOnlyMiscLegacy`**: "Brown Mushroom" and "Red Mushroom" are in `misc_definitions` as exact names and not in `definitions`.
+  - for each of "Brown Mushroom" and "Red Mushroom", `ItemDefinitions.isMiscLegacy(name)` is true and `ItemDefinitions.isLegacy(name)` is false (4 assertions)
+  - `ItemDefinitions.isMiscLegacy("Brown Mushroom Block")` is false
+  - `ItemDefinitions.isMiscLegacy("Red Mushroom Block")` is false
 - **`wolfsFangIsNoLoreLegacyInBothApostropheForms`**: The loreless "Wolf's Fang" is no-lore legacy with a straight or typographic apostrophe, but not legacy by name alone and not the existing "Wolf Fang" entry.
   - `ItemDefinitions.isNoLoreLegacy("Wolf's Fang")` is true
   - `ItemDefinitions.isNoLoreLegacy("Wolf" + U+2019 + "s Fang")` is true

@@ -40,7 +40,6 @@ definitions:
   - "(?i)^Drawing of the Spirits.*$"
   - "(?i)^Factory Helmet.*$"
   - "(?i)^Faded.*.Teleportation Scroll$"
-  - "(?i)^Feather$"
   - "(?i)^Female Pirate Wig.*$"
   - "(?i)^Flawed Golden Chestplate.*$"
   - "(?i)^Flawed Golden Leggings.*$"
@@ -111,6 +110,7 @@ definitions:
 misc_definitions:
   - "(?i)^Aqua Dust$"
   - "(?i)^Broken Amulet$"
+  - "(?i)^Brown Mushroom$"
   - "(?i)^Carved Quartz Block.*$"
   - "(?i)^Cobblestone$"
   - "(?i)^Cralozide Crystal$"
@@ -130,6 +130,7 @@ misc_definitions:
   - "(?i)^Pigman Meat$"
   - "(?i)^Quartz Block.*$"
   - "(?i)^Quartz Pillar.*$"
+  - "(?i)^Red Mushroom$"
   - "(?i)^Scorched Root.*$"
   - "(?i)^Shattered Crystal$"
   - "(?i)^Shiny Melon.*$"
