@@ -67,9 +67,13 @@ final class LegacyTooltipRenderer {
     private static final Pattern DEBUG_COMPONENTS_PATTERN =
             Pattern.compile("^\\d+ component\\(s\\)$");
 
-    /** Matches a Wynntils percentage suffix like " [61.7%]" appended to item names. */
+    /**
+     * Matches the percentage suffix Wynntils or wynnmod appends to an item name, such as
+     * " [61.7%]". wynnmod formats it in the system locale, so its decimal point can be a
+     * comma (" [16,6%]").
+     */
     private static final Pattern PERCENT_SUFFIX_PATTERN =
-            Pattern.compile("\\s*(\\[\\d+\\.?\\d*%\\])$");
+            Pattern.compile("\\s*(\\[\\d+[.,]?\\d*%\\])$");
 
     private LegacyTooltipRenderer() {}
 
