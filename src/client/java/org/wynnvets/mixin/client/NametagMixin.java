@@ -4,7 +4,6 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.wynntils.mc.extension.EntityRenderStateExtension;
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
@@ -24,6 +23,7 @@ import org.wynnvets.fetcher.polling.SupportersPoller;
 import org.wynnvets.mwe.anni.outline.AnniOutlineRegistry;
 import org.wynnvets.mwe.anni.outline.AnniOutlineTicker;
 import org.wynnvets.rendering.nametag.NametagAnimator;
+import org.wynnvets.util.ModCompat;
 
 /**
  * Replaces the {@code nameTag} on the per-frame {@link AvatarRenderState}
@@ -92,29 +92,10 @@ import org.wynnvets.rendering.nametag.NametagAnimator;
 public class NametagMixin {
 
     /**
-     * Cached at class init — wynnmod doesn't hot-load. Drives the
-     * supporter-branch skip at {@link #vetsmod$rewriteNameTag} (TAIL):
-     * when wynnmod is present, pre-glinting {@code state.nameTag} at
-     * TAIL would feed wynnmod's {@code badgeNameCache} a per-frame
-     * varying key (every render frame produces a fresh per-character
-     * animated Component, see {@link NametagAnimator#tryAnimate}), so
-     * the cache occasionally misses and wynnmod's PRE handler leaves
-     * the badge off for a tick — visible as a per-tick flash back to
-     * {@code (glint)(partycolour)}. Leaving the Component as vanilla at
-     * TAIL gives wynnmod a stable cache key (the unmodified Wynncraft
-     * nametag) so it hits 100% of the time and always writes the badged
-     * form; {@link #vetsmod$reapplyAfterWrap} then re-glints inside
-     * wynnmod's output, restoring the intended
-     * {@code (rankPUALogo)(glint)(rankColour)} appearance.
-     */
-    private static final boolean WYNNMOD_PRESENT =
-            FabricLoader.getInstance().isModLoaded("wynnmod");
-
-    /**
      * {@code extractRenderState} TAIL: runs {@code applyOverride} with
      * {@code fromWrap = false} on the state vanilla has just populated.
      * The anni branch is unaffected by that flag; the supporter branch is
-     * skipped when wynnmod is loaded (see {@code WYNNMOD_PRESENT}). Why
+     * skipped when wynnmod is loaded (see {@link #applyOverride}). Why
      * TAIL rather than a {@code submitNameTag} HEAD inject: see the class
      * doc.
      */
@@ -179,10 +160,19 @@ public class NametagMixin {
      * never populated.
      *
      * <p>{@code fromWrap} gates the supporter branch only, so it runs once
-     * per frame: when wynnmod is present we must <em>not</em> pre-glint at
-     * TAIL, or wynnmod's {@code badgeNameCache} key thrashes (see
-     * {@link #WYNNMOD_PRESENT}), and when it is absent the wrap skips it,
-     * since TAIL has already glinted the name.
+     * per frame. When wynnmod is loaded ({@link ModCompat#WYNNMOD_PRESENT})
+     * we must <em>not</em> pre-glint at TAIL: wynnmod's
+     * {@code badgeNameCache} is keyed on {@code state.nameTag}, and every
+     * frame's glint is a fresh per-character Component (see
+     * {@link NametagAnimator#tryAnimate}), so the key would vary per frame,
+     * the cache would sometimes miss, and wynnmod's PRE handler would leave
+     * the badge off for a tick, a visible flash back to
+     * {@code (glint)(partycolour)}. Left vanilla at TAIL, the key is the
+     * unmodified Wynncraft nametag, so wynnmod always writes the badged
+     * form, and {@link #vetsmod$reapplyAfterWrap} re-glints inside it,
+     * giving {@code (rankPUALogo)(glint)(rankColour)}. When wynnmod is
+     * absent the wrap skips the branch instead, since TAIL has already
+     * glinted the name.
      * The anni branch is unconditional — anni overrides wynnmod by design,
      * and writing the anni literal at TAIL gives wynnmod a stable key
      * for the duration of the highlight gate.</p>
@@ -227,10 +217,10 @@ public class NametagMixin {
         // the wrap own the supporter glint when wynnmod is loaded —
         // wynnmod sees the stable vanilla Component, always badges, and
         // our wrap re-glints inside the badge.
-        if (!fromWrap && WYNNMOD_PRESENT) return;
+        if (!fromWrap && ModCompat.WYNNMOD_PRESENT) return;
         // Without wynnmod the TAIL pass has already glinted the name, so the
         // wrap leaves it: a second pass would re-base the glint.
-        if (fromWrap && !WYNNMOD_PRESENT) return;
+        if (fromWrap && !ModCompat.WYNNMOD_PRESENT) return;
 
         if (!SupportersPoller.isSupporter(username)) return;
         if (!VetsConfig.get(VetsConfigKeys.SHOW_SUPPORTER_GLINTS)) return;
