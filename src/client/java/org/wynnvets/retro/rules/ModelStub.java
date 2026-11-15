@@ -81,7 +81,7 @@ public sealed interface ModelStub {
     }
 
     /**
-     * An ingredient's row in {@code retro_ingredients.yml}: a stub that only names {@code parent}
+     * An ingredient's row in {@code retro.yml}'s {@code ingredients}: a stub that only names {@code parent}
      * as its parent.
      *
      * @param stem the ingredient's model stem

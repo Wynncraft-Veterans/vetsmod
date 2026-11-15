@@ -83,7 +83,7 @@ class TextureRulesTest {
     }
 
     private static TextureRules rules(String textures) {
-        return new TextureRules(ManifestFixtures.parseTextures(textures).textures());
+        return new TextureRules(ManifestFixtures.parse(textures).textures());
     }
 
     private static TextureDecision copy(String from, RetroSource source) {

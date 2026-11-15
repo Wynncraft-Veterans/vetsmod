@@ -22,24 +22,13 @@ public final class ManifestFixtures {
     private ManifestFixtures() {}
 
     /**
-     * Parses both files' fixtures.
+     * Parses a {@code retro.yml} fixture.
      *
-     * @param textures the {@code retro_textures.yml} fixture
-     * @param ingredients the {@code retro_ingredients.yml} fixture
+     * @param yaml the fixture
      * @return the manifest
      */
-    public static RetroManifest parse(String textures, String ingredients) {
-        return RetroManifest.parse(stream(textures), stream(ingredients));
-    }
-
-    /**
-     * Parses a {@code retro_textures.yml} fixture, with an empty ingredients file.
-     *
-     * @param textures the fixture
-     * @return the manifest
-     */
-    public static RetroManifest parseTextures(String textures) {
-        return parse(textures, "");
+    public static RetroManifest parse(String yaml) {
+        return RetroManifest.parse(stream(yaml));
     }
 
     private static InputStream stream(String yaml) {

@@ -18,8 +18,8 @@ import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
 
 /**
- * Tests for the shipped {@code retro_textures.yml} and {@code retro_ingredients.yml} as
- * files: that they load, that they hold exactly the known sections, and that the client jar's
+ * Tests for the shipped {@code retro.yml} as a file: that it loads, that it holds exactly the
+ * known sections, and that the client jar's
  * assets are on the test classpath. See {@link ShippedFiles ShippedFiles} for what the shipped
  * suites read.
  */
@@ -51,8 +51,7 @@ class ShippedManifestTest {
     @Test
     void theRealFilesHaveExactlyTheKnownSections() throws IOException {
         // The parser ignores an unknown section, so a misspelt one would silently lose its rows.
-        assertEquals(RetroManifest.TEXTURE_SECTIONS, sectionNames("/retro_textures.yml"));
-        assertEquals(RetroManifest.INGREDIENT_SECTIONS, sectionNames("/retro_ingredients.yml"));
+        assertEquals(RetroManifest.SECTIONS, sectionNames("/retro.yml"));
     }
 
     @Test

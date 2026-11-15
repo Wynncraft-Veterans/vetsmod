@@ -17,7 +17,7 @@ import org.wynnvets.retro.manifest.ScreenSections.SlotValue;
 
 /**
  * The values Wynncraft prints in a container's title, which retro's title drops
- * ({@code slot_values} in {@code retro_textures.yml}): each is read from the lore of the button
+ * ({@code slot_values} in {@code retro.yml}): each is read from the lore of the button
  * Wynncraft draws as nothing, and drawn in that button's slot, for
  * {@link org.wynnvets.listeners.RetroSlotListener RetroSlotListener}. A failure is logged once and
  * stops the values until the game restarts. Render thread only. The row logic ({@link #valueRow},

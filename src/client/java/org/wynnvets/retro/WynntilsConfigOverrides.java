@@ -18,7 +18,7 @@ import org.wynnvets.retro.rules.PartFilter;
 
 /**
  * The Wynntils settings retro changes while it is on and not stopped ({@code wynntils_config} in
- * {@code retro_textures.yml}), and puts back when it goes off or stops.
+ * {@code retro.yml}), and puts back when it goes off or stops.
  *
  * <p>A setting is found the way {@code /wynntils config set <feature> <setting> <value>} finds it,
  * through Wynntils' own API: {@code Managers.Feature.getFeatureFromString}, then the feature's

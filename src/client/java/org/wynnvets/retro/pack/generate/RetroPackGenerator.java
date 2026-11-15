@@ -7,6 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.PackResources;
 import net.minecraft.server.packs.repository.Pack;
@@ -73,9 +74,10 @@ public final class RetroPackGenerator {
     private final int wynncraftIndex;
     private final Pack programmerArt;
     private final PackResources vanilla;
+    private final Function<RetroManifest, Map<RetroSource, PackResources>> oldClients;
 
     /**
-     * A generator for one reload.
+     * A generator for one reload that reads no old client.
      *
      * @param stack the packs the reload loads, bottom first, without the retro pack
      * @param wynncraftIndex the index in {@code stack} of the Wynncraft pack the retro pack sits
@@ -89,10 +91,32 @@ public final class RetroPackGenerator {
             int wynncraftIndex,
             Pack programmerArt,
             PackResources vanilla) {
+        this(stack, wynncraftIndex, programmerArt, vanilla, manifest -> Map.of());
+    }
+
+    /**
+     * A generator for one reload.
+     *
+     * @param stack the packs the reload loads, bottom first, without the retro pack
+     * @param wynncraftIndex the index in {@code stack} of the Wynncraft pack the retro pack sits
+     *     directly above
+     * @param programmerArt the client's {@code programmer_art} pack, or {@code null} when it has
+     *     none
+     * @param vanilla Minecraft's vanilla pack
+     * @param oldClients opens the old clients' files that are here for the rule files read, for
+     *     the generation to close; it must not throw
+     */
+    public RetroPackGenerator(
+            List<PackResources> stack,
+            int wynncraftIndex,
+            Pack programmerArt,
+            PackResources vanilla,
+            Function<RetroManifest, Map<RetroSource, PackResources>> oldClients) {
         this.stack = List.copyOf(stack);
         this.wynncraftIndex = wynncraftIndex;
         this.programmerArt = programmerArt;
         this.vanilla = vanilla;
+        this.oldClients = oldClients;
     }
 
     /**
@@ -114,7 +138,11 @@ public final class RetroPackGenerator {
         List<RetroSource> present;
         RetroReport.Seen seen;
         try (RetroSources sources =
-                RetroSources.open(programmerArt, VanillaTweaksPack.open(), vanilla)) {
+                RetroSources.open(
+                        programmerArt,
+                        VanillaTweaksPack.open(),
+                        oldClients.apply(manifest),
+                        vanilla)) {
             present = sources.present();
             GenerationContext gen =
                     new GenerationContext(manifest, stack, wynncraftIndex, sources, out, partsOn);

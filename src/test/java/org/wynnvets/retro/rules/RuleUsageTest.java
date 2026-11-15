@@ -50,8 +50,8 @@ class RuleUsageTest {
                         equipment:
                           'minecraft:(pale_)?iron': 'minecraft:iron'
                           'minecraft:tan': keep
-                        """,
-                        "ingredients: {gold_nugget: 'minecraft:item/gold_nugget'}\n");
+                        ingredients: {gold_nugget: 'minecraft:item/gold_nugget'}
+                        """);
 
         RuleUsage usage =
                 RuleUsage.of(

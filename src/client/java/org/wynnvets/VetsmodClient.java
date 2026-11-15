@@ -42,6 +42,7 @@ import org.wynnvets.mwe.anni.zone.AnniZoneLineRenderer;
 import org.wynnvets.queue.QueueDetector;
 import org.wynnvets.queue.QueueStatusReporter;
 import org.wynnvets.rendering.territory.TerritoryLineRenderer;
+import org.wynnvets.retro.RetroModeManager;
 import org.wynnvets.retro.WynntilsConfigOverrides;
 import org.wynnvets.retro.render.RetroHud;
 
@@ -194,6 +195,8 @@ public class VetsmodClient implements ClientModInitializer {
         // Retro's Wynntils settings: its tick reaches Managers, so it registers here. It waits
         // for Wynntils to load its features, at the end of the first resource reload.
         WynntilsConfigOverrides.register();
+        // Retro's old-client textures: fetched once, off-thread, while retro is on.
+        RetroModeManager.startUp();
     }
 
     /**

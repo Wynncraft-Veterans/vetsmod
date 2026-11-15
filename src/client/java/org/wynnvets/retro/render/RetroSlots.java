@@ -32,7 +32,7 @@ import org.wynnvets.retro.manifest.ScreenSections;
 import org.wynnvets.retro.manifest.ScreenSections.SlotFill;
 
 /**
- * The slots retro marks ({@code slot_fills} in {@code retro_textures.yml}), and the slots that stop
+ * The slots retro marks ({@code slot_fills} in {@code retro.yml}), and the slots that stop
  * answering the mouse.
  *
  * <p>Slot fills apply on the inventory screen and on the containers whose label

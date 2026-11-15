@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.PackResources;
@@ -82,6 +83,28 @@ class RetroSourcesTest {
                             RetroSource.VANILLA_TWEAKS,
                             Identifier.parse("minecraft:textures/block/c.png")));
         }
+    }
+
+    @Test
+    void theOldClientsAnswerFirstAndAreClosedWithTheRest() throws IOException {
+        MemoryPack vanilla = new MemoryPack("vanilla");
+        MemoryPack old = new MemoryPack("1.7.10").texture("minecraft:block/white_wool", PNG);
+        MemoryPack tweaks = new MemoryPack("tweaks");
+
+        try (RetroSources sources =
+                RetroSources.open(
+                        null, tweaks, Map.of(RetroSource.MINECRAFT_1_7_10, old), vanilla)) {
+            assertEquals(
+                    List.of(
+                            RetroSource.MINECRAFT_1_7_10,
+                            RetroSource.VANILLA_TWEAKS,
+                            RetroSource.VANILLA),
+                    sources.present());
+            assertTrue(sources.has(RetroSource.MINECRAFT_1_7_10, "minecraft:block/white_wool"));
+            assertFalse(sources.has(RetroSource.MINECRAFT_1_8_9, "minecraft:block/white_wool"));
+        }
+        assertTrue(old.closed());
+        assertFalse(vanilla.closed());
     }
 
     @Test

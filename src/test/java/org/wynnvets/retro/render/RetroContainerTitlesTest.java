@@ -42,7 +42,7 @@ class RetroContainerTitlesTest {
 
     /** The {@code container_titles} rows of a fixture. */
     private static List<ContainerTitle> rows(String yaml) {
-        return ManifestFixtures.parseTextures(yaml).screens().containerTitles();
+        return ManifestFixtures.parse(yaml).screens().containerTitles();
     }
 
     @Test

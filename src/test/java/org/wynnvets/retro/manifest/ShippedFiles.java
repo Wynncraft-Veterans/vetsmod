@@ -93,8 +93,9 @@ final class ShippedFiles {
 
     /**
      * The packs as the client jar has them: vanilla holds what the jar holds, Vanilla Tweaks what
-     * vetsmod bundles, the Programmer Art packs nothing, and Wynncraft ships every texture asked
-     * about, none of them blank.
+     * vetsmod bundles, the Programmer Art pack and the old clients nothing (a game that has not
+     * fetched them yet, or is offline), and Wynncraft ships every texture asked about, none of them
+     * blank.
      */
     static final PackFacts CLIENT_JAR =
             new PackFacts() {
@@ -113,14 +114,15 @@ final class ShippedFiles {
                     return switch (source) {
                         case VANILLA -> textureInClientJar(textureId);
                         case VANILLA_TWEAKS -> inVanillaTweaks(textureId);
-                        case PROGRAMMER_ART -> false;
+                        case PROGRAMMER_ART, MINECRAFT_1_7_10, MINECRAFT_1_8_9, MINECRAFT_1_9_4 ->
+                                false;
                     };
                 }
             };
 
     /**
      * Every source has every texture, but for Vanilla Tweaks, which has what vetsmod bundles, and
-     * Wynncraft ships each one blank.
+     * the old clients, which have nothing yet, and Wynncraft ships each one blank.
      */
     static final PackFacts EVERYTHING_BLANK =
             new PackFacts() {
@@ -136,7 +138,8 @@ final class ShippedFiles {
 
                 @Override
                 public boolean has(RetroSource source, String textureId) {
-                    return source != RetroSource.VANILLA_TWEAKS || inVanillaTweaks(textureId);
+                    return !source.oldClient()
+                            && (source != RetroSource.VANILLA_TWEAKS || inVanillaTweaks(textureId));
                 }
             };
 

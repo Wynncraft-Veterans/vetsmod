@@ -122,6 +122,26 @@ class RetroModeManagerTest {
     }
 
     @Test
+    void aFetchOfTheOldClientsReloadsOnlyWhatRetroOnOverWynncraftNeeds() {
+        // wrote, active, wynncraftLoaded, retroLoaded
+        assertTrue(
+                RetroModeManager.reloadAfterFetch(true, true, true, true),
+                "new files the loaded retro pack lacks");
+        assertTrue(
+                RetroModeManager.reloadAfterFetch(false, true, true, false),
+                "on with no retro pack yet: setEnabled left its reload to the fetch");
+        assertFalse(
+                RetroModeManager.reloadAfterFetch(false, true, true, true),
+                "nothing new over a loaded retro pack");
+        assertFalse(
+                RetroModeManager.reloadAfterFetch(true, false, true, true),
+                "off or stopped: never reloads for it");
+        assertFalse(
+                RetroModeManager.reloadAfterFetch(true, true, false, false),
+                "no Wynncraft pack for the retro pack to sit above");
+    }
+
+    @Test
     void aStoppedSessionAnswersThatWhileRetroIsOn() {
         assertEquals(
                 RetroModeManager.Outcome.LATCHED,

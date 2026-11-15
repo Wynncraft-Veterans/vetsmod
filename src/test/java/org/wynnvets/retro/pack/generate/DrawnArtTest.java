@@ -58,7 +58,7 @@ class DrawnArtTest {
     private final MemoryPack wynncraft = new MemoryPack("wynncraft");
 
     private GenerationContext gen(Set<RetroPart> on, String extra) {
-        return gen(ManifestFixtures.parseTextures(RULES + extra), on);
+        return gen(ManifestFixtures.parse(RULES + extra), on);
     }
 
     private GenerationContext gen(RetroManifest manifest, Set<RetroPart> on) {

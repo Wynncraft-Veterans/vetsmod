@@ -90,13 +90,15 @@ VetsmodClient (entry point)
   │                           debug/retro/, the retro report (/wv debug tree retro)
   ├── retro/                  /wv retro: Wynncraft in 2013 Minecraft art. RetroModeManager,
   │                           LivePack, WynntilsConfigOverrides (the Wynntils settings it
-  │                           switches); retro/manifest/ parses the rule files, retro/rules/
+  │                           switches); retro/manifest/ parses the rule file, retro/rules/
   │                           decides over them (RetroAssetIds spells every generated id);
   │                           retro/pack/ (RetroPackInjector, RetroPackResources, PackFiles)
-  │                           inserts a pack above Wynncraft's at each reload and
-  │                           retro/pack/generate/ builds its files from the player's own game
-  │                           files and the Vanilla Tweaks art in the jar, one GenerationStep
-  │                           each; retro/render/ draws over the screens while it is live
+  │                           inserts a pack above Wynncraft's at each reload, and fetches the
+  │                           few 1.7.10/1.8.9/1.9.4 textures it draws from Mojang once
+  │                           (OldClients, OldClientFetch); retro/pack/generate/ builds its
+  │                           files from those, the player's own game files and the Vanilla
+  │                           Tweaks art in the jar, one GenerationStep each; retro/render/
+  │                           draws over the screens while it is live
   │                           (container titles and backgrounds, glass slots, slot values, the
   │                           attack-speed effect, gear box and tome icons, single stacks and
   │                           accessories, the HUD); see vetsmod_retro.md
@@ -190,7 +192,7 @@ Rank pills are invisible PUA sequences, not images. A codepoint's meaning is **f
 
 ## Item definitions
 
-`src/client/resources/definitions.yml` — 10 sections: `definitions`, `misc_definitions`, `no_lore_legacy`, `new_format_override`, `unenchanted`, `notjunk`, `not_pedestal`, `blocked_screen_titles`, `inventory_suppressors` (all compiled to regex) plus `enchant_excluded_items`, which is a literal-string set of Minecraft item IDs matched by exact equality. Edit this file to add/change item patterns without touching Java; its header comment describes the format and each section. It is standard YAML, read with SnakeYAML: put a pattern that holds a regex backslash in single quotes, because inside double quotes only YAML's own escapes are legal (the build's tests load the real file, so a bad escape fails them). The retro textures' rule files, `retro_textures.yml` and `retro_ingredients.yml`, sit beside it and follow the same conventions; [vetsmod_retro.md](vetsmod_retro.md) owns them.
+`src/client/resources/definitions.yml` — 10 sections: `definitions`, `misc_definitions`, `no_lore_legacy`, `new_format_override`, `unenchanted`, `notjunk`, `not_pedestal`, `blocked_screen_titles`, `inventory_suppressors` (all compiled to regex) plus `enchant_excluded_items`, which is a literal-string set of Minecraft item IDs matched by exact equality. Edit this file to add/change item patterns without touching Java; its header comment describes the format and each section. It is standard YAML, read with SnakeYAML: put a pattern that holds a regex backslash in single quotes, because inside double quotes only YAML's own escapes are legal (the build's tests load the real file, so a bad escape fails them). Retro's rule file, `retro.yml`, sits beside it and follows the same conventions; [vetsmod_retro.md](vetsmod_retro.md) owns it.
 
 ## Building
 

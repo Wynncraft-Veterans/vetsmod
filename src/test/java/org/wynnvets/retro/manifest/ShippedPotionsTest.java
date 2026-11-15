@@ -34,7 +34,7 @@ class ShippedPotionsTest {
     /**
      * The Wynncraft potion families, each with the colour of its liquid. The colours are the
      * skill-point colours and vanilla's effect colours; see the {@code potions} section of
-     * {@code retro_textures.yml}.
+     * {@code retro.yml}.
      */
     private static final Map<String, Integer> POTION_FAMILIES =
             Map.of(

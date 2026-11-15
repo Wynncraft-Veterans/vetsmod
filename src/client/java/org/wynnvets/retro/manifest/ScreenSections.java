@@ -157,7 +157,7 @@ public record ScreenSections(
                 slotValues(sections.get(SLOT_VALUES)),
                 ManifestYaml.patterns(
                         sections.get(HIDDEN_INVENTORY_EFFECTS),
-                        ManifestYaml.inTextures(HIDDEN_INVENTORY_EFFECTS)));
+                        ManifestYaml.inFile(HIDDEN_INVENTORY_EFFECTS)));
     }
 
     void addCounts(Map<String, Integer> counts) {
@@ -171,7 +171,7 @@ public record ScreenSections(
     private static List<ContainerTitle> containerTitles(Object section) {
         return ManifestYaml.patternRows(
                 section,
-                ManifestYaml.inTextures(CONTAINER_TITLES),
+                ManifestYaml.inFile(CONTAINER_TITLES),
                 (pattern, value, rowWhere) ->
                         new ContainerTitle(
                                 pattern,
@@ -180,7 +180,7 @@ public record ScreenSections(
     }
 
     private static Map<Integer, String> glyphTitles(Object section) {
-        String where = ManifestYaml.inTextures(GLYPH_TITLES);
+        String where = ManifestYaml.inFile(GLYPH_TITLES);
         Map<Integer, String> rows = new LinkedHashMap<>();
         ManifestYaml.textRows(
                         section,
@@ -199,7 +199,7 @@ public record ScreenSections(
     private static List<SlotFill> slotFills(Object section) {
         return ManifestYaml.listRows(
                 section,
-                ManifestYaml.inTextures(SLOT_FILLS),
+                ManifestYaml.inFile(SLOT_FILLS),
                 List.of(
                         "player",
                         "container",
@@ -263,7 +263,7 @@ public record ScreenSections(
     private static List<SlotValue> slotValues(Object section) {
         return ManifestYaml.listRows(
                 section,
-                ManifestYaml.inTextures(SLOT_VALUES),
+                ManifestYaml.inFile(SLOT_VALUES),
                 List.of("container", "name", "lore"),
                 (fields, rowWhere) -> {
                     String container =

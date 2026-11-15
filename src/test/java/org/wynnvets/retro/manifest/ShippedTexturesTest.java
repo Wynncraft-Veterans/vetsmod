@@ -319,28 +319,35 @@ class ShippedTexturesTest {
     }
 
     @Test
-    void theRealSourcesReadVanillaTweaksFirstAndTheGuiFromVanilla() throws IOException {
+    void theRealSourcesReadTheOldestArtFirstAndTheGuiFromVanilla() throws IOException {
         TextureRules rules = realTextureRules();
         List<RetroSource> all =
                 List.of(
+                        RetroSource.MINECRAFT_1_7_10,
+                        RetroSource.MINECRAFT_1_8_9,
+                        RetroSource.MINECRAFT_1_9_4,
                         RetroSource.VANILLA_TWEAKS,
                         RetroSource.PROGRAMMER_ART,
                         RetroSource.VANILLA);
+        List<RetroSource> oneOrToday = List.of(RetroSource.MINECRAFT_1_7_10, RetroSource.VANILLA);
 
         assertEquals(all, rules.sourceOrder("minecraft:block/stone"));
         assertEquals(all, rules.sourceOrder("minecraft:item/stick"));
         assertEquals(all, rules.sourceOrder("minecraft:entity/chest/normal"));
         assertEquals(
+                oneOrToday,
+                rules.sourceOrder("minecraft:entity/villager/profession/farmer"),
+                "a villager is 1.7.10's whole or today's");
+        assertEquals(
                 List.of(RetroSource.VANILLA_TWEAKS, RetroSource.VANILLA),
                 rules.sourceOrder("minecraft:gui/sprites/hud/heart/withered_full"),
                 "the withered hearts are the GUI's one tweak");
         assertEquals(
-                List.of(RetroSource.VANILLA),
+                oneOrToday,
                 rules.sourceOrder("minecraft:gui/container/inventory"),
                 "Programmer Art's GUI files would mix two looks");
         assertEquals(
-                List.of(RetroSource.VANILLA),
-                rules.sourceOrder("minecraft:gui/sprites/widget/button_highlighted"));
+                oneOrToday, rules.sourceOrder("minecraft:gui/sprites/widget/button_highlighted"));
     }
 
     @Test
@@ -783,7 +790,11 @@ class ShippedTexturesTest {
                         return switch (source) {
                             case PROGRAMMER_ART -> programmerArt.contains(textureId);
                             case VANILLA -> textureInClientJar(textureId);
-                            case VANILLA_TWEAKS -> false;
+                            case VANILLA_TWEAKS,
+                                    MINECRAFT_1_7_10,
+                                    MINECRAFT_1_8_9,
+                                    MINECRAFT_1_9_4 ->
+                                    false;
                         };
                     }
                 };

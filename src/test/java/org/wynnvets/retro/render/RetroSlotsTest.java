@@ -37,7 +37,7 @@ class RetroSlotsTest {
     private static final Set<Integer> BANK_BOUNDS = range(0, 44);
 
     private static List<SlotFill> fills(String yaml) {
-        return ManifestFixtures.parseTextures(yaml).screens().slotFills();
+        return ManifestFixtures.parse(yaml).screens().slotFills();
     }
 
     private static SlotFill.ContainerSlots row(String yaml) {

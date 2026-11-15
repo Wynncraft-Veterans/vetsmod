@@ -3,7 +3,7 @@ package org.wynnvets.retro.manifest;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.wynnvets.retro.manifest.ManifestFixtures.parseTextures;
+import static org.wynnvets.retro.manifest.ManifestFixtures.parse;
 
 import java.util.List;
 import java.util.Map;
@@ -23,8 +23,7 @@ class ModelSectionsTest {
     @Test
     void aPlainStringItemModelRowIsATextureHeldFlat() {
         RetroManifest manifest =
-                parseTextures(
-                        "item_models:\n  'minecraft:item/wynn/(\\w+)': 'minecraft:item/$1'\n");
+                parse("item_models:\n  'minecraft:item/wynn/(\\w+)': 'minecraft:item/$1'\n");
 
         ItemModel row = manifest.models().itemModels().get(0);
         assertEquals("minecraft:item/$1", row.texture());
@@ -33,7 +32,7 @@ class ModelSectionsTest {
         for (String value : List.of("'item/stick'", "'minecraft:item/$2'", "''", "5")) {
             assertThrows(
                     IllegalArgumentException.class,
-                    () -> parseTextures("item_models:\n  'minecraft:item/wynn/(x)': " + value),
+                    () -> parse("item_models:\n  'minecraft:item/wynn/(x)': " + value),
                     value);
         }
     }
@@ -41,7 +40,7 @@ class ModelSectionsTest {
     @Test
     void itemModelRowsReadAModelInPlaceOfATextureAndParent() {
         RetroManifest manifest =
-                parseTextures(
+                parse(
                         """
                         item_models:
                           'minecraft:item/wynn/(\\w+)':
@@ -62,7 +61,7 @@ class ModelSectionsTest {
                         "{model: ''}")) {
             assertThrows(
                     IllegalArgumentException.class,
-                    () -> parseTextures("item_models:\n  'minecraft:item/wynn/(x)': " + fields),
+                    () -> parse("item_models:\n  'minecraft:item/wynn/(x)': " + fields),
                     fields);
         }
     }
@@ -70,7 +69,7 @@ class ModelSectionsTest {
     @Test
     void equipmentRowsReadAVanillaAssetOrKeepInFileOrder() {
         RetroManifest manifest =
-                parseTextures(
+                parse(
                         """
                         equipment:
                           'minecraft:hidden': keep
@@ -91,7 +90,7 @@ class ModelSectionsTest {
                         "'minecraft:a': ''")) {
             assertThrows(
                     IllegalArgumentException.class,
-                    () -> parseTextures("equipment:\n  " + row + "\n"),
+                    () -> parse("equipment:\n  " + row + "\n"),
                     row);
         }
     }
@@ -99,7 +98,7 @@ class ModelSectionsTest {
     @Test
     void potionRowsReadALiquidColourInFileOrder() {
         RetroManifest manifest =
-                parseTextures(
+                parse(
                         ManifestFixtures.POTION_RECIPE
                                 + """
                                 potions:
@@ -124,17 +123,17 @@ class ModelSectionsTest {
                 "a family's Avomod model takes its colour");
         assertThrows(
                 IllegalArgumentException.class,
-                () -> parseTextures("potions:\n  mana: {colour: '#385DC6'}\n"),
+                () -> parse("potions:\n  mana: {colour: '#385DC6'}\n"),
                 "no potion_overlay recipe");
         for (String row : List.of("{colour: '#385DC6', avomod: 'a.*'}", "{avomod: potion_mana}")) {
             assertThrows(
                     IllegalArgumentException.class,
-                    () -> parseTextures("potions:\n  mana: " + row + "\n"),
+                    () -> parse("potions:\n  mana: " + row + "\n"),
                     row);
         }
         assertThrows(
                 IllegalArgumentException.class,
-                () -> parseTextures("potions:\n  'mana_(a|b)': {colour: '#385DC6'}\n"),
+                () -> parse("potions:\n  'mana_(a|b)': {colour: '#385DC6'}\n"),
                 "a family is a name, not a pattern");
     }
 
@@ -143,7 +142,7 @@ class ModelSectionsTest {
         assertThrows(
                 IllegalArgumentException.class,
                 () ->
-                        parseTextures(
+                        parse(
                                 """
                                 item_models:
                                   'minecraft:item/wynn/x':
@@ -153,7 +152,7 @@ class ModelSectionsTest {
         assertThrows(
                 IllegalArgumentException.class,
                 () ->
-                        parseTextures(
+                        parse(
                                 """
                                 item_models:
                                   'minecraft:item/wynn/x': {texture: 'minecraft:item/stick'}
@@ -190,14 +189,14 @@ class ModelSectionsTest {
                                 + "  states: {s: {scale_from: '#102030'}}\n"
                                 + "  activities: {x: 'minecraft:item/x'}\n")) {
             String fixture = yaml.startsWith("recipes:") ? yaml : recipe + yaml;
-            assertThrows(IllegalArgumentException.class, () -> parseTextures(fixture), fixture);
+            assertThrows(IllegalArgumentException.class, () -> parse(fixture), fixture);
         }
     }
 
     @Test
     void aTablesRowsComeBeforeItemModelsOwn() {
         RetroManifest manifest =
-                parseTextures(
+                parse(
                         """
                         item_models:
                           'minecraft:item/.*': 'minecraft:item/other'

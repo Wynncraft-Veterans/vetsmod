@@ -3,10 +3,11 @@ package org.wynnvets.retro.manifest;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.wynnvets.retro.manifest.ManifestFixtures.parseTextures;
+import static org.wynnvets.retro.manifest.ManifestFixtures.parse;
 
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.wynnvets.rendering.image.Rect;
 
 /**
  * Tests for the parser's reading of {@link TextureSections}: the sources, the tints and their
@@ -18,7 +19,7 @@ class TextureSectionsTest {
     void mappingRowsKeepTheirFileOrder() {
         // "The first matching row decides" depends on it.
         RetroManifest manifest =
-                parseTextures(
+                parse(
                         """
                         aliases:
                           'minecraft:block/z': 'minecraft:block/a'
@@ -36,7 +37,7 @@ class TextureSectionsTest {
     @Test
     void tintRowsReadTheirSourceTintStrengthAndContrastInFileOrder() {
         RetroManifest manifest =
-                parseTextures(
+                parse(
                         """
                         tints:
                           'minecraft:block/a': {tint: '#80c0ff'}
@@ -103,7 +104,7 @@ class TextureSectionsTest {
                         "{contrast: 0.5, tint: {match: 'block/y'}}")) {
             assertThrows(
                     IllegalArgumentException.class,
-                    () -> parseTextures("tints:\n  'minecraft:block/(x)': " + fields + "\n"),
+                    () -> parse("tints:\n  'minecraft:block/(x)': " + fields + "\n"),
                     fields);
         }
     }
@@ -112,7 +113,7 @@ class TextureSectionsTest {
     void aLikeRowNamesALiteralTextureAndHasNoStrengthOrContrastOfItsOwn() {
         // The like row comes first in the file and its source has a group: neither matters.
         RetroManifest manifest =
-                parseTextures(
+                parse(
                         """
                         tints:
                           'minecraft:block/(front)':
@@ -139,7 +140,7 @@ class TextureSectionsTest {
         String named = "  'minecraft:block/b': {tint: auto, contrast: 0.5}\n";
         assertEquals(
                 2,
-                parseTextures("tints:\n" + a + likeB + "}\n" + named).textures().tints().size(),
+                parse("tints:\n" + a + likeB + "}\n" + named).textures().tints().size(),
                 "the like and its row alone parse");
         for (String rows :
                 List.of(
@@ -168,8 +169,7 @@ class TextureSectionsTest {
                                 + "{tint: {like: 'minecraft:block/b',"
                                 + " match: 'minecraft:block/c'}}\n"
                                 + named)) {
-            assertThrows(
-                    IllegalArgumentException.class, () -> parseTextures("tints:\n" + rows), rows);
+            assertThrows(IllegalArgumentException.class, () -> parse("tints:\n" + rows), rows);
         }
     }
 
@@ -178,10 +178,108 @@ class TextureSectionsTest {
         assertThrows(
                 IllegalArgumentException.class,
                 () ->
-                        parseTextures(
+                        parse(
                                 """
                                 sources:
                                   '.*': [programmer_art, vanila]
+                                """));
+    }
+
+    @Test
+    void oldClientRowsReadTheirFileOrBlankPerClientInFileOrder() {
+        RetroManifest manifest =
+                parse(
+                        """
+                        old_clients:
+                          '1.7.10':
+                            'minecraft:block/light_gray_wool': 'minecraft:blocks/wool_colored_silver'
+                            'minecraft:block/(\\w+)_wool': 'minecraft:blocks/wool_colored_$1'
+                            'minecraft:entity/villager/type/\\w+': blank
+                          '1.9.4':
+                            'minecraft:entity/shield/(\\w+)': 'minecraft:entity/shield/$1'
+                        old_client_clears:
+                          'minecraft:entity/villager/\\w+': [[32, 0, 32, 18], [0, 62, 28, 2]]
+                        """);
+
+        TextureSections textures = manifest.textures();
+        List<TextureSections.OldClientRow> rows =
+                textures.oldClients().get(RetroSource.MINECRAFT_1_7_10);
+        assertEquals(
+                List.of(
+                        "minecraft:block/light_gray_wool",
+                        "minecraft:block/(\\w+)_wool",
+                        "minecraft:entity/villager/type/\\w+"),
+                rows.stream().map(row -> row.textures().pattern()).toList());
+        assertEquals("minecraft:blocks/wool_colored_$1", rows.get(1).file());
+        assertNull(rows.get(2).file(), "blank");
+        assertEquals(1, textures.oldClients().get(RetroSource.MINECRAFT_1_9_4).size());
+        assertNull(textures.oldClients().get(RetroSource.MINECRAFT_1_8_9), "no rows, no client");
+        assertEquals(
+                List.of(new Rect(32, 0, 32, 18), new Rect(0, 62, 28, 2)),
+                textures.oldClientClears().get(0).rects());
+    }
+
+    @Test
+    void anOldClientsVersionMustBeAnOldClient() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        parse(
+                                """
+                                old_clients:
+                                  vanilla:
+                                    'minecraft:block/stone': 'minecraft:blocks/stone'
+                                """));
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        parse(
+                                """
+                                old_clients:
+                                  '1.12.2':
+                                    'minecraft:block/stone': 'minecraft:blocks/stone'
+                                """));
+    }
+
+    @Test
+    void anOldClientsFileIsAFullIdWhoseGroupsThePatternHas() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        parse(
+                                """
+                                old_clients:
+                                  '1.7.10':
+                                    'minecraft:block/stone': 'blocks/stone'
+                                """));
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        parse(
+                                """
+                                old_clients:
+                                  '1.7.10':
+                                    'minecraft:block/stone': 'minecraft:blocks/$1'
+                                """));
+    }
+
+    @Test
+    void anOldClientClearNeedsARectangle() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        parse(
+                                """
+                                old_client_clears:
+                                  'minecraft:entity/villager/villager': []
+                                """));
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        parse(
+                                """
+                                old_client_clears:
+                                  'minecraft:entity/villager/villager': [[0, 0, 0, 4]]
                                 """));
     }
 }

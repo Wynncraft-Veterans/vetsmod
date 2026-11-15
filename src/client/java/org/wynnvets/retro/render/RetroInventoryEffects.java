@@ -10,7 +10,7 @@ import org.wynnvets.retro.manifest.RetroPart;
 
 /**
  * The effects the inventory's effect list leaves out while the retro pack is live on Wynncraft
- * ({@code hidden_inventory_effects} in {@code retro_textures.yml}).
+ * ({@code hidden_inventory_effects} in {@code retro.yml}).
  *
  * <p>Wynncraft shows a weapon's attack speed as an endless haste or mining fatigue, whose
  * up and down arrows its pack draws on the HUD; vanilla's effect list beside the inventory shows

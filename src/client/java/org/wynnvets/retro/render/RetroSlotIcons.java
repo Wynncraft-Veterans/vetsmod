@@ -22,7 +22,7 @@ import org.wynnvets.retro.rules.RetroAssetIds;
 /**
  * What retro draws over a slot's item while its pack is live: the gear type over an unidentified
  * gear box, the tome type over a mastery tome ({@code gear_box_icons} and {@code outlined_icons} in
- * {@code retro_textures.yml}), and the glint on the compass menu's Ability Tree button.
+ * {@code retro.yml}), and the glint on the compass menu's Ability Tree button.
  *
  * <p>Every gear box is one chest in the retro pack, whatever its type, since Wynncraft gives every
  * box one model per tier ({@code item_models}). So the GUI draws the type's vanilla item over the

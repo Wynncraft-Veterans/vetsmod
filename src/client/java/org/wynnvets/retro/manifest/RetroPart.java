@@ -8,7 +8,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * A part of retro the player can turn off on its own, by its name in {@code retro_textures.yml}'s
+ * A part of retro the player can turn off on its own, by its name in {@code retro.yml}'s
  * {@code parts} section, which says what each covers. Every part is on by default. The stored form
  * of the parts turned off is {@link #formatOff} and {@link #parseOff}; a name this client does not
  * know is ignored as it is read, and a part this client does not find named is on.
@@ -59,7 +59,7 @@ public enum RetroPart {
     }
 
     /**
-     * The part's name in {@code retro_textures.yml} and in the stored setting.
+     * The part's name in {@code retro.yml} and in the stored setting.
      *
      * @return the name, lowercase
      */

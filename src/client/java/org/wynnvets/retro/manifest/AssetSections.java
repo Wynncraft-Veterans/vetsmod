@@ -172,7 +172,7 @@ public record AssetSections(
     private static Map<String, List<Fill>> imageEdits(Object section) {
         return ManifestYaml.idRows(
                 section,
-                ManifestYaml.inTextures(IMAGE_EDITS),
+                ManifestYaml.inFile(IMAGE_EDITS),
                 null,
                 (texture, value, rowWhere) ->
                         List.copyOf(
@@ -198,7 +198,7 @@ public record AssetSections(
     private static Map<String, String> wynncraftCopies(Object section) {
         return ManifestYaml.idRows(
                 section,
-                ManifestYaml.inTextures(WYNNCRAFT_COPIES),
+                ManifestYaml.inFile(WYNNCRAFT_COPIES),
                 RetroAssetIds.NAMESPACE,
                 (copy, value, rowWhere) ->
                         ManifestYaml.requiredId(value, rowWhere, "nothing to copy"));
@@ -208,14 +208,14 @@ public record AssetSections(
         Map<String, SourceCopy> rows = new LinkedHashMap<>(tables.sourceCopies());
         ManifestYaml.idRows(
                         section,
-                        ManifestYaml.inTextures(SOURCE_COPIES),
+                        ManifestYaml.inFile(SOURCE_COPIES),
                         RetroAssetIds.NAMESPACE,
                         (copy, value, rowWhere) -> sourceCopy(value, tables.recipes(), rowWhere))
                 .forEach(
                         (copy, row) -> {
                             if (rows.putIfAbsent(copy, row) != null) {
                                 throw new IllegalArgumentException(
-                                        ManifestYaml.inTextures(SOURCE_COPIES)
+                                        ManifestYaml.inFile(SOURCE_COPIES)
                                                 + ": a table already makes "
                                                 + copy);
                             }
@@ -239,7 +239,7 @@ public record AssetSections(
     }
 
     private static List<String> blankTextures(Object section) {
-        String where = ManifestYaml.inTextures(BLANK_TEXTURES);
+        String where = ManifestYaml.inFile(BLANK_TEXTURES);
         List<String> rows = new ArrayList<>();
         for (Object entry : ManifestYaml.list(section, where)) {
             rows.add(ManifestYaml.requiredId(entry, where, "an empty row"));
@@ -250,7 +250,7 @@ public record AssetSections(
     private static Map<String, List<Frame>> wynntilsTextures(Object section) {
         return ManifestYaml.idRows(
                 section,
-                ManifestYaml.inTextures(WYNNTILS_TEXTURES),
+                ManifestYaml.inFile(WYNNTILS_TEXTURES),
                 WYNNTILS_NAMESPACE,
                 (texture, value, rowWhere) -> {
                     if (BLANK.equals(value)) return List.of();
@@ -279,7 +279,7 @@ public record AssetSections(
     }
 
     private static Lang lang(Object section) {
-        String where = ManifestYaml.inTextures(LANG);
+        String where = ManifestYaml.inFile(LANG);
         Map<?, ?> fields = ManifestYaml.mapping(section, where);
         ManifestYaml.onlyKeys(fields, where, "locales", "strings");
         List<String> locales = new ArrayList<>();

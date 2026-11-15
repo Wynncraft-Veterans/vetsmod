@@ -21,7 +21,7 @@ public enum ParentKind {
     }
 
     /**
-     * The kind's name in {@code retro_textures.yml}.
+     * The kind's name in {@code retro.yml}.
      *
      * @return the name, lowercase
      */
@@ -30,7 +30,7 @@ public enum ParentKind {
     }
 
     /**
-     * Looks a kind up by its name in {@code retro_textures.yml}. The match is exact.
+     * Looks a kind up by its name in {@code retro.yml}. The match is exact.
      *
      * @param yamlName the name from the file, which may be {@code null}
      * @return the kind, or {@code null} for {@code null} or a name this client does not know

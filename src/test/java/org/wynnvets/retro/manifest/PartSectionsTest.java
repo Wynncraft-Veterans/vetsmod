@@ -3,7 +3,7 @@ package org.wynnvets.retro.manifest;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.wynnvets.retro.manifest.ManifestFixtures.parseTextures;
+import static org.wynnvets.retro.manifest.ManifestFixtures.parse;
 
 import java.util.List;
 import java.util.Set;
@@ -17,7 +17,7 @@ class PartSectionsTest {
     @Test
     void aRowReadsItsAboutItsPatternsAndItsFeatures() {
         PartSections.Part row =
-                parseTextures(
+                parse(
                                 """
                                 parts:
                                   weapons:
@@ -42,7 +42,7 @@ class PartSectionsTest {
     @Test
     void onlyAboutIsRequiredAndTheRowsKeepTheirOrder() {
         PartSections parts =
-                parseTextures(
+                parse(
                                 """
                                 parts:
                                   hud: {about: 'b'}
@@ -66,12 +66,10 @@ class PartSectionsTest {
                         "hud: {about: 'a', wynntils: ['']}",
                         "hud: {about: 'a', models: 'minecraft:a'}")) {
             assertThrows(
-                    IllegalArgumentException.class,
-                    () -> parseTextures("parts:\n  " + row + "\n"),
-                    row);
+                    IllegalArgumentException.class, () -> parse("parts:\n  " + row + "\n"), row);
         }
         assertThrows(
                 PatternSyntaxException.class,
-                () -> parseTextures("parts:\n  hud: {about: 'a', textures: ['(']}\n"));
+                () -> parse("parts:\n  hud: {about: 'a', textures: ['(']}\n"));
     }
 }

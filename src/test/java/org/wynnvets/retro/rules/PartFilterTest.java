@@ -13,7 +13,7 @@ import org.wynnvets.retro.manifest.RetroPart;
 class PartFilterTest {
 
     private static final PartSections ROWS =
-            ManifestFixtures.parseTextures(
+            ManifestFixtures.parse(
                             """
                             parts:
                               blocks:

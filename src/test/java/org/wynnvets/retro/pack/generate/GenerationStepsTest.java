@@ -53,7 +53,7 @@ class GenerationStepsTest {
 
     private GenerationContext gen(String textures, String ingredients) {
         return new GenerationContext(
-                ManifestFixtures.parse(SOURCES + textures, ingredients),
+                ManifestFixtures.parse(SOURCES + textures + "\n" + ingredients),
                 List.of(vanilla, wynncraft),
                 1,
                 RetroSources.open(null, null, vanilla),
@@ -963,7 +963,7 @@ class GenerationStepsTest {
     /** A generation with {@code off} turned off, over a fixture that gives each part its ids. */
     private GenerationContext genWithOff(RetroPart off, String textures) {
         return new GenerationContext(
-                ManifestFixtures.parseTextures(
+                ManifestFixtures.parse(
                         SOURCES
                                 + """
                                 parts:

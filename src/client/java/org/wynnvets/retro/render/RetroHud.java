@@ -37,7 +37,7 @@ import org.wynnvets.retro.rules.RetroAssetIds;
  * health, its food shows mana, and its experience bar and level number show combat experience.
  *
  * <p>Wynncraft draws its own HUD as glyphs in the action bar and blanks vanilla's HUD sprites,
- * which the retro pack restores ({@code same_name} in {@code retro_textures.yml}). Vanilla's own
+ * which the retro pack restores ({@code same_name} in {@code retro.yml}). Vanilla's own
  * health, food and experience never move with Wynncraft's, so the elements that draw them are
  * replaced through Fabric's {@link HudElementRegistry}, at vanilla's positions, each drawing
  * vanilla's element instead while retro does not draw the HUD:</p>

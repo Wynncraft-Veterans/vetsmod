@@ -102,7 +102,7 @@ record ItemTables(
     private static Map<String, Recipe> recipes(Object section) {
         return ManifestYaml.textRows(
                 section,
-                ManifestYaml.inTextures(RECIPES),
+                ManifestYaml.inFile(RECIPES),
                 (name, value, rowWhere) -> {
                     ManifestYaml.name(name, rowWhere);
                     if (name.equals(MODELS) || name.equals(VANILLA)) {
@@ -118,7 +118,7 @@ record ItemTables(
     }
 
     private static void materials(Object section, Map<String, Recipe> recipes, Rows rows) {
-        String where = ManifestYaml.inTextures(MATERIALS);
+        String where = ManifestYaml.inFile(MATERIALS);
         for (Map.Entry<?, ?> family : ManifestYaml.mapping(section, where).entrySet()) {
             material(
                     ManifestYaml.name(family.getKey(), where),
@@ -163,7 +163,7 @@ record ItemTables(
 
     /** One row for each family's Wynncraft models, and one for its Avomod model if it has one. */
     private static List<Potion> potions(Object section, Map<String, Recipe> recipes, Rows rows) {
-        String where = ManifestYaml.inTextures(POTIONS);
+        String where = ManifestYaml.inFile(POTIONS);
         List<Potion> potions = new ArrayList<>();
         for (Map.Entry<?, ?> entry : ManifestYaml.mapping(section, where).entrySet()) {
             String family = ManifestYaml.name(entry.getKey(), where);
@@ -184,7 +184,7 @@ record ItemTables(
     }
 
     private static void contentBook(Object section, Rows rows) {
-        String where = ManifestYaml.inTextures(CONTENT_BOOK_ACTIVITIES);
+        String where = ManifestYaml.inFile(CONTENT_BOOK_ACTIVITIES);
         Map<?, ?> fields = ManifestYaml.mapping(section, where);
         if (fields.isEmpty()) return;
         ManifestYaml.onlyKeys(fields, where, MODELS, "states", "activities");

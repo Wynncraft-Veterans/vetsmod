@@ -26,8 +26,7 @@ import org.yaml.snakeyaml.constructor.SafeConstructor;
  */
 final class ManifestYaml {
 
-    static final String TEXTURES_FILE = "retro_textures.yml";
-    static final String INGREDIENTS_FILE = "retro_ingredients.yml";
+    static final String FILE = "retro.yml";
 
     /** A colour as the files write it: {@code '#RRGGBB'}. */
     private static final Pattern COLOUR = Pattern.compile("#[0-9A-Fa-f]{6}");
@@ -75,9 +74,9 @@ final class ManifestYaml {
         T read(Map<?, ?> fields, String rowWhere);
     }
 
-    /** The path of a section of {@code retro_textures.yml}. */
-    static String inTextures(String section) {
-        return TEXTURES_FILE + ": " + section;
+    /** The path of a section of {@code retro.yml}, for an error message. */
+    static String inFile(String section) {
+        return FILE + ": " + section;
     }
 
     /** The file's one document, a mapping of sections; an empty file has none. */

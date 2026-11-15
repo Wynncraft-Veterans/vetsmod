@@ -8,7 +8,7 @@ import static org.wynnvets.retro.manifest.ManifestFixtures.copyFroms;
 import static org.wynnvets.retro.manifest.ManifestFixtures.copyHueOnly;
 import static org.wynnvets.retro.manifest.ManifestFixtures.copySources;
 import static org.wynnvets.retro.manifest.ManifestFixtures.copyTints;
-import static org.wynnvets.retro.manifest.ManifestFixtures.parseTextures;
+import static org.wynnvets.retro.manifest.ManifestFixtures.parse;
 
 import java.util.List;
 import java.util.Map;
@@ -29,7 +29,7 @@ class AssetSectionsTest {
     @Test
     void imageEditsReadTheirFillsInOrder() {
         RetroManifest manifest =
-                parseTextures(
+                parse(
                         """
                         image_edits:
                           'minecraft:gui/container/inventory':
@@ -61,16 +61,16 @@ class AssetSectionsTest {
                         good.replace(", palette: ['#C6C6C6']", ""))) {
             assertThrows(
                     IllegalArgumentException.class,
-                    () -> parseTextures("image_edits:\n  'minecraft:gui/x':\n    - " + edit + "\n"),
+                    () -> parse("image_edits:\n  'minecraft:gui/x':\n    - " + edit + "\n"),
                     edit);
         }
         assertThrows(
                 IllegalArgumentException.class,
-                () -> parseTextures("image_edits:\n  'minecraft:gui/.*':\n    - " + good + "\n"),
+                () -> parse("image_edits:\n  'minecraft:gui/.*':\n    - " + good + "\n"),
                 "a pattern, not an id");
         assertEquals(
                 1,
-                parseTextures("image_edits:\n  'minecraft:gui/x':\n    - " + good + "\n")
+                parse("image_edits:\n  'minecraft:gui/x':\n    - " + good + "\n")
                         .assets()
                         .imageEdits()
                         .size());
@@ -79,7 +79,7 @@ class AssetSectionsTest {
     @Test
     void wynncraftCopiesWriteOnlyIntoVetsmod() {
         RetroManifest manifest =
-                parseTextures(
+                parse(
                         """
                         wynncraft_copies:
                           'vetsmod:gui/sprites/tooltip/legacy_frame': 'minecraft:gui/sprites/tooltip/unique_frame'
@@ -94,7 +94,7 @@ class AssetSectionsTest {
         assertThrows(
                 IllegalArgumentException.class,
                 () ->
-                        parseTextures(
+                        parse(
                                 """
                                 wynncraft_copies:
                                   'minecraft:gui/sprites/tooltip/frame': 'minecraft:gui/sprites/tooltip/unique_frame'
@@ -102,7 +102,7 @@ class AssetSectionsTest {
         assertThrows(
                 IllegalArgumentException.class,
                 () ->
-                        parseTextures(
+                        parse(
                                 """
                                 wynncraft_copies:
                                   'vetsmod:gui/x': 'minecraft:gui/(a|b)'
@@ -113,7 +113,7 @@ class AssetSectionsTest {
     @Test
     void aRecipeHasAHueOfOrAScaleFromNotBoth() {
         RetroManifest manifest =
-                parseTextures(
+                parse(
                         """
                         recipes:
                           a: {art: 'minecraft:item/a', hue_of: '#102030'}
@@ -127,7 +127,7 @@ class AssetSectionsTest {
         assertThrows(
                 IllegalArgumentException.class,
                 () ->
-                        parseTextures(
+                        parse(
                                 """
                                 recipes:
                                   a: {art: 'minecraft:item/a', hue_of: '#102030', scale_from: '#102030'}
@@ -141,7 +141,7 @@ class AssetSectionsTest {
                     assertThrows(
                             IllegalArgumentException.class,
                             () ->
-                                    parseTextures(
+                                    parse(
                                             "recipes:\n  a: {art: 'minecraft:item/a', hue_of: '"
                                                     + tied
                                                     + "'}\n"),
@@ -202,18 +202,16 @@ class AssetSectionsTest {
     void blankTexturesAreIdsAndAPatternFailsTheParse() {
         assertEquals(
                 List.of("minecraft:font/x"),
-                parseTextures("blank_textures:\n  - 'minecraft:font/x'\n")
-                        .assets()
-                        .blankTextures());
+                parse("blank_textures:\n  - 'minecraft:font/x'\n").assets().blankTextures());
         assertThrows(
                 IllegalArgumentException.class,
-                () -> parseTextures("blank_textures:\n  - 'minecraft:font/.*'\n"));
+                () -> parse("blank_textures:\n  - 'minecraft:font/.*'\n"));
     }
 
     @Test
     void aSourceCopyCanCarryATint() {
         RetroManifest manifest =
-                parseTextures(
+                parse(
                         """
                         recipes:
                           g: {art: 'minecraft:block/g'}
@@ -231,7 +229,7 @@ class AssetSectionsTest {
         assertEquals(
                 Map.of("vetsmod:block/retro/g", 0x102030),
                 copyFroms(
-                        parseTextures(
+                        parse(
                                 """
                                 recipes:
                                   g: {art: 'minecraft:block/g', scale_from: '#102030'}
@@ -251,7 +249,7 @@ class AssetSectionsTest {
             assertThrows(
                     IllegalArgumentException.class,
                     () ->
-                            parseTextures(
+                            parse(
                                     recipe
                                             + "source_copies:\n  'vetsmod:block/retro/g': "
                                             + row
@@ -260,15 +258,13 @@ class AssetSectionsTest {
         }
         assertThrows(
                 IllegalArgumentException.class,
-                () ->
-                        parseTextures(
-                                "recipes:\n  g: {art: 'minecraft:block/g', scale_from: 'green'}\n"));
+                () -> parse("recipes:\n  g: {art: 'minecraft:block/g', scale_from: 'green'}\n"));
     }
 
     @Test
     void sourceCopiesWriteOnlyIntoVetsmod() {
         RetroManifest manifest =
-                parseTextures(
+                parse(
                         """
                         source_copies:
                           'vetsmod:block/retro/b': 'minecraft:block/b'
@@ -285,7 +281,7 @@ class AssetSectionsTest {
         assertThrows(
                 IllegalArgumentException.class,
                 () ->
-                        parseTextures(
+                        parse(
                                 """
                                 source_copies:
                                   'minecraft:block/b': 'minecraft:block/a'
@@ -293,7 +289,7 @@ class AssetSectionsTest {
         assertThrows(
                 IllegalArgumentException.class,
                 () ->
-                        parseTextures(
+                        parse(
                                 """
                                 source_copies:
                                   'vetsmod:block/x': 'minecraft:block/(a|b)'
@@ -302,7 +298,7 @@ class AssetSectionsTest {
         assertThrows(
                 IllegalArgumentException.class,
                 () ->
-                        parseTextures(
+                        parse(
                                 """
                                 source_copies:
                                   'vetsmod:block/x': ''
@@ -313,7 +309,7 @@ class AssetSectionsTest {
     @Test
     void wynntilsTexturesAreBlankOrFramesAndWriteOnlyIntoWynntils() {
         RetroManifest manifest =
-                parseTextures(
+                parse(
                         """
                         wynntils_textures:
                           'wynntils:ui_components/emerald_count_background': blank
@@ -347,7 +343,7 @@ class AssetSectionsTest {
                         "'wynntils:x': [{source: 'minecraft:gui/x', border: -1}]")) {
             assertThrows(
                     IllegalArgumentException.class,
-                    () -> parseTextures("wynntils_textures:\n  " + row + "\n"),
+                    () -> parse("wynntils_textures:\n  " + row + "\n"),
                     row);
         }
     }
@@ -355,7 +351,7 @@ class AssetSectionsTest {
     @Test
     void langReadsItsLocalesAndStringsInOrder() {
         RetroManifest manifest =
-                parseTextures(
+                parse(
                         """
                         lang:
                           locales: ['en_us', 'en_gb']
@@ -371,11 +367,11 @@ class AssetSectionsTest {
 
         assertThrows(
                 IllegalArgumentException.class,
-                () -> parseTextures("lang:\n  locales: ['en US']\n"),
+                () -> parse("lang:\n  locales: ['en US']\n"),
                 "not a file name");
         assertThrows(
                 IllegalArgumentException.class,
-                () -> parseTextures("lang:\n  strings: {'menu.game': ''}\n"),
+                () -> parse("lang:\n  strings: {'menu.game': ''}\n"),
                 "an empty string");
     }
 }

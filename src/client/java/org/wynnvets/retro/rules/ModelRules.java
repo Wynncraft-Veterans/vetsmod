@@ -129,7 +129,7 @@ public final class ModelRules {
     }
 
     /**
-     * An ingredient model's stem, the key of its row in {@code retro_ingredients.yml}.
+     * An ingredient model's stem, the key of its row in {@code retro.yml}'s {@code ingredients}.
      *
      * @param modelId a model id, which may be {@code null}
      * @return what follows {@code minecraft:item/wynn/ingredient/}, such as {@code gold_nugget};

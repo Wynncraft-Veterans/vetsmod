@@ -2,14 +2,20 @@ package org.wynnvets.retro.pack;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.FileToIdConverter;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.packs.PackLocationInfo;
 import net.minecraft.server.packs.PackResources;
 import net.minecraft.server.packs.PackType;
+import net.minecraft.server.packs.PathPackResources;
+import net.minecraft.server.packs.repository.PackSource;
 import net.minecraft.server.packs.resources.IoSupplier;
 
 /**
@@ -106,6 +112,21 @@ public final class PackFiles {
      */
     public static boolean isJson(Identifier file) {
         return file.getPath().endsWith(JSON_EXTENSION);
+    }
+
+    /**
+     * A pack over a folder that holds an {@code assets} folder, as a resource pack does.
+     *
+     * @param root the folder, in the jar's file system or the game's
+     * @param id the pack's id
+     * @param title the pack's title
+     * @return the pack, for the caller to close
+     */
+    public static PackResources folder(Path root, String id, String title) {
+        return new PathPackResources(
+                new PackLocationInfo(
+                        id, Component.literal(title), PackSource.BUILT_IN, Optional.empty()),
+                root);
     }
 
     /**

@@ -12,10 +12,9 @@ The textures under src/client/resources/retro/vanilla_tweaks (retro/vanilla_twea
 from Vanilla Tweaks and ship in vetsmod, unmodified, as part of the larger /wv retro feature. They
 are not covered by vetsmod's license. Vanilla Tweaks' terms: https://vanillatweaks.net/terms
 
-Packs taken from (Vanilla Tweaks 1.21, textures only): OldOres, OldCobblestone, OldGravel,
-OldNetherrack, OldLava, OldLapisTexture, OldIce, OldWater, OldWoolColors, 1.11ShulkerBoxes,
-OldRedstoneTorch, OldEnchantGlint, WitherHearts, ClassicNetheriteArmor, OldPlanks, OarlessBoats,
-ConsistentBambooPlanks.
+Packs taken from (Vanilla Tweaks 1.21, textures only): OldOres, OldGravel, OldNetherrack, OldIce,
+OldWoolColors, 1.11ShulkerBoxes, OldEnchantGlint, WitherHearts, ClassicNetheriteArmor, OldPlanks,
+OarlessBoats, ConsistentBambooPlanks.
 
 
 Minecraft: https://www.minecraft.net/ and https://www.mojang.com/
@@ -23,8 +22,10 @@ Minecraft: https://www.minecraft.net/ and https://www.mojang.com/
 NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT.
 
 Minecraft and its art belong to Mojang AB and Microsoft. /wv retro reads the present and Programmer
-Art textures from the player's own copy of the game, while the game runs; those are not in
-vetsmod's jar. Some Vanilla Tweaks textures above recreate or build on historical Minecraft art.
+Art textures from the player's own copy of the game, while the game runs, and downloads the
+textures of Minecraft 1.7.10, 1.8.9 and 1.9.4 it draws, and no others, from Mojang's own servers
+into the player's game folder; none of them are in vetsmod's jar. Some Vanilla Tweaks textures above recreate or
+build on historical Minecraft art.
 Terms: https://www.minecraft.net/eula
 
 

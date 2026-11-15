@@ -32,7 +32,7 @@ class ModelRulesTest {
     }
 
     private static ModelRules rules(String textures, String ingredients) {
-        return new ModelRules(ManifestFixtures.parse(textures, ingredients).models());
+        return new ModelRules(ManifestFixtures.parse(textures + "\n" + ingredients).models());
     }
 
     // ----- Item models -----
@@ -157,7 +157,7 @@ class ModelRulesTest {
     @Test
     void aPotionStubTintsTheVanillaLiquidItsFamilysColour() {
         RetroManifest manifest =
-                ManifestFixtures.parseTextures(
+                ManifestFixtures.parse(
                         ManifestFixtures.POTION_RECIPE
                                 + """
                                 potions:

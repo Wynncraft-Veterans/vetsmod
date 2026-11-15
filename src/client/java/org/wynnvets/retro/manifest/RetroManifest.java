@@ -11,12 +11,12 @@ import java.util.Set;
 import org.wynnvets.logging.VetsLogger;
 
 /**
- * The retro texture rules as {@code retro_textures.yml} and {@code retro_ingredients.yml} spell
- * them out, grouped by what each family of sections decides.
+ * The retro rules as {@code retro.yml} spells them out, grouped by what each family of sections
+ * decides.
  * {@link org.wynnvets.retro.rules.TextureRules TextureRules} and
  * {@link org.wynnvets.retro.rules.ModelRules ModelRules} make the decisions with them.
  *
- * <p>Both files are standard YAML, read with SnakeYAML's safe loader. Each is a single document: a
+ * <p>The file is standard YAML, read with SnakeYAML's safe loader, in a single document: a
  * mapping from section name to the section's entries, in which a repeated section, or a repeated
  * key inside one, is a parse error. As in {@link org.wynnvets.items.ItemDefinitions
  * ItemDefinitions}, a section name this class does not know is ignored (with a debug line), and so
@@ -25,7 +25,7 @@ import org.wynnvets.logging.VetsLogger;
  * replacement without its namespace or with a {@code $n} its pattern has no group for, and what
  * each family's own documentation lists. The real-file test thereby turns a bad edit into a failed
  * build rather than a rule that silently never applies. Every pattern is compiled here, once, and
- * must match the whole id. The files' headers describe each section.
+ * must match the whole id. The file's header and each section's comment describe the format.
  *
  * <p>The record and everything in it are immutable, so one manifest can be shared across threads.
  *
@@ -54,15 +54,11 @@ public record RetroManifest(
      */
     public static final String KEEP = "keep";
 
-    /** The sections of {@code retro_textures.yml}; any other is ignored. */
+    /** The sections of {@code retro.yml}; any other is ignored. */
     // Package-private for unit tests. See ShippedManifestTest.
-    static final Set<String> TEXTURE_SECTIONS = textureSections();
+    static final Set<String> SECTIONS = sections();
 
-    /** The sections of {@code retro_ingredients.yml}; any other is ignored. */
-    // Package-private for unit tests. See ShippedManifestTest.
-    static final Set<String> INGREDIENT_SECTIONS = ModelSections.INGREDIENT_NAMES;
-
-    private static Set<String> textureSections() {
+    private static Set<String> sections() {
         Set<String> names = new HashSet<>(PartSections.NAMES);
         names.addAll(TextureSections.NAMES);
         names.addAll(ModelSections.NAMES);
@@ -80,19 +76,18 @@ public record RetroManifest(
     }
 
     /**
-     * Reads both files from the classpath, where vetsmod's jar carries them beside
+     * Reads the file from the classpath, where vetsmod's jar carries it beside
      * {@code definitions.yml}.
      *
      * @return the parsed manifest
-     * @throws IOException when a file is missing or cannot be read
-     * @throws RuntimeException when a file is malformed: SnakeYAML's {@code YAMLException} for
+     * @throws IOException when the file is missing or cannot be read
+     * @throws RuntimeException when the file is malformed: SnakeYAML's {@code YAMLException} for
      *     broken YAML or a repeated key, an {@link IllegalArgumentException} for a malformed
      *     entry
      */
     public static RetroManifest load() throws IOException {
-        try (InputStream textures = open(ManifestYaml.TEXTURES_FILE);
-                InputStream ingredients = open(ManifestYaml.INGREDIENTS_FILE)) {
-            RetroManifest manifest = parse(textures, ingredients);
+        try (InputStream file = open(ManifestYaml.FILE)) {
+            RetroManifest manifest = parse(file);
             Map<String, Integer> counts = new LinkedHashMap<>();
             manifest.parts.addCounts(counts);
             manifest.textures.addCounts(counts);
@@ -112,7 +107,7 @@ public record RetroManifest(
      * @return the manifest
      */
     public static RetroManifest empty() {
-        return parse(InputStream.nullInputStream(), InputStream.nullInputStream());
+        return parse(InputStream.nullInputStream());
     }
 
     private static InputStream open(String file) throws IOException {
@@ -122,24 +117,19 @@ public record RetroManifest(
     }
 
     /**
-     * Parses the two files' contents.
+     * Parses the file's contents.
      *
-     * @param textures {@code retro_textures.yml}
-     * @param ingredients {@code retro_ingredients.yml}
-     * @return the manifest; an empty input contributes no rows
+     * @param file {@code retro.yml}
+     * @return the manifest; an empty input has no rows
      */
     // Package-private for unit tests. See ManifestFixtures.
-    static RetroManifest parse(InputStream textures, InputStream ingredients) {
-        Map<?, ?> rules =
-                ManifestYaml.sections(textures, ManifestYaml.TEXTURES_FILE, TEXTURE_SECTIONS);
-        Map<?, ?> stems =
-                ManifestYaml.sections(
-                        ingredients, ManifestYaml.INGREDIENTS_FILE, INGREDIENT_SECTIONS);
+    static RetroManifest parse(InputStream file) {
+        Map<?, ?> rules = ManifestYaml.sections(file, ManifestYaml.FILE, SECTIONS);
         ItemTables tables = ItemTables.parse(rules);
         return new RetroManifest(
                 PartSections.parse(rules),
                 TextureSections.parse(rules),
-                ModelSections.parse(rules, stems, tables),
+                ModelSections.parse(rules, tables),
                 AssetSections.parse(rules, tables),
                 StackSections.parse(rules),
                 ScreenSections.parse(rules),

@@ -30,7 +30,7 @@ import org.wynnvets.retro.pack.PackFiles;
 
 /**
  * The titles retro draws on Wynncraft's containers ({@code container_titles} in
- * {@code retro_textures.yml}), which screens it drew one on, and the container texture under a
+ * {@code retro.yml}), which screens it drew one on, and the container texture under a
  * screen that keeps Wynncraft's.
  *
  * <p>Wynncraft writes most container titles as glyphs in its own fonts, and those glyphs also

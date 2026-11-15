@@ -155,18 +155,13 @@ class ShippedAssetsTest {
             if (copy.getKey().startsWith("vetsmod:gui/sprites/")) continue;
             assertTrue(Atlas.of(copy.getKey()).isPresent(), copy.getKey());
         }
+        List<RetroSource> any = rules.sourceOrder("minecraft:block/stone");
         assertEquals(
-                List.of(
-                        RetroSource.VANILLA_TWEAKS,
-                        RetroSource.PROGRAMMER_ART,
-                        RetroSource.VANILLA),
+                any,
                 rules.sourceOrder("minecraft:block/tripwire_hook"),
                 "the keys' hook reads as any block texture");
         assertEquals(
-                List.of(
-                        RetroSource.VANILLA_TWEAKS,
-                        RetroSource.PROGRAMMER_ART,
-                        RetroSource.VANILLA),
+                any,
                 rules.sourceOrder("minecraft:entity/chest/normal"),
                 "the chest reads as any entity texture");
     }

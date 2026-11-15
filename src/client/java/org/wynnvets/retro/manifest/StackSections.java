@@ -125,7 +125,7 @@ public record StackSections(
     private static List<StackModel> stackModels(Object section) {
         return ManifestYaml.listRows(
                 section,
-                ManifestYaml.inTextures(STACK_MODELS),
+                ManifestYaml.inFile(STACK_MODELS),
                 List.of("item", "name", "model", "part"),
                 (fields, rowWhere) -> {
                     String item =
@@ -156,7 +156,7 @@ public record StackSections(
     private static Map<String, String> gearBoxIcons(Object section) {
         return ManifestYaml.typeRows(
                 section,
-                ManifestYaml.inTextures(GEAR_BOX_ICONS),
+                ManifestYaml.inFile(GEAR_BOX_ICONS),
                 "SPEAR",
                 (gearType, value, rowWhere) -> ManifestYaml.requiredId(value, rowWhere, "no item"));
     }
@@ -165,7 +165,7 @@ public record StackSections(
         Map<String, OutlinedIcon> rows = new LinkedHashMap<>();
         ManifestYaml.listRows(
                         section,
-                        ManifestYaml.inTextures(OUTLINED_ICONS),
+                        ManifestYaml.inFile(OUTLINED_ICONS),
                         List.of("outline", "scale", "art"),
                         StackSections::outlinedGroup)
                 .forEach(rows::putAll);
@@ -197,7 +197,7 @@ public record StackSections(
     }
 
     private static AccessoryTiers accessoryTiers(Object section) {
-        String where = ManifestYaml.inTextures(ACCESSORY_TIERS);
+        String where = ManifestYaml.inFile(ACCESSORY_TIERS);
         Map<?, ?> fields = ManifestYaml.mapping(section, where);
         ManifestYaml.onlyKeys(
                 fields,

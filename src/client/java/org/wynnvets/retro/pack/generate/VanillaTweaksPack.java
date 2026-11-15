@@ -1,15 +1,11 @@
 package org.wynnvets.retro.pack.generate;
 
 import java.nio.file.Path;
-import java.util.Optional;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.network.chat.Component;
-import net.minecraft.server.packs.PackLocationInfo;
 import net.minecraft.server.packs.PackResources;
-import net.minecraft.server.packs.PathPackResources;
-import net.minecraft.server.packs.repository.PackSource;
 import org.wynnvets.Vetsmod;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.retro.pack.PackFiles;
 
 /**
  * The Vanilla Tweaks art the jar bundles for
@@ -18,7 +14,7 @@ import org.wynnvets.logging.VetsLogger;
  *
  * <p>It lives under {@code retro/vanilla_tweaks}, outside the mod's {@code assets}: Fabric loads
  * those as a resource pack whether retro is on or not, and this art must show only through the
- * retro pack, by the rules of {@code retro_textures.yml}.</p>
+ * retro pack, by the rules of {@code retro.yml}.</p>
  */
 final class VanillaTweaksPack {
 
@@ -55,12 +51,6 @@ final class VanillaTweaksPack {
      */
     // Package-private for unit tests. See VanillaTweaksPackTest.
     static PackResources open(Path root) {
-        return new PathPackResources(
-                new PackLocationInfo(
-                        "vetsmod_vanilla_tweaks",
-                        Component.literal("Vanilla Tweaks"),
-                        PackSource.BUILT_IN,
-                        Optional.empty()),
-                root);
+        return PackFiles.folder(root, "vetsmod_vanilla_tweaks", "Vanilla Tweaks");
     }
 }

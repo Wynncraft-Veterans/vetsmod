@@ -3,7 +3,7 @@ package org.wynnvets.retro.manifest;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.wynnvets.retro.manifest.ManifestFixtures.parseTextures;
+import static org.wynnvets.retro.manifest.ManifestFixtures.parse;
 
 import java.util.List;
 import java.util.Map;
@@ -23,28 +23,24 @@ class ScreenSectionsTest {
     void aSlotFillFallbackIsTrueOrFalse() {
         assertThrows(
                 IllegalArgumentException.class,
-                () ->
-                        parseTextures(
-                                "slot_fills:\n  - {title: 'a', slots: all, fallback: 'yes'}\n"));
+                () -> parse("slot_fills:\n  - {title: 'a', slots: all, fallback: 'yes'}\n"));
     }
 
     @Test
     void glyphTitlesAreKeyedByCodePointAndAMalformedOneFailsTheParse() {
         assertEquals(
                 Map.of(0xE006, "Merchant"),
-                parseTextures("glyph_titles:\n  'E006': 'Merchant'\n").screens().glyphTitles());
+                parse("glyph_titles:\n  'E006': 'Merchant'\n").screens().glyphTitles());
         assertThrows(
                 IllegalArgumentException.class,
-                () -> parseTextures("glyph_titles:\n  'Merchant': 'E006'\n"));
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> parseTextures("glyph_titles:\n  'E006': ''\n"));
+                () -> parse("glyph_titles:\n  'Merchant': 'E006'\n"));
+        assertThrows(IllegalArgumentException.class, () -> parse("glyph_titles:\n  'E006': ''\n"));
     }
 
     @Test
     void containerTitlesReadATitleOrKeepInFileOrder() {
         RetroManifest manifest =
-                parseTextures(
+                parse(
                         """
                         container_titles:
                           'AccountBankContainer': 'Account Bank'
@@ -60,14 +56,14 @@ class ScreenSectionsTest {
 
         assertThrows(
                 IllegalArgumentException.class,
-                () -> parseTextures("container_titles:\n  'X': ''\n"),
+                () -> parse("container_titles:\n  'X': ''\n"),
                 "an empty title");
     }
 
     @Test
     void slotFillsReadPlayerAndContainerRows() {
         RetroManifest manifest =
-                parseTextures(
+                parse(
                         """
                         slot_fills:
                           - {player: wynntils}
@@ -154,7 +150,7 @@ class ScreenSectionsTest {
                         "{player: wynntils, except: [1]}")) {
             assertThrows(
                     IllegalArgumentException.class,
-                    () -> parseTextures("slot_fills:\n  - " + row + "\n"),
+                    () -> parse("slot_fills:\n  - " + row + "\n"),
                     row);
         }
     }
@@ -162,7 +158,7 @@ class ScreenSectionsTest {
     @Test
     void hiddenInventoryEffectsArePatterns() {
         RetroManifest manifest =
-                parseTextures("hidden_inventory_effects:\n  - 'minecraft:(haste|speed)'\n");
+                parse("hidden_inventory_effects:\n  - 'minecraft:(haste|speed)'\n");
 
         assertEquals(
                 List.of("minecraft:(haste|speed)"),
@@ -174,7 +170,7 @@ class ScreenSectionsTest {
     @Test
     void aSlotValueRowNamesAContainerAnItemAndALoreGroup() {
         SlotValue row =
-                parseTextures("slot_values:\n  - {container: 'A', name: 'B', lore: 'c (d)'}\n")
+                parse("slot_values:\n  - {container: 'A', name: 'B', lore: 'c (d)'}\n")
                         .screens()
                         .slotValues()
                         .get(0);
@@ -191,7 +187,7 @@ class ScreenSectionsTest {
                         "{container: 'A', name: 'B', lore: 'c (d)', slot: 31}")) {
             assertThrows(
                     IllegalArgumentException.class,
-                    () -> parseTextures("slot_values:\n  - " + bad + "\n"),
+                    () -> parse("slot_values:\n  - " + bad + "\n"),
                     bad);
         }
     }

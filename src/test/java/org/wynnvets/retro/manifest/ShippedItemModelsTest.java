@@ -198,17 +198,15 @@ class ShippedItemModelsTest {
                     entry("gui/content_book/locked", "item/gray_dye"),
                     entry("outer_void/drop/arable_chunk", "vetsmod:item/retro/arable_chunk"));
 
-    /** What the real {@code retro_textures.yml}'s tables make. */
+    /** What the real {@code retro.yml}'s tables make. */
     static ItemTables realTables() throws IOException {
         return ItemTables.parse(realSections());
     }
 
-    /** The sections of the real {@code retro_textures.yml}. */
+    /** The sections of the real {@code retro.yml}. */
     private static Map<?, ?> realSections() throws IOException {
-        try (InputStream in =
-                ShippedItemModelsTest.class.getResourceAsStream("/retro_textures.yml")) {
-            return ManifestYaml.sections(
-                    in, ManifestYaml.TEXTURES_FILE, RetroManifest.TEXTURE_SECTIONS);
+        try (InputStream in = ShippedItemModelsTest.class.getResourceAsStream("/retro.yml")) {
+            return ManifestYaml.sections(in, ManifestYaml.FILE, RetroManifest.SECTIONS);
         }
     }
 
@@ -628,7 +626,7 @@ class ShippedItemModelsTest {
 
     @Test
     void everyPlantIngredientFallsThroughToItsGreenCopy() throws IOException {
-        // These stems have no row in retro_ingredients.yml, so item_models reaches them. A row
+        // These stems have no row in retro.yml's ingredients, so item_models reaches them. A row
         // added there would silently shadow the green copy; move the stem here if that is meant.
         Map<String, String> greenCopies =
                 Map.ofEntries(

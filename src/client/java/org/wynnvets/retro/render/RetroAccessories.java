@@ -14,7 +14,7 @@ import org.wynnvets.retro.rules.RetroAssetIds;
 
 /**
  * The item a ring, bracelet or necklace is drawn as while the retro pack is live: its type's art in
- * the tier of its level ({@code accessory_tiers} in {@code retro_textures.yml}).
+ * the tier of its level ({@code accessory_tiers} in {@code retro.yml}).
  *
  * <p>{@link RetroStackModels} asks for every stack it draws. Wynntils names a stack's gear type and
  * level when it has annotated it, so the first lookup answers for most stacks, and a stack it has

@@ -17,7 +17,7 @@ import org.wynnvets.retro.manifest.TextureSections;
  *     each section's rows in file order
  * @param equipmentWithoutRow the equipment assets no {@code equipment} row matches, in the order
  *     given
- * @param stemsWithoutRow the ingredient stems with no row in {@code retro_ingredients.yml}, in the
+ * @param stemsWithoutRow the ingredient stems with no row in {@code retro.yml}'s {@code ingredients}, in the
  *     order given
  */
 public record RuleUsage(

@@ -21,7 +21,7 @@ public record WynntilsSetting(String feature, String config, String value) {
     private static final Pattern NAME = Pattern.compile("[A-Za-z0-9_]+");
 
     static List<WynntilsSetting> parse(Object section) {
-        String where = ManifestYaml.inTextures(SECTION);
+        String where = ManifestYaml.inFile(SECTION);
         List<WynntilsSetting> settings = new ArrayList<>();
         for (Map.Entry<?, ?> feature : ManifestYaml.mapping(section, where).entrySet()) {
             String name = name(feature.getKey(), where);

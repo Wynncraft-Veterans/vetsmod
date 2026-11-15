@@ -2,7 +2,7 @@ package org.wynnvets.retro.manifest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.wynnvets.retro.manifest.ManifestFixtures.parseTextures;
+import static org.wynnvets.retro.manifest.ManifestFixtures.parse;
 
 import java.util.List;
 import java.util.Map;
@@ -17,7 +17,7 @@ class StackSectionsTest {
     @Test
     void aStackModelRowNeedsItsThreeFields() {
         StackSections.StackModel row =
-                parseTextures(
+                parse(
                                 """
                                 stack_models:
                                   - {item: 'minecraft:a', name: 'A.*', model: 'minecraft:b'}
@@ -32,9 +32,7 @@ class StackSectionsTest {
         assertEquals(RetroPart.ITEMS, row.part(), "the part of a row with none");
         assertThrows(
                 IllegalArgumentException.class,
-                () ->
-                        parseTextures(
-                                "stack_models:\n  - {item: 'minecraft:a', model: 'minecraft:b'}\n"));
+                () -> parse("stack_models:\n  - {item: 'minecraft:a', model: 'minecraft:b'}\n"));
     }
 
     @Test
@@ -43,15 +41,15 @@ class StackSectionsTest {
 
         assertEquals(
                 RetroPart.CRAFTING,
-                parseTextures(row + "part: crafting}\n").stacks().stackModels().get(0).part());
-        assertThrows(IllegalArgumentException.class, () -> parseTextures(row + "part: nope}\n"));
+                parse(row + "part: crafting}\n").stacks().stackModels().get(0).part());
+        assertThrows(IllegalArgumentException.class, () -> parse(row + "part: nope}\n"));
     }
 
     @Test
     void outlinedIconsTakeTheirGroupsOutlineAndScaleAndAMalformedOneFailsTheParse() {
         String outline = "outline: {pixels: 1, colour: '#191919'}";
         Map<String, StackSections.OutlinedIcon> rows =
-                parseTextures(
+                parse(
                                 """
                                 outlined_icons:
                                   - scale: 0.5
@@ -80,7 +78,7 @@ class StackSectionsTest {
                         "{scale: 0.5, " + outline + ", art: {'weapon': 'minecraft:a'}}")) {
             assertThrows(
                     IllegalArgumentException.class,
-                    () -> parseTextures("outlined_icons:\n  - " + group + "\n"),
+                    () -> parse("outlined_icons:\n  - " + group + "\n"),
                     group);
         }
     }
@@ -88,7 +86,7 @@ class StackSectionsTest {
     @Test
     void gearBoxIconsReadAGearTypeAndAnItemInFileOrder() {
         RetroManifest manifest =
-                parseTextures(
+                parse(
                         """
                         gear_box_icons:
                           'SPEAR': 'minecraft:iron_shovel'
@@ -109,7 +107,7 @@ class StackSectionsTest {
                         "'SPEAR': ''")) {
             assertThrows(
                     IllegalArgumentException.class,
-                    () -> parseTextures("gear_box_icons:\n  " + row + "\n"),
+                    () -> parse("gear_box_icons:\n  " + row + "\n"),
                     row);
         }
     }
@@ -120,12 +118,11 @@ class StackSectionsTest {
 
         assertEquals(
                 0x555555,
-                parseTextures("accessory_tiers:\n  empty_outline: '#555555'\n" + art)
+                parse("accessory_tiers:\n  empty_outline: '#555555'\n" + art)
                         .stacks()
                         .accessoryTiers()
                         .emptyOutline());
-        assertThrows(
-                IllegalArgumentException.class, () -> parseTextures("accessory_tiers:\n" + art));
+        assertThrows(IllegalArgumentException.class, () -> parse("accessory_tiers:\n" + art));
     }
 
     @Test
@@ -133,16 +130,15 @@ class StackSectionsTest {
         String outline = "accessory_tiers:\n  empty_outline: '#555555'\n";
         String art = "  art: {'RING': 'minecraft:wynn/ring'}\n";
 
-        assertEquals(
-                0, parseTextures(outline + art).stacks().accessoryTiers().emptyLinesBelowLuma());
+        assertEquals(0, parse(outline + art).stacks().accessoryTiers().emptyLinesBelowLuma());
         assertEquals(
                 30,
-                parseTextures(outline + "  empty_lines_below_luma: 30\n" + art)
+                parse(outline + "  empty_lines_below_luma: 30\n" + art)
                         .stacks()
                         .accessoryTiers()
                         .emptyLinesBelowLuma());
         assertThrows(
                 IllegalArgumentException.class,
-                () -> parseTextures(outline + "  empty_lines_below_luma: 256\n" + art));
+                () -> parse(outline + "  empty_lines_below_luma: 256\n" + art));
     }
 }

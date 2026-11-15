@@ -14,7 +14,7 @@ import org.wynnvets.retro.manifest.StackSections.StackModel;
 
 /**
  * The single stacks drawn as another item while the retro pack is live on Wynncraft
- * ({@code stack_models} in {@code retro_textures.yml}), for the looks a model's stub cannot give: a
+ * ({@code stack_models} in {@code retro.yml}), for the looks a model's stub cannot give: a
  * vanilla potion Wynncraft leaves alone, or an item sharing its model with others; and the
  * accessories, by level ({@link RetroAccessories}).
  *

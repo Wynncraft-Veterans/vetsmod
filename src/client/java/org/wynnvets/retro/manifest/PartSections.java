@@ -53,8 +53,7 @@ public record PartSections(Map<RetroPart, Part> parts) {
 
     static PartSections parse(Map<?, ?> sections) {
         Map<RetroPart, Part> parts = new LinkedHashMap<>();
-        ManifestYaml.textRows(
-                        sections.get(PARTS), ManifestYaml.inTextures(PARTS), PartSections::row)
+        ManifestYaml.textRows(sections.get(PARTS), ManifestYaml.inFile(PARTS), PartSections::row)
                 .values()
                 .forEach(row -> parts.put(row.part(), row));
         return new PartSections(parts);

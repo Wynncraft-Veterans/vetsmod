@@ -143,7 +143,7 @@ public record RetroReport(
         BLOCK_MODELS,
         /** Potion stubs from {@code potions}. */
         POTIONS,
-        /** Ingredient stubs from {@code retro_ingredients.yml}. */
+        /** Ingredient stubs from {@code retro.yml}'s {@code ingredients}. */
         INGREDIENTS,
         /** Wynncraft's equipment assets {@code equipment} replaced with vanilla's. */
         EQUIPMENT,

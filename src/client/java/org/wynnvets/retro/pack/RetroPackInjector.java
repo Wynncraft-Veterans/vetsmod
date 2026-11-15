@@ -89,7 +89,8 @@ public final class RetroPackInjector {
                             wynncraft,
                             mc.getResourcePackRepository()
                                     .getPack(RetroSources.PROGRAMMER_ART_PACK),
-                            mc.getVanillaPackResources());
+                            mc.getVanillaPackResources(),
+                            OldClients::open);
             RetroPackResources retro =
                     new RetroPackResources(generator::generate, RetroPackGenerator::staticFiles);
             List<PackResources> withRetro = new ArrayList<>(packs);

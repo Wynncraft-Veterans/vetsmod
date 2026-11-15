@@ -234,7 +234,7 @@ class WynntilsConfigOverridesTest {
     /** A filter whose {@code hud} part owns the feature {@code Feature}. */
     private static PartFilter partOwningTheFeature(Set<RetroPart> on) {
         return new PartFilter(
-                ManifestFixtures.parseTextures(
+                ManifestFixtures.parse(
                                 """
                                 parts:
                                   hud:

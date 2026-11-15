@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.wynnvets.retro.manifest.ManifestFixtures.copySources;
 import static org.wynnvets.retro.manifest.ManifestFixtures.parse;
-import static org.wynnvets.retro.manifest.ManifestFixtures.parseTextures;
 
 import java.util.List;
 import java.util.Map;
@@ -33,7 +32,7 @@ class ManifestParserTest {
         assertThrows(
                 YAMLException.class,
                 () ->
-                        parseTextures(
+                        parse(
                                 """
                                 same_name:
                                   - 'minecraft:block/.*'
@@ -48,7 +47,7 @@ class ManifestParserTest {
         assertThrows(
                 YAMLException.class,
                 () ->
-                        parseTextures(
+                        parse(
                                 """
                                 aliases:
                                   'minecraft:block/a': 'minecraft:block/b'
@@ -58,7 +57,6 @@ class ManifestParserTest {
                 YAMLException.class,
                 () ->
                         parse(
-                                "",
                                 """
                                 ingredients:
                                   gold_nugget: 'minecraft:item/gold_nugget'
@@ -72,7 +70,7 @@ class ManifestParserTest {
         assertThrows(
                 YAMLException.class,
                 () ->
-                        parseTextures(
+                        parse(
                                 """
                                 same_name:
                                   - 'minecraft:block/.*'
@@ -86,7 +84,7 @@ class ManifestParserTest {
     void anUnknownSectionIsIgnored() {
         // As in definitions.yml, a typo in a section name loses that section and nothing else.
         RetroManifest manifest =
-                parseTextures(
+                parse(
                         """
                         same_nmae:
                           - 'minecraft:item/.*'
@@ -138,8 +136,6 @@ class ManifestParserTest {
                           - 'minecraft:block/.*'
                         aliases:
                           '': 'minecraft:block/stone'
-                        """,
-                        """
                         ingredients:
                           '': 'minecraft:item/stick'
                         """);
@@ -157,7 +153,7 @@ class ManifestParserTest {
             assertThrows(
                     IllegalArgumentException.class,
                     () ->
-                            parseTextures(
+                            parse(
                                     """
                                     tints:
                                       'minecraft:block/x':
@@ -167,14 +163,13 @@ class ManifestParserTest {
                     tint);
         }
         assertThrows(
-                IllegalArgumentException.class,
-                () -> parseTextures("potions:\n  x: {colour: '00AA00'}\n"));
+                IllegalArgumentException.class, () -> parse("potions:\n  x: {colour: '00AA00'}\n"));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> parseTextures("potions:\n  x: {colour: #00AA00\n  }\n"));
+                () -> parse("potions:\n  x: {colour: #00AA00\n  }\n"));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> parseTextures("potions:\n  x: empty\n"),
+                () -> parse("potions:\n  x: empty\n"),
                 "every potion row is a liquid's colour");
     }
 
@@ -207,7 +202,7 @@ class ManifestParserTest {
                         "slot_fills:\n  - {container: 'a', rows: [0], row: [1]}\n",
                         "slot_values:\n  - {container: 'a', name: 'b', lore: '(c)', extra: 'd'}\n")) {
             IllegalArgumentException refused =
-                    assertThrows(IllegalArgumentException.class, () -> parseTextures(row), row);
+                    assertThrows(IllegalArgumentException.class, () -> parse(row), row);
             assertTrue(refused.getMessage().contains("unknown key"), refused.getMessage());
         }
     }
@@ -215,7 +210,7 @@ class ManifestParserTest {
     @Test
     void wynntilsConfigReadsFeatureSettingAndValueInFileOrder() {
         RetroManifest manifest =
-                parseTextures(
+                parse(
                         """
                         wynntils_config:
                           'ItemHighlight':
@@ -241,7 +236,7 @@ class ManifestParserTest {
                         "'ItemHighlight':\n    'userEnabled': ''")) {
             assertThrows(
                     IllegalArgumentException.class,
-                    () -> parseTextures("wynntils_config:\n  " + entry + "\n"),
+                    () -> parse("wynntils_config:\n  " + entry + "\n"),
                     entry);
         }
     }
@@ -249,7 +244,7 @@ class ManifestParserTest {
     @Test
     void theManifestIsImmutable() {
         RetroManifest manifest =
-                parseTextures(
+                parse(
                         """
                         sources:
                           '.*': [vanilla]
@@ -312,7 +307,7 @@ class ManifestParserTest {
         assertThrows(
                 IllegalArgumentException.class,
                 () ->
-                        parseTextures(
+                        parse(
                                 """
                                 aliases:
                                   'minecraft:block/a_(\\d)': 'minecraft:block/$2'
@@ -320,7 +315,7 @@ class ManifestParserTest {
         assertThrows(
                 IllegalArgumentException.class,
                 () ->
-                        parseTextures(
+                        parse(
                                 """
                                 item_models:
                                   'minecraft:item/wynn/(\\w+)':
@@ -330,7 +325,7 @@ class ManifestParserTest {
         assertThrows(
                 IllegalArgumentException.class,
                 () ->
-                        parseTextures(
+                        parse(
                                 """
                                 aliases:
                                   'minecraft:block/(?<n>a)': 'minecraft:block/${n}'
@@ -339,7 +334,7 @@ class ManifestParserTest {
         assertThrows(
                 IllegalArgumentException.class,
                 () ->
-                        parseTextures(
+                        parse(
                                 """
                                 aliases:
                                   'minecraft:block/a': 'minecraft:block/a\\'
@@ -347,7 +342,7 @@ class ManifestParserTest {
                 "a trailing backslash escapes nothing");
 
         RetroManifest manifest =
-                parseTextures(
+                parse(
                         """
                         aliases:
                           'minecraft:block/(a)_(\\d)': 'minecraft:block/$2$1$0'
@@ -363,7 +358,7 @@ class ManifestParserTest {
         assertThrows(
                 IllegalArgumentException.class,
                 () ->
-                        parseTextures(
+                        parse(
                                 """
                                 aliases:
                                   'minecraft:block/a': 'block/stone'
@@ -371,7 +366,7 @@ class ManifestParserTest {
         assertThrows(
                 IllegalArgumentException.class,
                 () ->
-                        parseTextures(
+                        parse(
                                 """
                                 aliases:
                                   '(minecraft):block/a': '$1:block/stone'
@@ -380,7 +375,7 @@ class ManifestParserTest {
         assertThrows(
                 IllegalArgumentException.class,
                 () ->
-                        parseTextures(
+                        parse(
                                 """
                                 item_models:
                                   'minecraft:item/wynn/x': {texture: 'item/stick', parent: handheld}
@@ -389,7 +384,6 @@ class ManifestParserTest {
                 IllegalArgumentException.class,
                 () ->
                         parse(
-                                "",
                                 """
                                 ingredients:
                                   gold_nugget: 'item/gold_nugget'
@@ -397,7 +391,6 @@ class ManifestParserTest {
 
         RetroManifest manifest =
                 parse(
-                        "",
                         """
                         ingredients:
                           gold_nugget: 'minecraft:item/gold_nugget'
@@ -413,7 +406,7 @@ class ManifestParserTest {
         assertThrows(
                 PatternSyntaxException.class,
                 () ->
-                        parseTextures(
+                        parse(
                                 """
                                 keep_wynncraft:
                                   - 'minecraft:block/(tripwire'
@@ -424,23 +417,23 @@ class ManifestParserTest {
     void anEntryOrSectionOfTheWrongShapeFailsTheParse() {
         assertThrows(
                 IllegalArgumentException.class,
-                () -> parseTextures("same_name:\n  - 1\n"),
+                () -> parse("same_name:\n  - 1\n"),
                 "a pattern YAML reads as a number");
         assertThrows(
                 IllegalArgumentException.class,
-                () -> parseTextures("same_name:\n  'minecraft:block/.*': yes\n"),
+                () -> parse("same_name:\n  'minecraft:block/.*': yes\n"),
                 "a list section written as a mapping");
         assertThrows(
                 IllegalArgumentException.class,
-                () -> parseTextures("aliases:\n  - 'minecraft:block/a'\n"),
+                () -> parse("aliases:\n  - 'minecraft:block/a'\n"),
                 "a mapping section written as a list");
         assertThrows(
                 IllegalArgumentException.class,
-                () -> parse("", "ingredients:\n  1234: 'minecraft:item/stick'\n"),
+                () -> parse("ingredients:\n  1234: 'minecraft:item/stick'\n"),
                 "a stem YAML reads as a number");
         assertThrows(
                 IllegalArgumentException.class,
-                () -> parseTextures("- 'minecraft:block/.*'\n"),
+                () -> parse("- 'minecraft:block/.*'\n"),
                 "a document that is not a mapping of sections");
     }
 }

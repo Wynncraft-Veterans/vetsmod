@@ -13,6 +13,7 @@ import org.wynnvets.listeners.ServerConnectionListener;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.retro.manifest.RetroManifest;
 import org.wynnvets.retro.manifest.RetroPart;
+import org.wynnvets.retro.pack.OldClientFetch;
 import org.wynnvets.retro.pack.RetroPackInjector;
 
 /**
@@ -255,7 +256,9 @@ public final class RetroModeManager {
         }
         boolean wynncraft = RetroPackInjector.isWynncraftLoaded();
         boolean reload = (isActive() && wynncraft) != RetroPackInjector.isRetroLoaded();
-        if (reload) {
+        // A fetch of the old clients' files reloads when it ends, so the reload waits for it.
+        boolean fetching = isActive() && fetchOldClients();
+        if (reload && !fetching) {
             Minecraft mc = McUtils.mc();
             mc.execute(mc::reloadResourcePacks);
         }
@@ -295,6 +298,61 @@ public final class RetroModeManager {
             mc.execute(mc::reloadResourcePacks);
         }
         return outcome;
+    }
+
+    /**
+     * At start-up, while retro is on, fetches the old clients' files that are missing
+     * ({@link OldClientFetch}): once per change to their rules, the first time only. A reload
+     * follows when it wrote any and the retro pack is loaded. Render thread only; it never throws.
+     */
+    public static void startUp() {
+        try {
+            if (isActive()) fetchOldClients();
+        } catch (RuntimeException | LinkageError e) {
+            VetsLogger.warn("Retro: could not start fetching the old clients' textures", e);
+        }
+    }
+
+    /**
+     * Starts fetching the old clients' files that are missing; when it ends, a reload is queued if
+     * {@link #reloadAfterFetch} says so. Render thread only.
+     *
+     * @return whether a fetch started, so a reload may follow it
+     */
+    private static boolean fetchOldClients() {
+        Minecraft mc = McUtils.mc();
+        return OldClientFetch.start(
+                manifest(),
+                mc.getVanillaPackResources(),
+                wrote ->
+                        mc.execute(
+                                () -> {
+                                    if (reloadAfterFetch(
+                                            wrote,
+                                            isActive(),
+                                            RetroPackInjector.isWynncraftLoaded(),
+                                            RetroPackInjector.isRetroLoaded())) {
+                                        mc.reloadResourcePacks();
+                                    }
+                                }));
+    }
+
+    /**
+     * Whether a fetch of the old clients' files ending calls for a reload: while retro is on and
+     * not stopped, with a Wynncraft pack loaded, when it wrote files the loaded retro pack lacks, or
+     * when no retro pack is loaded yet ({@link #setEnabled} left the reload to it). It never
+     * reloads a stopped retro.
+     *
+     * @param wrote whether the fetch wrote any client's files
+     * @param active whether retro is on and not stopped
+     * @param wynncraftLoaded whether a Wynncraft pack is loaded
+     * @param retroLoaded whether a retro pack is loaded
+     * @return whether to queue a reload
+     */
+    // Package-private for unit tests. See RetroModeManagerTest.
+    static boolean reloadAfterFetch(
+            boolean wrote, boolean active, boolean wynncraftLoaded, boolean retroLoaded) {
+        return active && wynncraftLoaded && (wrote || !retroLoaded);
     }
 
     /**

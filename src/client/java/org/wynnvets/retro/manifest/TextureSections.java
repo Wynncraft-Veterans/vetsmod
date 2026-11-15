@@ -1,10 +1,13 @@
 package org.wynnvets.retro.manifest;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
+import org.wynnvets.rendering.image.Rect;
 
 /**
  * The sections that decide which textures are replaced, and from what.
@@ -12,7 +15,9 @@ import java.util.regex.Pattern;
  * <p>Beyond the rules every section keeps, these fail the parse: an unknown source, a tint of no
  * known form, a strength outside 0 to 1, a contrast below 0, a {@code tints} row with neither a
  * tint nor a contrast, and a {@code like} with a strength or contrast of its own, or naming a
- * texture that not exactly one {@code tints} row matches, or whose row is a {@code like} too.
+ * texture that not exactly one {@code tints} row matches, or whose row is a {@code like} too; an
+ * {@code old_clients} version that is no old client, and an {@code old_client_clears} row with no
+ * rectangle.
  *
  * @param sources {@code sources}: which packs a texture is read from; the first matching row
  *     decides
@@ -23,6 +28,10 @@ import java.util.regex.Pattern;
  *     decides
  * @param sameName {@code same_name}: textures replaced by a source's texture of the same id
  * @param layerGroups {@code layer_groups}: one pattern per group of layered textures
+ * @param oldClients {@code old_clients}: per old client, the textures it holds and the file of
+ *     that client each is; the first matching row of a client decides
+ * @param oldClientClears {@code old_client_clears}: rectangles cleared in an old client's texture;
+ *     every matching row clears its own
  */
 public record TextureSections(
         List<SourceRow> sources,
@@ -30,7 +39,9 @@ public record TextureSections(
         List<Tint> tints,
         List<Alias> aliases,
         List<Pattern> sameName,
-        List<Pattern> layerGroups) {
+        List<Pattern> layerGroups,
+        Map<RetroSource, List<OldClientRow>> oldClients,
+        List<OldClientClear> oldClientClears) {
 
     private static final String SOURCES = "sources";
     private static final String KEEP_WYNNCRAFT = "keep_wynncraft";
@@ -38,9 +49,22 @@ public record TextureSections(
     private static final String ALIASES = "aliases";
     private static final String SAME_NAME = "same_name";
     private static final String LAYER_GROUPS = "layer_groups";
+    private static final String OLD_CLIENTS = "old_clients";
+    private static final String OLD_CLIENT_CLEARS = "old_client_clears";
+
+    /** An {@code old_clients} value: a fully transparent texture, at today's size. */
+    private static final String BLANK = "blank";
 
     static final Set<String> NAMES =
-            Set.of(SOURCES, KEEP_WYNNCRAFT, TINTS, ALIASES, SAME_NAME, LAYER_GROUPS);
+            Set.of(
+                    SOURCES,
+                    KEEP_WYNNCRAFT,
+                    TINTS,
+                    ALIASES,
+                    SAME_NAME,
+                    LAYER_GROUPS,
+                    OLD_CLIENTS,
+                    OLD_CLIENT_CLEARS);
 
     /** Copies every list. */
     public TextureSections {
@@ -50,6 +74,10 @@ public record TextureSections(
         aliases = List.copyOf(aliases);
         sameName = List.copyOf(sameName);
         layerGroups = List.copyOf(layerGroups);
+        EnumMap<RetroSource, List<OldClientRow>> clients = new EnumMap<>(RetroSource.class);
+        oldClients.forEach((client, rows) -> clients.put(client, List.copyOf(rows)));
+        oldClients = Collections.unmodifiableMap(clients);
+        oldClientClears = List.copyOf(oldClientClears);
     }
 
     /**
@@ -75,6 +103,32 @@ public record TextureSections(
     public record Alias(Pattern textures, String target) {}
 
     /**
+     * An {@code old_clients} row: the textures it matches are a file of the old client, written at
+     * their own ids when the player's game downloads that client's files.
+     *
+     * @param textures the texture ids the row covers
+     * @param file the old client's texture written in their place, a full id under its
+     *     {@code textures} folder such as {@code minecraft:blocks/wool_colored_white}, in which
+     *     {@code $n} stands for the pattern's group {@code n}; {@code null} for {@code blank}: a
+     *     fully transparent texture of today's size
+     */
+    public record OldClientRow(Pattern textures, String file) {}
+
+    /**
+     * An {@code old_client_clears} row: rectangles made fully transparent in the old client's
+     * texture written at the ids it matches.
+     *
+     * @param textures the texture ids the row covers
+     * @param rects the rectangles, at least one
+     */
+    public record OldClientClear(Pattern textures, List<Rect> rects) {
+        /** Copies the list. */
+        public OldClientClear {
+            rects = List.copyOf(rects);
+        }
+    }
+
+    /**
      * A {@code tints} row: the textures it matches are a source's texture with each channel
      * multiplied by a factor, then its contrast changed around the result's mean.
      *
@@ -97,12 +151,14 @@ public record TextureSections(
         return new TextureSections(
                 sources(sections.get(SOURCES)),
                 ManifestYaml.patterns(
-                        sections.get(KEEP_WYNNCRAFT), ManifestYaml.inTextures(KEEP_WYNNCRAFT)),
+                        sections.get(KEEP_WYNNCRAFT), ManifestYaml.inFile(KEEP_WYNNCRAFT)),
                 tints(sections.get(TINTS)),
                 aliases(sections.get(ALIASES)),
-                ManifestYaml.patterns(sections.get(SAME_NAME), ManifestYaml.inTextures(SAME_NAME)),
+                ManifestYaml.patterns(sections.get(SAME_NAME), ManifestYaml.inFile(SAME_NAME)),
                 ManifestYaml.patterns(
-                        sections.get(LAYER_GROUPS), ManifestYaml.inTextures(LAYER_GROUPS)));
+                        sections.get(LAYER_GROUPS), ManifestYaml.inFile(LAYER_GROUPS)),
+                oldClients(sections.get(OLD_CLIENTS)),
+                oldClientClears(sections.get(OLD_CLIENT_CLEARS)));
     }
 
     void addCounts(Map<String, Integer> counts) {
@@ -112,12 +168,14 @@ public record TextureSections(
         counts.put(ALIASES, aliases.size());
         counts.put(SAME_NAME, sameName.size());
         counts.put(LAYER_GROUPS, layerGroups.size());
+        counts.put(OLD_CLIENTS, oldClients.values().stream().mapToInt(List::size).sum());
+        counts.put(OLD_CLIENT_CLEARS, oldClientClears.size());
     }
 
     private static List<SourceRow> sources(Object section) {
         return ManifestYaml.patternRows(
                 section,
-                ManifestYaml.inTextures(SOURCES),
+                ManifestYaml.inFile(SOURCES),
                 (pattern, value, rowWhere) -> {
                     List<RetroSource> order = new ArrayList<>();
                     for (Object name : ManifestYaml.list(value, rowWhere)) {
@@ -133,16 +191,61 @@ public record TextureSections(
                 });
     }
 
+    private static Map<RetroSource, List<OldClientRow>> oldClients(Object section) {
+        String where = ManifestYaml.inFile(OLD_CLIENTS);
+        Map<RetroSource, List<OldClientRow>> clients = new EnumMap<>(RetroSource.class);
+        ManifestYaml.textRows(
+                section,
+                where,
+                (version, rows, clientWhere) -> {
+                    RetroSource client = RetroSource.fromYaml(version);
+                    if (client == null || !client.oldClient()) {
+                        throw new IllegalArgumentException(
+                                where + ": not an old client: " + version);
+                    }
+                    List<OldClientRow> read =
+                            ManifestYaml.patternRows(
+                                    rows,
+                                    clientWhere,
+                                    (pattern, value, rowWhere) ->
+                                            new OldClientRow(
+                                                    pattern,
+                                                    BLANK.equals(value)
+                                                            ? null
+                                                            : ManifestYaml.replacement(
+                                                                    value, pattern, rowWhere)));
+                    clients.put(client, read);
+                    return read;
+                });
+        return clients;
+    }
+
+    private static List<OldClientClear> oldClientClears(Object section) {
+        return ManifestYaml.patternRows(
+                section,
+                ManifestYaml.inFile(OLD_CLIENT_CLEARS),
+                (pattern, value, rowWhere) -> {
+                    List<Rect> rects = new ArrayList<>();
+                    for (Object rect : ManifestYaml.list(value, rowWhere)) {
+                        rects.add(ManifestYaml.rect(rect, rowWhere));
+                    }
+                    if (rects.isEmpty()) {
+                        throw new IllegalArgumentException(rowWhere + ": needs a rectangle");
+                    }
+                    return new OldClientClear(pattern, rects);
+                });
+    }
+
     private static List<Alias> aliases(Object section) {
         return ManifestYaml.patternRows(
                 section,
-                ManifestYaml.inTextures(ALIASES),
+                ManifestYaml.inFile(ALIASES),
                 (pattern, value, rowWhere) ->
                         new Alias(pattern, ManifestYaml.replacement(value, pattern, rowWhere)));
     }
 
     private static List<Tint> tints(Object section) {
-        String where = ManifestYaml.inTextures(TINTS);
+        String where = ManifestYaml.inFile(TINTS);
         List<Tint> rows = ManifestYaml.patternRows(section, where, TextureSections::tint);
         for (Tint row : rows) {
             if (row.factor() instanceof TintFactor.Like like) {

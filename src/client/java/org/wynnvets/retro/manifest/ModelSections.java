@@ -36,10 +36,7 @@ public record ModelSections(
     private static final String BLOCK_MODELS = "block_models";
     private static final String INGREDIENTS = "ingredients";
 
-    static final Set<String> NAMES = Set.of(ITEM_MODELS, EQUIPMENT, BLOCK_MODELS);
-
-    /** The sections of the ingredients file. */
-    static final Set<String> INGREDIENT_NAMES = Set.of(INGREDIENTS);
+    static final Set<String> NAMES = Set.of(ITEM_MODELS, EQUIPMENT, BLOCK_MODELS, INGREDIENTS);
 
     /** Copies every list and map, keeping the order of {@code blockModels}. */
     public ModelSections {
@@ -81,7 +78,7 @@ public record ModelSections(
      */
     public record Equipment(Pattern assets, String target) {}
 
-    static ModelSections parse(Map<?, ?> textures, Map<?, ?> ingredients, ItemTables tables) {
+    static ModelSections parse(Map<?, ?> textures, ItemTables tables) {
         List<ItemModel> itemModels = new ArrayList<>(tables.itemModels());
         itemModels.addAll(itemModels(textures.get(ITEM_MODELS)));
         return new ModelSections(
@@ -89,7 +86,7 @@ public record ModelSections(
                 tables.potions(),
                 equipment(textures.get(EQUIPMENT)),
                 blockModels(textures.get(BLOCK_MODELS)),
-                ingredients(ingredients.get(INGREDIENTS)));
+                ingredients(textures.get(INGREDIENTS)));
     }
 
     void addCounts(Map<String, Integer> counts) {
@@ -102,7 +99,7 @@ public record ModelSections(
 
     private static List<ItemModel> itemModels(Object section) {
         return ManifestYaml.patternRows(
-                section, ManifestYaml.inTextures(ITEM_MODELS), ModelSections::itemModel);
+                section, ManifestYaml.inFile(ITEM_MODELS), ModelSections::itemModel);
     }
 
     /** An {@code item_models} row: a texture id alone, held flat, or a mapping. */
@@ -138,7 +135,7 @@ public record ModelSections(
     private static List<Equipment> equipment(Object section) {
         return ManifestYaml.patternRows(
                 section,
-                ManifestYaml.inTextures(EQUIPMENT),
+                ManifestYaml.inFile(EQUIPMENT),
                 (pattern, value, rowWhere) ->
                         new Equipment(
                                 pattern,
@@ -150,7 +147,7 @@ public record ModelSections(
     private static Map<String, String> blockModels(Object section) {
         return ManifestYaml.idRows(
                 section,
-                ManifestYaml.inTextures(BLOCK_MODELS),
+                ManifestYaml.inFile(BLOCK_MODELS),
                 null,
                 (model, value, rowWhere) -> ManifestYaml.requiredId(value, rowWhere, "no model"));
     }
@@ -158,7 +155,7 @@ public record ModelSections(
     private static Map<String, String> ingredients(Object section) {
         return ManifestYaml.textRows(
                 section,
-                ManifestYaml.INGREDIENTS_FILE + ": " + INGREDIENTS,
+                ManifestYaml.inFile(INGREDIENTS),
                 (stem, value, rowWhere) -> {
                     String model = ManifestYaml.text(value, rowWhere);
                     if (model == null
