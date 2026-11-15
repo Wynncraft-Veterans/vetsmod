@@ -36,14 +36,14 @@ Wynncraft's art belongs to Wynncraft. /wv retro reads it from the resource pack 
 game downloaded from the server, while the game runs; none of its files are in vetsmod's jar.
 vetsmod is a community project, not made or endorsed by Wynncraft.
 
-vetsmod bundles two main-menu panoramas, each six screenshots its authors took in game:
+vetsmod shows two main-menu panoramas, each six screenshots its authors took in game. They are not
+in vetsmod's jar: vetsmod downloads each from i.wynnvets.org, into the player's game folder, only
+when it is wanted:
 
 - Old Detlas, a Wynncraft city, drawn in the textures /wv retro draws, Minecraft's and Vanilla
-  Tweaks' among them, under src/client/resources/retro/vetsmod (retro/vetsmod in the jar), which
-  /wv retro shows;
-- Vetlas, drawn in Wynncraft's own textures, under
-  src/main/resources/assets/vetsmod/textures/gui/title/background (the same path under assets/ in
-  the jar), which an easter egg shows.
+  Tweaks' among them, which is downloaded when /wv retro is turned on and which /wv retro shows;
+- Vetlas, drawn in Wynncraft's own textures, which is downloaded when the easter egg that shows
+  it is turned on.
 
 The screenshots are vetsmod's own. What they show stays its owners': Old Detlas and Wynncraft's
 textures are Wynncraft's, Minecraft's textures Mojang's and Microsoft's, and the Vanilla Tweaks

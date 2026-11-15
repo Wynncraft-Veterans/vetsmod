@@ -48,8 +48,9 @@ When you add, rename or delete a test, or change what it asserts, update its ent
 - [`org.wynnvets.mwe.anni.state`](#orgwynnvetsmweannistate) — [`AnniSnapshotsTest`](#annisnapshotstest), [`AnniWindowsTest`](#anniwindowstest)
 - [`org.wynnvets.rendering.colors`](#orgwynnvetsrenderingcolors) — [`ColorMathTest`](#colormathtest), [`RecoloursTest`](#recolourstest), [`VanillaGuiColorsTest`](#vanillaguicolorstest)
 - [`org.wynnvets.rendering.image`](#orgwynnvetsrenderingimage) — [`PixelDrawingTest`](#pixeldrawingtest), [`PixelsTest`](#pixelstest), [`PngCodecTest`](#pngcodectest)
+- [`org.wynnvets.rendering.panorama`](#orgwynnvetsrenderingpanorama) — [`HostedCubeMapTextureTest`](#hostedcubemaptexturetest), [`HostedPanoramaTest`](#hostedpanoramatest), [`PanoramaDownloadsTest`](#panoramadownloadstest)
 - [`org.wynnvets.retro`](#orgwynnvetsretro) — [`LivePackTest`](#livepacktest), [`RetroCommandsTest`](#retrocommandstest), [`RetroModeManagerTest`](#retromodemanagertest), [`WynntilsConfigOverridesTest`](#wynntilsconfigoverridestest)
-- [`org.wynnvets.retro.manifest`](#orgwynnvetsretromanifest) — [`AssetSectionsTest`](#assetsectionstest), [`ManifestParserTest`](#manifestparsertest), [`ModelSectionsTest`](#modelsectionstest), [`PartSectionsTest`](#partsectionstest), [`RetroPartTest`](#retroparttest), [`ScreenSectionsTest`](#screensectionstest), [`ShippedAssetsTest`](#shippedassetstest), [`ShippedBundledArtTest`](#shippedbundledarttest), [`ShippedEquipmentTest`](#shippedequipmenttest), [`ShippedItemModelsTest`](#shippeditemmodelstest), [`ShippedManifestTest`](#shippedmanifesttest), [`ShippedOldClientsTest`](#shippedoldclientstest), [`ShippedPartsTest`](#shippedpartstest), [`ShippedPotionsTest`](#shippedpotionstest), [`ShippedScreensTest`](#shippedscreenstest), [`ShippedStacksTest`](#shippedstackstest), [`ShippedTexturesTest`](#shippedtexturestest), [`ShippedVanillaTweaksTest`](#shippedvanillatweakstest), [`StackSectionsTest`](#stacksectionstest), [`TextureSectionsTest`](#texturesectionstest)
+- [`org.wynnvets.retro.manifest`](#orgwynnvetsretromanifest) — [`AssetSectionsTest`](#assetsectionstest), [`ManifestParserTest`](#manifestparsertest), [`ModelSectionsTest`](#modelsectionstest), [`PartSectionsTest`](#partsectionstest), [`RetroPartTest`](#retroparttest), [`ScreenSectionsTest`](#screensectionstest), [`ShippedAssetsTest`](#shippedassetstest), [`ShippedBundledArtTest`](#shippedbundledarttest), [`ShippedEquipmentTest`](#shippedequipmenttest), [`ShippedItemModelsTest`](#shippeditemmodelstest), [`ShippedManifestTest`](#shippedmanifesttest), [`ShippedOldClientsTest`](#shippedoldclientstest), [`ShippedPanoramaTest`](#shippedpanoramatest), [`ShippedPartsTest`](#shippedpartstest), [`ShippedPotionsTest`](#shippedpotionstest), [`ShippedScreensTest`](#shippedscreenstest), [`ShippedStacksTest`](#shippedstackstest), [`ShippedTexturesTest`](#shippedtexturestest), [`ShippedVanillaTweaksTest`](#shippedvanillatweakstest), [`StackSectionsTest`](#stacksectionstest), [`TextureSectionsTest`](#texturesectionstest)
 - [`org.wynnvets.retro.pack`](#orgwynnvetsretropack) — [`OldClientFetchTest`](#oldclientfetchtest), [`OldClientsTest`](#oldclientstest), [`PackFilesTest`](#packfilestest), [`RetroPackInjectorTest`](#retropackinjectortest), [`RetroPackResourcesTest`](#retropackresourcestest), [`ZipDirectoryTest`](#zipdirectorytest)
 - [`org.wynnvets.retro.pack.generate`](#orgwynnvetsretropackgenerate) — [`BundledArtTest`](#bundledarttest), [`DrawnArtTest`](#drawnarttest), [`GenerationStepsTest`](#generationstepstest), [`ModelJsonTest`](#modeljsontest), [`PackOutputTest`](#packoutputtest), [`RetroPackGeneratorTest`](#retropackgeneratortest), [`RetroSourcesTest`](#retrosourcestest), [`TintFactorsTest`](#tintfactorstest)
 - [`org.wynnvets.retro.render`](#orgwynnvetsretrorender) — [`IdentityMemoTest`](#identitymemotest), [`RetroAccessoriesTest`](#retroaccessoriestest), [`RetroContainerTitlesTest`](#retrocontainertitlestest), [`RetroGuardTest`](#retroguardtest), [`RetroHeartFlashTest`](#retroheartflashtest), [`RetroHudGlyphsTest`](#retrohudglyphstest), [`RetroHudReadingsTest`](#retrohudreadingstest), [`RetroHudTest`](#retrohudtest), [`RetroInventoryEffectsTest`](#retroinventoryeffectstest), [`RetroSlotIconsTest`](#retrosloticonstest), [`RetroSlotValuesTest`](#retroslotvaluestest), [`RetroSlotsTest`](#retroslotstest), [`RetroStackModelsTest`](#retrostackmodelstest)
@@ -1698,29 +1699,36 @@ Test: [`ExtrasCommandsTest.java`](../src/test/java/org/wynnvets/extras/ExtrasCom
 
 Test: [`ExtrasPanoramaTest.java`](../src/test/java/org/wynnvets/extras/panorama/ExtrasPanoramaTest.java) · Subject: [`ExtrasPanorama`](../src/client/java/org/wynnvets/extras/panorama/ExtrasPanorama.java)
 
-`ExtrasPanorama` swaps the panorama behind the main menu for Vetlas while `/wv extras panorama` is on and retro is off. The suite pins the two parts that need no running client: the gate, `shows(on, retro, failed)`, and the shape of the six faces beside the cube map. Reading the setting, loading and releasing the texture, and drawing need a client and are not tested. The faces are checked with `CubeMapFaces.assertLoadable(base)`, a helper shared with `ShippedBundledArtTest`: for each of `<base>_0.png` to `<base>_5.png`, the file is on the test classpath, is square, is as wide as the first face, and has no alpha channel. Minecraft's `CubeMapTexture` needs squares of one size. Shipped faces that are not would make the egg fail on its first draw, with one warning and the stock panorama until restart; a failed first load registers nothing, so it cannot fail a later reload.
+`ExtrasPanorama` swaps the panorama behind the main menu for Vetlas while `/wv extras panorama` is on and retro is off. The suite pins the two parts that need no running client: the gate, `shows(on, retro, failed)`, and that Vetlas's faces are downloaded and not in the jar. Reading the setting, downloading, loading and releasing the texture, and drawing need a client and are not tested; the download's checks are `PanoramaDownloadsTest`'s and the pins `HostedPanoramaTest`'s. A downloaded face is checked against its pinned size and SHA-256, so no test reads the faces' shape.
 
 - **`vetlasShowsOnlyWhileTheEggIsOnRetroIsOffAndNothingHasFailed`**: `shows(on, retro, failed)` is true only for on, retro off, not failed.
   - `shows(true, false, false)` is true.
   - `shows(false, false, false)` is false: the egg is off.
   - `shows(true, true, false)` is false: retro is on, and the egg gives way.
   - `shows(true, false, true)` is false: Vetlas failed this session.
-- **`theFacesBesideTheCubeMapAreLoadable`**: The six faces `ExtrasPanorama.LOCATION` names are on the classpath and Minecraft can load them.
-  - `CubeMapFaces.assertLoadable("/assets/" + LOCATION.getNamespace() + "/" + LOCATION.getPath())`, that is `/assets/vetsmod/textures/gui/title/background/vetlas`, passes for all six faces.
+- **`vetlasIsDownloadedNotBundled`**: The jar carries the pins, not the faces: about 5 MB that few players want.
+  - For each face 0 to 5: the classpath has no resource at `/` plus `HostedPanorama.VETLAS.path(face)`, that is `/assets/vetsmod/textures/gui/title/background/vetlas_<n>.png`.
 
 ### `PanoramaCommandTest`
 
 Test: [`PanoramaCommandTest.java`](../src/test/java/org/wynnvets/extras/panorama/PanoramaCommandTest.java) · Subject: [`PanoramaCommand`](../src/client/java/org/wynnvets/extras/panorama/PanoramaCommand.java)
 
-`PanoramaCommand` builds `/wv extras panorama`, with `on` and `off`. The suite pins the text of the green reply, `text(on, retro, failed)`. The tree is `ExtrasCommandsTest`'s, and the command itself is not run: it reads the stored setting and answers through Wynntils' chat.
+`PanoramaCommand` builds `/wv extras panorama`, with `on` and `off`. The suite pins the text of the green reply, `text(on, retro, failed, download)`, where `download` is a `PanoramaDownloads.State`. The tree is `ExtrasCommandsTest`'s, and the command itself is not run: it reads the stored setting and answers through Wynntils' chat.
 
-- **`eachAnswerSaysWhetherItIsOnAndWhatKeepsItFromShowing`**: The reply says whether Vetlas is on and, when it is, whether a failure this session or retro keeps it from showing.
-  - `text(true, false, false)` equals "The Vetlas panorama is on: it shows behind the main menu."
-  - `text(true, true, false)` equals "The Vetlas panorama is on, and shows once retro is off."
-  - `text(true, false, true)` equals "The Vetlas panorama is on, but could not be drawn: it returns after a restart."
-  - `text(true, true, true)` equals the same: a failure outranks retro.
-  - `text(false, false, false)` equals "The Vetlas panorama is off."
-  - `text(false, true, true)` equals "The Vetlas panorama is off.": off says nothing of retro or a failure.
+- **`eachAnswerSaysWhetherItIsOnAndWhatKeepsItFromShowing`**: With its faces here, the reply says whether Vetlas is on and, when it is, whether a failure this session or retro keeps it from showing.
+  - `text(true, false, false, HERE)` equals "The Vetlas panorama is on: it shows behind the main menu."
+  - `text(true, true, false, HERE)` equals "The Vetlas panorama is on, and shows once retro is off."
+  - `text(true, false, true, HERE)` equals "The Vetlas panorama is on, but could not be drawn: it returns after a restart."
+  - `text(true, true, true, HERE)` equals the same: a failure outranks retro.
+  - `text(false, false, false, HERE)` equals "The Vetlas panorama is off."
+  - `text(false, true, true, FAILED)` equals "The Vetlas panorama is off.": off says nothing of retro, a failure or the download.
+- **`untilItsFacesAreHereTheAnswerSaysSo`**: The download's state changes the reply while Vetlas is on.
+  - `text(true, false, false, DOWNLOADING)` equals "The Vetlas panorama is on: it shows behind the main menu once it is downloaded."
+  - `text(true, false, false, MISSING)` equals the same: turning it on starts the download, so missing is about to be downloading.
+  - `text(true, true, false, DOWNLOADING)` equals "The Vetlas panorama is on, and shows once retro is off.": retro outranks a download still running.
+  - `text(true, false, false, FAILED)` equals "The Vetlas panorama is on, but could not be downloaded: the next start-up tries again."
+  - `text(true, true, false, FAILED)` equals the same: a failed download outranks retro.
+  - `text(true, false, true, FAILED)` equals "The Vetlas panorama is on, but could not be drawn: it returns after a restart.": a failure to draw outranks a failed download.
 
 ## `org.wynnvets.extras.sudoku`
 
@@ -3571,6 +3579,43 @@ Test: [`PngCodecTest.java`](../src/test/java/org/wynnvets/rendering/image/PngCod
   - `pngSize(new byte[30])` throws `IOException`: no PNG signature.
   - `pngSize` of two bytes throws `IOException`.
 
+## `org.wynnvets.rendering.panorama`
+
+### `HostedCubeMapTextureTest`
+
+Test: [`HostedCubeMapTextureTest.java`](../src/test/java/org/wynnvets/rendering/panorama/HostedCubeMapTextureTest.java) · Subject: [`HostedCubeMapTexture`](../src/client/java/org/wynnvets/rendering/panorama/HostedCubeMapTexture.java)
+
+`HostedCubeMapTexture` is Vetlas's cube map texture, built from six PNGs held in memory instead of files of the resource packs, so a resource reload never reads the disk. The suite pins the one part that needs no running client: which face each layer takes. Building the texture needs a client and is not tested.
+
+- **`eachLayerTakesTheFaceVanillasSuffixesGiveIt`**: `LAYERS` is the order in which vanilla's `CubeMapTexture` reads its faces.
+  - `HostedCubeMapTexture.LAYERS` equals the face numbers in vanilla's private `SUFFIXES` (read by reflection, the digit after the underscore of `_1.png`, `_3.png`, and so on), layer by layer.
+
+### `HostedPanoramaTest`
+
+Test: [`HostedPanoramaTest.java`](../src/test/java/org/wynnvets/rendering/panorama/HostedPanoramaTest.java) · Subject: [`HostedPanorama`](../src/client/java/org/wynnvets/rendering/panorama/HostedPanorama.java)
+
+`HostedPanorama` pins the two panoramas vetsmod hosts on i.wynnvets.org, Old Detlas and Vetlas: each face's address, size and SHA-256, the path it is kept at, and the folder's name. The suite pins the pins' shape, since a wrong one only shows as a failed download in game. Whether the hosted files match the pins is not tested here (it needs the network); the download checks it at run time.
+
+- **`everyFaceIsPinnedAtTheTopLevelOfIWynnvetsOrg`**: For each of the two sets, six faces, each at `https://i.wynnvets.org/<name>.png`, with a real hash and size.
+  - `faces().size()` is 6.
+  - Each face's `uri` matches `https://i\.wynnvets\.org/[A-Za-z0-9]+\.png`: nginx sends only `/<name>.<ext>` to the bucket, so a face in a folder would 404.
+  - Each `sha256` is 64 lower-case hex digits, and each `size` is above 0.
+  - No two faces, across both sets, share an address or a SHA-256.
+- **`eachSetKeepsItsFacesWhereItsReaderLooks`**: `OLD_DETLAS.path(0)` is `assets/minecraft/textures/gui/title/background/panorama_0.png` (where retro's rules look, since retro opens the folder as a pack), and `VETLAS.path(5)` is `assets/vetsmod/textures/gui/title/background/vetlas_5.png`.
+- **`eachSetsFolderIsNamedByItsPins`**: `hash()` is 16 lower-case hex digits for each set, `OLD_DETLAS` and `VETLAS` differ in `hash()`, and they differ in `folderName()`. `hash()` also equals itself on a second call.
+
+### `PanoramaDownloadsTest`
+
+Test: [`PanoramaDownloadsTest.java`](../src/test/java/org/wynnvets/rendering/panorama/PanoramaDownloadsTest.java) · Subject: [`PanoramaDownloads`](../src/client/java/org/wynnvets/rendering/panorama/PanoramaDownloads.java)
+
+`PanoramaDownloads` downloads a hosted panorama when something first wants it, and keeps it whole or not at all. The suite pins its checks over six faces made here (`"face 0"` and so on), each pinned to its own bytes, so no test uses the network: a download keeps a face only when it is the pinned file, and reading a kept set checks every face again. Fetching over HTTP, the session's state (`state()`, the failure latch) and the threads need a running client and are not tested.
+
+- **`aDownloadKeepsEachFaceAtItsPath`**: `fetch(FACES, PATH, serve)`, with a fetcher that serves each face's bytes, gives a map of `faces/0.png` to `faces/5.png` in order, each holding its face's bytes.
+- **`aFaceThatIsNotThePinnedFileFailsTheWholeDownload`**: `fetch` throws `IOException` for a fetcher that returns an empty array (the wrong size), for one that flips a bit of the right size (the wrong hash), and for one that throws `IOException("offline")`.
+- **`aKeptSetIsReadBackOnlyWhileEveryFaceIsStillThePinnedOne`**: A set installed with `AtomicFolders.install` reads back through `readFolder` as the six faces' bytes. After face 3's file is overwritten with `changed`, `readFolder` throws `IOException`; after it is deleted, `readFolder` throws `IOException` again.
+- **`aShippedSetThatIsMissingOrChangedReadsAsNothingAndAChangedOneIsDeleted`**: Over a temporary root, `read(root, VETLAS)` is `null` while nothing is there. After a folder at `VETLAS`'s name is made holding the test's six faces (not the pinned files), the folder exists, `read` is `null`, and the folder no longer exists: a changed folder is deleted, so the next request downloads it again.
+- **`aSetsFolderIsNamedByItsSetAndItsPins`**: `folder(root, OLD_DETLAS)` equals `root/old_detlas/<OLD_DETLAS.hash()>`.
+
 ## `org.wynnvets.retro`
 
 ### `LivePackTest`
@@ -4049,23 +4094,17 @@ The shipped asset rows against the client jar: the source copies and recipes, th
 
 ### `ShippedBundledArtTest`
 
-Test: [`ShippedBundledArtTest.java`](../src/test/java/org/wynnvets/retro/manifest/ShippedBundledArtTest.java) · Subject: the art under [`retro/vetsmod`](../src/client/resources/retro/vetsmod) and [`retro/vanilla_tweaks`](../src/client/resources/retro/vanilla_tweaks), against [`retro.yml`](../src/client/resources/retro.yml)
+Test: [`ShippedBundledArtTest.java`](../src/test/java/org/wynnvets/retro/manifest/ShippedBundledArtTest.java) · Subject: the art under [`retro/vanilla_tweaks`](../src/client/resources/retro/vanilla_tweaks), against [`retro.yml`](../src/client/resources/retro.yml)
 
-The jar bundles vetsmod's own art and Vanilla Tweaks', against the shipped rules: each texture is one this game has and one the retro pack draws from its bundle, so nothing ships unused, and vetsmod's own reads its bundle alone. The suite walks each bundle's textures on the classpath (`ShippedFiles.bundledTextureIds`, over `ShippedFiles.BUNDLES`, which maps `VETSMOD` to `/retro/vetsmod` and `VANILLA_TWEAKS` to `/retro/vanilla_tweaks`). vetsmod's own is the main menu's panorama, six faces Minecraft loads as one image, and `PANORAMA` lists their ids, `minecraft:gui/title/background/panorama_0` to `_5`. `WITHOUT_BUNDLES` is a `PackFacts` in which Wynncraft ships every texture, none is transparent, and every source but the bundled ones has it. The faces' shape is checked with `CubeMapFaces.assertLoadable`, which `ExtrasPanoramaTest` uses too (see there).
+The jar bundles Vanilla Tweaks' art, against the shipped rules: each texture is one this game has and one the retro pack draws from its bundle, so nothing ships unused. vetsmod's own art, the main menu's panorama, is downloaded and not bundled, so it is `ShippedPanoramaTest`'s. The suite walks each bundle's textures on the classpath (`ShippedFiles.bundledTextureIds`, over `ShippedFiles.BUNDLES`, which maps `VANILLA_TWEAKS` to `/retro/vanilla_tweaks` and holds nothing else). `ShippedFiles.downloaded(source)` is true for the old clients and for `VETSMOD`.
 
-- **`theBundlesAreEverySourceNeitherAnOldClientNorThePlayersOwn`**: The bundled sources are the `RetroSource` values that are not an old client's, not `PROGRAMMER_ART` and not `VANILLA`.
-  - `BUNDLES.keySet()` equals the set of `RetroSource.values()` whose `oldClient()` is false and which are neither `PROGRAMMER_ART` nor `VANILLA`.
-- **`everyBundleHoldsOnlyTexturesThisGameHas`**: For `VETSMOD` and `VANILLA_TWEAKS`, the bundle is not empty and each id is in the 1.21.11 client jar.
+- **`theBundlesAreEverySourceNeitherDownloadedNorThePlayersOwn`**: The bundled sources are the `RetroSource` values that are not downloaded (an old client's or `VETSMOD`), not `PROGRAMMER_ART` and not `VANILLA`.
+  - `BUNDLES.keySet()` equals the set of `RetroSource.values()` for which `downloaded(source)` is false and which are neither `PROGRAMMER_ART` nor `VANILLA`.
+- **`everyBundleHoldsOnlyTexturesThisGameHas`**: For `VANILLA_TWEAKS`, the bundle is not empty and each id is in the 1.21.11 client jar.
   - For each `source` in `BUNDLES.keySet()`: `bundledTextureIds(source)` is not empty.
   - For each `id` of it: `textureInClientJar(id)` is true.
 - **`everyBundledTextureIsCopiedFromItsBundle`**: Each id of each bundle decides `Copy(id, <its source>)` over `CLIENT_JAR`: no rule keeps or tints it away, and no other source stands in front of it.
   - For each `source` in `BUNDLES.keySet()` and each `id` in `bundledTextureIds(source)`: `realTextureRules().decide(id, CLIENT_JAR)` equals `Copy(id, source)`.
-- **`vetsmodsOwnArtReadsItsBundleAloneSoNothingElseStandsIn`**: Each of vetsmod's textures has its bundle as its only source, so without the bundle Wynncraft's stays.
-  - For each `id` in `bundledTextureIds(VETSMOD)`: `sourceOrder(id)` equals `[VETSMOD]`.
-  - For each `id`: `decide(id, WITHOUT_BUNDLES)` equals `Keep(NO_RULE)`: without the bundle Wynncraft's texture stays, not vanilla's.
-- **`vetsmodsOwnArtHoldsTheMainMenusPanoramaAsMinecraftCanLoadIt`**: vetsmod's bundle holds the six panorama faces, and they are faces Minecraft can load.
-  - `bundledTextureIds(VETSMOD)` contains all of `PANORAMA`.
-  - `CubeMapFaces.assertLoadable("/retro/vetsmod/assets/minecraft/textures/gui/title/background/panorama")` passes: the six faces are on the classpath, square, of one size, with no alpha channel.
 
 ### `ShippedEquipmentTest`
 
@@ -4183,7 +4222,7 @@ The shipped item model rows and tables against the client jar and vetsmod's own 
 
 Test: [`ShippedManifestTest.java`](../src/test/java/org/wynnvets/retro/manifest/ShippedManifestTest.java) · Subject: [`retro.yml`](../src/client/resources/retro.yml)
 
-The shipped rule file as a file: it loads, holds exactly the known sections, and the client jar's assets are on the test classpath. `ShippedFiles` holds what the `Shipped*Test` suites share: the files are read as production reads them (`src/client/resources` is on the test runtime classpath), and so is the client jar (Loom's `minecraft-clientOnly`, which carries the vanilla assets), so the suites check that every vanilla texture, model and equipment asset the files name exists in 1.21.11. vetsmod's own assets are on the classpath too. The Wynncraft pack is not, so the suites pin ids taken from Wynncraft pack `a43ae4e6` and check that the rows cover them and send them where each row says. A new shipped family or section goes in a `Shipped<Family>Test`, and a parser test in `<Family>SectionsTest`.
+The shipped rule file as a file: it loads, holds exactly the known sections, and the client jar's assets are on the test classpath. `ShippedFiles` holds what the `Shipped*Test` suites share: the files are read as production reads them (`src/client/resources` is on the test runtime classpath), and so is the client jar (Loom's `minecraft-clientOnly`, which carries the vanilla assets), so the suites check that every vanilla texture, model and equipment asset the files name exists in 1.21.11. vetsmod's own assets are on the classpath too. `BUNDLES` maps the one bundled source, `VANILLA_TWEAKS`, to its folder, and `downloaded(source)` is true for an old client and for `VETSMOD`: `CLIENT_JAR` gives those no textures (a game that has not downloaded them, or is offline), and `EVERYTHING_BLANK` gives every source but the downloaded ones every texture. The Wynncraft pack is not, so the suites pin ids taken from Wynncraft pack `a43ae4e6` and check that the rows cover them and send them where each row says. A new shipped family or section goes in a `Shipped<Family>Test`, and a parser test in `<Family>SectionsTest`.
 
 - **`theRealFilesLoadWithoutError`**: `RetroManifest.load()` reads both shipped files with nothing catching, so a malformed edit, a repeated section included, fails the build rather than emptying the retro pack in game.
   - `manifest.sameName().size()` is above 0.
@@ -4223,6 +4262,19 @@ The shipped old-client rows against the files each old client has. The old jars 
   - `minecraft:entity/boat/oak` decides `Copy(id, VANILLA_TWEAKS)`: the boats stay oarless, as 1.7's boat has another layout and 1.9's has oars.
 - **`theBundleHasNoArtThe2013ArtIsAlreadyIn`**: Programmer Art or vanilla has the 1.7.10 art of these, or an old client takes it, so a Vanilla Tweaks copy would only stand in front of it.
   - For each of `block/cobblestone`, `mossy_cobblestone`, `coal_ore`, `diamond_ore`, `gravel`, `lapis_block`, `crafting_table_front`, `redstone_torch`, `oak_planks`, `ice`, `netherrack`, `lava_still`, `water_still`, `water_overlay` and `entity/signs/oak`, each prefixed `minecraft:`: `inVanillaTweaks(id)` is false.
+
+### `ShippedPanoramaTest`
+
+Test: [`ShippedPanoramaTest.java`](../src/test/java/org/wynnvets/retro/manifest/ShippedPanoramaTest.java) · Subject: the main menu's panorama rows of [`retro.yml`](../src/client/resources/retro.yml), against [`HostedPanorama`](../src/client/java/org/wynnvets/rendering/panorama/HostedPanorama.java)
+
+Retro's main menu shows Old Detlas, which is downloaded and not bundled, so the jar holds no faces to walk. The suite pins what the rules and the download must agree on: the rules read the panorama from `VETSMOD` alone, and the download keeps each face where the rules look. `PANORAMA` lists the six ids, `minecraft:gui/title/background/panorama_0` to `_5`. `facts(downloaded)` is a `PackFacts` in which Wynncraft ships every texture, none is transparent, and every source has it but `VETSMOD`, which has it only when `downloaded` is true.
+
+- **`theMainMenusPanoramaIsReadFromVetsmodsDownloadAlone`**: Each face has the downloaded art as its only source, so until it is downloaded Wynncraft's stays.
+  - For each id of `PANORAMA`: `sourceOrder(id)` of the real rules equals `[VETSMOD]`.
+  - `decide(id, facts(true))` equals `Copy(id, VETSMOD)`.
+  - `decide(id, facts(false))` equals `Keep(NO_RULE)`: until it is downloaded Wynncraft's stays, not vanilla's.
+- **`theDownloadKeepsEachFaceWhereTheRulesLookForIt`**: `RetroPackInjector` opens Old Detlas's folder as the `vetsmod` source's pack, so each face sits at its id's place in a pack.
+  - For each face 0 to 5: `HostedPanorama.OLD_DETLAS.path(face)` equals `assets/minecraft/textures/` plus the id of `PANORAMA` without `minecraft:`, plus `.png`.
 
 ### `ShippedPartsTest`
 
@@ -4378,7 +4430,7 @@ The shipped texture rows against the client jar: the sources, the aliases, the v
   - For each key of `PINNED_TINTS`: the real rules' `decide("minecraft:<texture>", CLIENT_JAR)` is a `TextureDecision.Tint`.
   - For that decision, and for the decision a like carries (`like()`), for its `from()` and its `match` or `relative_to` texture (a colour, `auto`, a like or no tint reads its source alone): `textureInClientJar` is true.
   - `Atlas.of` equals `Optional.of(Atlas.BLOCKS)`.
-- **`aTintBeatsTheSameNameCopy`**: Under `EVERYTHING_BLANK` every source but the old clients (nothing) and the bundled art (what vetsmod bundles) has every texture, so `same_name` would copy it; the tint comes first, and a block reads Programmer Art first.
+- **`aTintBeatsTheSameNameCopy`**: Under `EVERYTHING_BLANK` every source but the downloaded ones (the old clients and vetsmod's panorama: nothing) and the bundled art (what vetsmod bundles) has every texture, so `same_name` would copy it; the tint comes first, and a block reads Programmer Art first.
   - `decide("minecraft:block/note_block")` equals `Tint("minecraft:block/note_block", PROGRAMMER_ART, match(block/oak_log), 1, 1)`.
 - **`skyWoodIsThePlainOakLogOnEveryFace`**: Under `EVERYTHING_BLANK`, `decide` of `purpur_block`, `purpur_pillar` and `purpur_pillar_side` equals `Copy("minecraft:block/oak_log", PROGRAMMER_ART)`, and of `purpur_pillar_top` equals `Copy("minecraft:block/oak_log_top", PROGRAMMER_ART)`.
 - **`furnacesDispensersAndDroppersAreCalmedAndTheLitFurnaceStaysStill`**: The two plain faces (`furnace_side`, `furnace_top`) take the 2013 stone bricks' colour at contrast 0.45, and the dispenser's, dropper's and furnace's fronts exactly the change of the face beside them (`PINNED_TINTS`); like any block, a face, and the face a like names, reads Programmer Art first, ahead of `same_name`. Only Wynncraft's lit furnace is animated (16x32, frametime 28, in `a43ae4e6`); vanilla's, like Programmer Art's, is one still frame with no `.mcmeta`, so the tint writes a still texture and no `.mcmeta`, and Wynncraft's, in a pack below, is not read for it.
@@ -4708,7 +4760,7 @@ Test: [`ZipDirectoryTest.java`](../src/test/java/org/wynnvets/retro/pack/ZipDire
 
 Test: [`BundledArtTest.java`](../src/test/java/org/wynnvets/retro/pack/generate/BundledArtTest.java) · Subject: [`BundledArt`](../src/client/java/org/wynnvets/retro/pack/generate/BundledArt.java)
 
-`BundledArt` opens the art the jar bundles, one pack per bundled source. The suite reads a real texture of each bundle through `RetroSources`: the main menu's `panorama_0` for `VETSMOD`, the withered heart for `VANILLA_TWEAKS`.
+`BundledArt` opens the art the jar bundles, one pack per bundled source: Vanilla Tweaks' alone, since vetsmod's own panorama is downloaded. The suite reads a real texture of the bundle through `RetroSources`: the withered heart for `VANILLA_TWEAKS`.
 
 - **`eachBundleIsReadFromItsFolder`**: `SAMPLES` has a texture for every source of `BundledArt.FOLDERS`. Over each classpath folder, as in a development run, `has(<source>, sample)` is true, `has(VANILLA, sample)` false, `read` returns its bytes, and a file it lacks reads `null`.
 - **`eachBundleIsReadFromInsideAZip`**: The same over a temporary zip's file system per bundle, the sample at the bundle's folder, as in the mod's jar.

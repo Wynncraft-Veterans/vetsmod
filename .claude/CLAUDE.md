@@ -6,7 +6,7 @@ Fabric client mod for the Wynncraft "Returners" veterans guild community. Requir
 
 - **Mod ID:** `vetsmod` | **Version:** see `gradle.properties` (`mod_version`) | **MC:** 1.21.11 | **Java:** 21
 - **Wynntils dependency:** `v4.1.17-fabric` via Modrinth Maven (`modCompileOnly`). `fabric.mod.json` separately declares a runtime floor of `>=4.1.4` — a different number on purpose; don't sync them.
-- Most client code lives under `src/client/`. `src/main/` holds a tiny server stub plus `org.wynnvets.logging.VetsLogger` (shared by both sides), and the client assets, which sit there so they resolve from the main source set: the mod icon, the laurel sheet, the Vetlas panorama of `/wv extras panorama` (`textures/gui/title/background/vetlas_*`), and the retro pack's own models and textures under `models/{item,block}/retro` and `textures/{item,block}/retro`. Art that only retro's rules draw (vetsmod's main-menu panorama, the Vanilla Tweaks art) sits outside `assets/`, under `src/client/resources/retro/`, so Fabric never loads it as a pack.
+- Most client code lives under `src/client/`. `src/main/` holds a tiny server stub plus `org.wynnvets.logging.VetsLogger` (shared by both sides), and the client assets, which sit there so they resolve from the main source set: the mod icon, the laurel sheet, and the retro pack's own models and textures under `models/{item,block}/retro` and `textures/{item,block}/retro`. Art that only retro's rules draw (the Vanilla Tweaks art) sits outside `assets/`, under `src/client/resources/retro/`, so Fabric never loads it as a pack. The jar holds no panoramas: vetsmod's two main-menu panoramas (Old Detlas for retro, Vetlas for `/wv extras panorama`, 12 PNGs, about 10.3 MB) are hosted on i.wynnvets.org and downloaded only when wanted, into `vetsmod/panoramas/<set>/<hash>/` in the game folder, each face checked against a pinned size and SHA-256; the jar is about 1.8 MB.
 - JUnit 5 harness under `src/test/java/`. Run via `./gradlew test` (also runs with `./gradlew build`). This bullet is the single owner of how the harness works — no other doc restates it, and none of them carries a file count. The rules:
   - **Not gated on imports.** `build.gradle` deliberately puts the client compile classpath on the test source set, so tests build real `Component`/`Style`/`HoverEvent` objects. There is no rule against a subject importing `net.minecraft`.
   - **Cannot boot Minecraft**, and Wynntils is `modCompileOnly` so it is absent at test runtime. A class is testable exactly as far as its *exercised path* stays out of both.
@@ -79,7 +79,12 @@ VetsmodClient (entry point)
   │                           the send slot. Visible to staff, executable by chief+
   │                           (17 files, 5 sub-packages)
   ├── rendering/              Territory lines, nametag animator, gradient/colour helpers
-                              (colors/, with Recolours), plain-ARGB pixel images (image/)
+                              (colors/, with Recolours), plain-ARGB pixel images (image/),
+                              the two main-menu panoramas downloaded from i.wynnvets.org
+                              (panorama/: HostedPanorama pins them, PanoramaDownloads fetches
+                              and checks them, HostedCubeMapTexture draws Vetlas's)
+  ├── util/                   Small shared helpers; AtomicFolders writes a folder whole or not
+                              at all (the old clients' files and the downloaded panoramas)
   ├── laurels/                Vets laurels on Wynntils' nametag badge bar: the standings model,
   │                           LaurelBadges (the only class touching Wynntils' badge types),
   │                           LaurelCommands (/wv laurels) and the temporary StreakCrawl;
@@ -97,8 +102,9 @@ VetsmodClient (entry point)
   │                           few 1.7.10/1.8.9/1.9.4 textures it draws from Mojang once
   │                           (OldClients, OldClientFetch); retro/pack/generate/ builds its
   │                           files from those, the player's own game files and the art in
-  │                           the jar (BundledArt: vetsmod's own main-menu panorama and the
-  │                           Vanilla Tweaks art), one GenerationStep each; retro/render/
+  │                           the jar (BundledArt: the Vanilla Tweaks art) and the downloaded
+  │                           Old Detlas panorama (RetroPackInjector.downloaded), one
+  │                           GenerationStep each; retro/render/
   │                           draws over the screens while it is live
   │                           (container titles and backgrounds, glass slots, slot values, the
   │                           attack-speed effect, gear box and tome icons, single stacks and
@@ -106,7 +112,8 @@ VetsmodClient (entry point)
   ├── extras/                 Easter eggs, one sub-package each, under /wv extras
   │                           (ExtrasCommands, unlisted in /wv help). sudoku/ is the daily
   │                           puzzle in a Wynntils book; panorama/ draws the Vetlas panorama
-  │                           behind the main menu while retro is off; see vetsmod_extras.md
+  │                           (downloaded when the extra is turned on) behind the main menu
+  │                           while retro is off; see vetsmod_extras.md
   ├── WynntilsEventListener   WorldStateEvent, GuildEvent, ChatMessageEvent
   └── Mixins (22)             Chat (3), Legacy items (3), Command (1 — UnlockCommandMixin),
                                Extras (1 — PanoramaRendererMixin),
