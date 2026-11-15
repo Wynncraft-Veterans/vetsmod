@@ -83,13 +83,27 @@ public final class LivePack {
     }
 
     /**
+     * Whether the pack drawn right now left an Avomod item model as Avomod's: its generation had
+     * the part that owns the model on, but wrote no stub for it, so Avomod's own art stands where
+     * retro would draw the 2013 look. The parts are the generation's, not the ones on now, which
+     * differ until the reload a change of parts starts has finished.
+     *
+     * @param modelId the model, such as {@code avomod2:item/scroll_sd}
+     * @return whether it did; never while the pack is not live
+     */
+    public static boolean isUnstubbedAvomodModel(String modelId) {
+        RetroReport report = RetroModeManager.liveReport();
+        return report != null && report.seen().unstubbedAvomod().contains(modelId);
+    }
+
+    /**
      * The rectangles {@code image_edits} painted on one texture of the pack drawn right now: what
      * the code drawing over the screens may take as painted over. A fill its palette guard
      * refused is not among them, so the slots under it still answer.
      *
      * @param textureId the texture, such as {@code minecraft:gui/container/inventory}
-     * @return its rectangles, in the rule files' order; none while the pack is not live, or when
-     *     its generation painted none on that texture
+     * @return its rectangles, in {@code retro.yml}'s order; none while the pack is not live, or
+     *     when its generation painted none on that texture
      */
     public static List<Rect> imageEdits(String textureId) {
         RetroReport report = RetroModeManager.liveReport();

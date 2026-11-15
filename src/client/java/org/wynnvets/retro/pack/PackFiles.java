@@ -17,6 +17,7 @@ import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.PathPackResources;
 import net.minecraft.server.packs.repository.PackSource;
 import net.minecraft.server.packs.resources.IoSupplier;
+import org.wynnvets.retro.manifest.RetroSource;
 
 /**
  * Where a resource pack keeps what retro reads and writes: the pack type, the file of each kind of
@@ -105,6 +106,16 @@ public final class PackFiles {
     }
 
     /**
+     * Where a file sits in a pack's folder or a client's jar.
+     *
+     * @param file the file, such as {@code minecraft:textures/block/stone.png}
+     * @return such as {@code assets/minecraft/textures/block/stone.png}
+     */
+    public static String path(Identifier file) {
+        return TYPE.getDirectory() + "/" + file.getNamespace() + "/" + file.getPath();
+    }
+
+    /**
      * Whether a file is a JSON file, as a folder's listing can hold others.
      *
      * @param file the file
@@ -127,6 +138,19 @@ public final class PackFiles {
                 new PackLocationInfo(
                         id, Component.literal(title), PackSource.BUILT_IN, Optional.empty()),
                 root);
+    }
+
+    /**
+     * A retro source's pack over a folder, as {@link #folder(Path, String, String)}, its id named
+     * after the source.
+     *
+     * @param root the folder
+     * @param source the source whose art it holds
+     * @param title the pack's title
+     * @return the pack, for the caller to close
+     */
+    public static PackResources folder(Path root, RetroSource source, String title) {
+        return folder(root, "vetsmod_retro_" + source.yamlName(), title);
     }
 
     /**

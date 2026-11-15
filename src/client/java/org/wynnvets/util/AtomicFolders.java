@@ -27,7 +27,10 @@ public final class AtomicFolders {
 
     private static final String TEMPORARY = ".tmp-";
 
-    /** How often a rename refused for a moment is tried: 50 ms, then doubling, up to 0.8 s. */
+    /**
+     * How often a rename refused for a moment is tried, waiting 50 ms before the first retry and
+     * twice as long before each next (0.75 s in all).
+     */
     private static final int RENAME_ATTEMPTS = 5;
 
     private AtomicFolders() {}

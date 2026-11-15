@@ -56,7 +56,7 @@ class GenerationStepsTest {
                 ManifestFixtures.parse(SOURCES + textures + "\n" + ingredients),
                 List.of(vanilla, wynncraft),
                 1,
-                RetroSources.open(null, null, vanilla),
+                RetroSources.open(null, Map.of(), vanilla),
                 new PackOutput());
     }
 
@@ -197,7 +197,9 @@ class GenerationStepsTest {
     @Test
     void aFullGenerationOverEmptyPacksThrowsNothingAndRecordsItsReport() throws IOException {
         Map<Identifier, byte[]> files =
-                new RetroPackGenerator(List.of(vanilla, wynncraft), 1, null, vanilla).generate();
+                new RetroPackGenerator(
+                                List.of(vanilla, wynncraft), 1, null, vanilla, manifest -> Map.of())
+                        .generate();
 
         assertEquals(Map.of(), files, "every row has nothing to read");
         RetroReport report = RetroModeManager.lastReport();
@@ -800,6 +802,7 @@ class GenerationStepsTest {
         assertEquals(1, count(out, Count.SOURCE_COPIES));
         assertEquals(2, count(out, Count.POTIONS));
         assertEquals(List.of(), out.skipped);
+        assertEquals(Set.of(), out.unstubbedAvomod, "Avomod's potion has its stub");
     }
 
     @Test
@@ -820,6 +823,23 @@ class GenerationStepsTest {
                                 + liquidFile
                                 + ", which is missing"),
                 out.skipped);
+        assertEquals(
+                Set.of("avomod2:item/potion_mana"),
+                out.unstubbedAvomod,
+                "Avomod's art stands for it, so its stack draws the plain item");
+    }
+
+    @Test
+    void anAvomodModelOfAPartOffIsNeitherStubbedNorLeftAsAvomods() {
+        potionModels();
+        vanilla.texture("minecraft:item/potion_overlay", PngCodec.png(filled(1, 1, 0xFFFFFFFF)));
+        GenerationContext gen = genWithOff(RetroPart.ITEMS, MANA_ROW);
+        new SourceCopyStep().run(gen);
+
+        new ModelStubStep().run(gen);
+
+        assertNull(file(gen.out, "avomod2:models/item/potion_mana.json"));
+        assertEquals(Set.of(), gen.out.unstubbedAvomod, "the part off leaves Avomod's art alone");
     }
 
     private static final String WALL_CANDLE_ROW =
@@ -984,12 +1004,12 @@ class GenerationStepsTest {
                                     textures: ['minecraft:font/hud/.*']
                                   items:
                                     about: 'e'
-                                    models: ['minecraft:item/wynn/.*']
+                                    models: ['minecraft:item/wynn/.*', 'avomod2:item/.*']
                                 """
                                 + textures),
                 List.of(vanilla, wynncraft),
                 1,
-                RetroSources.open(null, null, vanilla),
+                RetroSources.open(null, Map.of(), vanilla),
                 new PackOutput(),
                 RetroPart.allBut(Set.of(off)));
     }
@@ -1126,7 +1146,8 @@ class GenerationStepsTest {
 
     @Test
     void theSummaryNamesThePartsOffOnlyWhenThereAreAny() throws IOException {
-        new RetroPackGenerator(List.of(vanilla, wynncraft), 1, null, vanilla).generate();
+        new RetroPackGenerator(List.of(vanilla, wynncraft), 1, null, vanilla, manifest -> Map.of())
+                .generate();
         RetroReport report = RetroModeManager.lastReport();
         assertEquals(List.of(), report.partsOff());
         assertFalse(report.summary().contains("parts off"));

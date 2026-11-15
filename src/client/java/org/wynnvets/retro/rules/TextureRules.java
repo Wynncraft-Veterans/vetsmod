@@ -17,7 +17,7 @@ import org.wynnvets.retro.manifest.TintFactor;
  * source. Every answer comes from the {@link TextureSections} plus what the caller says the live
  * packs hold ({@link PackFacts}), so the class is pure: it reads no Minecraft or Wynntils state and
  * keeps nothing beyond the sections. Ids are written in full, {@code minecraft:block/stone}, as in
- * the rule files.
+ * {@code retro.yml}.
  *
  * <p>A texture is decided by the first of these that applies. Each rule applies whether or not
  * Wynncraft ships the texture, so 2013 art also replaces vanilla art Wynncraft leaves alone.</p>

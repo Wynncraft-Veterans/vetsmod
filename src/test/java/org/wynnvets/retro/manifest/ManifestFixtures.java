@@ -7,6 +7,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 import org.wynnvets.retro.manifest.ScreenSections.SlotFill;
 
 /**
@@ -29,6 +30,17 @@ public final class ManifestFixtures {
      */
     public static RetroManifest parse(String yaml) {
         return RetroManifest.parse(stream(yaml));
+    }
+
+    /**
+     * An {@code old_clients} row, as the parser makes one.
+     *
+     * @param textures the row's texture pattern
+     * @param file the old client's file, or {@code null} for a blank
+     * @return the row
+     */
+    public static TextureSections.OldClientRow oldClientRow(String textures, String file) {
+        return new TextureSections.OldClientRow(Pattern.compile(textures), file);
     }
 
     private static InputStream stream(String yaml) {

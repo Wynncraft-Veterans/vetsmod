@@ -3,6 +3,7 @@ package org.wynnvets.retro.pack;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.wynnvets.retro.manifest.ManifestFixtures.oldClientRow;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -30,10 +31,6 @@ class OldClientFetchTest {
         return PngCodec.png(new Pixels(width, height, argb));
     }
 
-    private static OldClientRow row(String textures, String file) {
-        return new OldClientRow(Pattern.compile(textures), file);
-    }
-
     private static final byte[] WOOL = opaque(16, 16);
     private static final byte[] WATER = opaque(16, 32);
     private static final byte[] FARMER = opaque(64, 64);
@@ -49,13 +46,13 @@ class OldClientFetchTest {
 
     private static final List<OldClientRow> ROWS =
             List.of(
-                    row("minecraft:block/(\\w+)_wool", "minecraft:blocks/wool_colored_$1"),
-                    row("minecraft:block/water_still", "minecraft:blocks/water_still"),
-                    row(
+                    oldClientRow("minecraft:block/(\\w+)_wool", "minecraft:blocks/wool_colored_$1"),
+                    oldClientRow("minecraft:block/water_still", "minecraft:blocks/water_still"),
+                    oldClientRow(
                             "minecraft:entity/villager/profession/(farmer|fisherman)",
                             "minecraft:entity/villager/farmer"),
-                    row("minecraft:entity/villager/type/\\w+", null),
-                    row("minecraft:block/gone", "minecraft:blocks/gone"));
+                    oldClientRow("minecraft:entity/villager/type/\\w+", null),
+                    oldClientRow("minecraft:block/gone", "minecraft:blocks/gone"));
 
     private static final List<OldClientClear> CLEARS =
             List.of(
@@ -148,12 +145,5 @@ class OldClientFetchTest {
                 () ->
                         OldClientFetch.fetch(
                                 wrong, ROWS, CLEARS, TODAY, textureId -> null, zip.ranges()));
-    }
-
-    @Test
-    void aTexturesPathInAJarOrAPackIsUnderItsNamespacesTextures() {
-        assertEquals(
-                "assets/minecraft/textures/blocks/stone.png",
-                OldClientFetch.assetPath("minecraft:blocks/stone"));
     }
 }

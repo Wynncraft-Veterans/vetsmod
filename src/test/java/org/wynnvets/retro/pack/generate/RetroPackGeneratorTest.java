@@ -17,7 +17,7 @@ import org.wynnvets.retro.manifest.RetroManifest;
 
 /**
  * Tests for {@link RetroPackGenerator}'s static files: the language files it answers from the
- * rule files alone. {@link GenerationStepsTest} covers the generation.
+ * rule file alone. {@link GenerationStepsTest} covers the generation.
  */
 class RetroPackGeneratorTest {
 

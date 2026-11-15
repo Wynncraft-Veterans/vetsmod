@@ -210,16 +210,9 @@ public class NametagMixin {
             return;
         }
 
-        // wynnmod's badgeNameCache uses state.nameTag itself as part of
-        // its key (Component#equals compares per-character Style). If we
-        // pre-glint at TAIL, the cache key changes every frame; misses
-        // produce a visible per-tick flash to (glint)(partycolour). Let
-        // the wrap own the supporter glint when wynnmod is loaded —
-        // wynnmod sees the stable vanilla Component, always badges, and
-        // our wrap re-glints inside the badge.
+        // wynnmod: the wrap owns the glint (see the method doc).
         if (!fromWrap && ModCompat.WYNNMOD_PRESENT) return;
-        // Without wynnmod the TAIL pass has already glinted the name, so the
-        // wrap leaves it: a second pass would re-base the glint.
+        // No wynnmod: TAIL already glinted the name.
         if (fromWrap && !ModCompat.WYNNMOD_PRESENT) return;
 
         if (!SupportersPoller.isSupporter(username)) return;

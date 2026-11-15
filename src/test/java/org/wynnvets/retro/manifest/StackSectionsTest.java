@@ -2,6 +2,7 @@ package org.wynnvets.retro.manifest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.wynnvets.retro.manifest.ManifestFixtures.parse;
 
 import java.util.List;
@@ -121,6 +122,23 @@ class StackSectionsTest {
                     () -> parse("gear_box_icons:\n  - " + group + "\n"),
                     group);
         }
+    }
+
+    @Test
+    void aTypeInTwoGroupsFailsTheParse() {
+        // Each group is its own mapping, so YAML's duplicate-key check cannot see the repeat.
+        IllegalArgumentException refused =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () ->
+                                parse(
+                                        """
+                                        gear_box_icons:
+                                          - {scale: 0.75, items: {'HELMET': 'minecraft:a'}}
+                                          - {scale: 0.5, items: {'HELMET': 'minecraft:b'}}
+                                        """));
+
+        assertTrue(refused.getMessage().contains("HELMET is in two groups"), refused.getMessage());
     }
 
     @Test

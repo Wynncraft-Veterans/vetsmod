@@ -19,8 +19,18 @@ public final class RetroAssetIds {
 
     private static final String PREFIX = NAMESPACE + ":";
 
-    /** Avomod's namespace: its potion models are stubbed where a {@code potions} row names them. */
+    /**
+     * Avomod's namespace: its potion models are stubbed where a {@code potions} row names them;
+     * for one that gets no stub, see
+     * {@link org.wynnvets.retro.LivePack#isUnstubbedAvomodModel LivePack.isUnstubbedAvomodModel}.
+     */
     public static final String AVOMOD_NAMESPACE = "avomod2";
+
+    /**
+     * Where Avomod's item models sit: its item definition {@code avomod2:<name>} draws the model
+     * {@code avomod2:item/<name>}, as vanilla's do.
+     */
+    public static final String AVOMOD_MODELS = AVOMOD_NAMESPACE + ":item/";
 
     /** The vanilla bottle drawn over the liquid, which {@link #TINTED_POTION} names itself. */
     public static final String POTION_BOTTLE = "minecraft:item/potion";

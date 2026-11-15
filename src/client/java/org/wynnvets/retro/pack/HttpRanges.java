@@ -2,13 +2,10 @@ package org.wynnvets.retro.pack;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import org.wynnvets.util.HttpClients;
 
 /**
@@ -32,11 +29,10 @@ interface HttpRanges {
     byte[] get(long offset, int length) throws IOException;
 
     /**
-     * The ranges of the file at {@code uri}, over the mod's shared HTTP client. Only a
-     * {@code 206 Partial Content} answer for exactly the range asked counts: the body of any
-     * other answer (a server that ignores the range sends the whole file) is not kept. The request's
-     * own timeout ends when the headers arrive, so the whole exchange waits at most
-     * {@link #TIMEOUT}, after which it is cancelled.
+     * The ranges of the file at {@code uri}, over the mod's shared HTTP client, each within
+     * {@link #TIMEOUT} ({@link HttpClients#bytesWithin}). Only a {@code 206 Partial Content}
+     * answer for exactly the range asked has its body read: a server that ignores the range answers
+     * with the whole file, which is not kept.
      *
      * @param uri the file
      * @return its ranges
@@ -50,44 +46,39 @@ interface HttpRanges {
                             .header("Range", "bytes=" + range)
                             .GET()
                             .build();
-            CompletableFuture<HttpResponse<byte[]>> exchange =
-                    HttpClients.standard()
-                            .sendAsync(
-                                    request,
-                                    answer ->
-                                            answer.statusCode() == 206
-                                                    ? HttpResponse.BodySubscribers.ofByteArray()
-                                                    : HttpResponse.BodySubscribers.replacing(null));
             HttpResponse<byte[]> response;
             try {
-                response = exchange.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
-            } catch (InterruptedException e) {
-                exchange.cancel(true);
-                Thread.currentThread().interrupt();
-                throw new IOException("interrupted reading " + uri, e);
-            } catch (TimeoutException e) {
-                exchange.cancel(true);
-                throw new IOException(uri + " took over " + TIMEOUT + " for bytes " + range, e);
-            } catch (ExecutionException e) {
-                throw new IOException(uri + " failed for bytes " + range, e.getCause());
+                response =
+                        HttpClients.bytesWithin(
+                                request,
+                                answer ->
+                                        answer.statusCode() == 206
+                                                && contentRange(answer.headers())
+                                                        .startsWith("bytes " + range + "/"),
+                                TIMEOUT);
+            } catch (IOException e) {
+                // One jar is read in many ranges of the same file: say which one failed.
+                throw new IOException("bytes " + range + " of " + uri, e);
             }
-            String answered = response.headers().firstValue("Content-Range").orElse("");
-            if (response.statusCode() != 206 || !answered.startsWith("bytes " + range + "/")) {
+            byte[] bytes = response.body();
+            if (bytes == null) {
                 throw new IOException(
                         uri
                                 + " answered "
                                 + response.statusCode()
                                 + " '"
-                                + answered
+                                + contentRange(response.headers())
                                 + "' to bytes "
                                 + range);
             }
-            byte[] bytes = response.body();
-            if (bytes == null || bytes.length != length) {
-                throw new IOException(
-                        uri + " sent " + (bytes == null ? 0 : bytes.length) + " of bytes " + range);
+            if (bytes.length != length) {
+                throw new IOException(uri + " sent " + bytes.length + " of bytes " + range);
             }
             return bytes;
         };
+    }
+
+    private static String contentRange(HttpHeaders headers) {
+        return headers.firstValue("Content-Range").orElse("");
     }
 }

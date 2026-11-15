@@ -1,15 +1,11 @@
 package org.wynnvets.retro.pack;
 
-import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.EnumMap;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import net.fabricmc.loader.api.FabricLoader;
@@ -18,18 +14,19 @@ import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.retro.manifest.RetroManifest;
 import org.wynnvets.retro.manifest.RetroSource;
 import org.wynnvets.retro.manifest.TextureSections;
-import org.wynnvets.util.AtomicFolders;
+import org.wynnvets.util.Digests;
 
 /**
  * The old Minecraft clients retro takes art from ({@link RetroSource#oldClient()}): each jar as
  * Mojang serves it, and the files {@link OldClientFetch} took from it, kept in the game folder.
  *
  * <p>A client's files live in {@code vetsmod/retro/<minecraft version>/<client version>/<hash>},
- * at today's texture ids, as a
- * pack's would. The hash covers the jar, this format and the client's rows, so a change to the
- * rows makes a new folder and leaves the old one stale. A folder is complete once it has its name:
- * it is written under a temporary name and renamed, and a generation opens only the folder of the
- * current hash. A client with no such folder has no textures, so the next source supplies them.
+ * at today's texture ids, as a pack's would. The hash covers the jar, this format, the client's
+ * rows and the {@code old_client_clears} rows, so a change to any of them makes a new folder and
+ * leaves the old one stale. A folder is complete once it has its name
+ * ({@link org.wynnvets.util.AtomicFolders AtomicFolders}), and a generation opens only the folder
+ * of the current hash. A client with no such folder has no textures, so the next source supplies
+ * them.</p>
  */
 public final class OldClients {
 
@@ -100,7 +97,7 @@ public final class OldClients {
     /**
      * The packs of the old clients whose files are here, for a generation to read.
      *
-     * @param manifest the rule files the generation reads
+     * @param manifest the rule file the generation reads, parsed
      * @return each client with a complete folder for its current rows; none when anything fails
      */
     public static Map<RetroSource, PackResources> open(RetroManifest manifest) {
@@ -127,11 +124,7 @@ public final class OldClients {
             Path folder = folder(root, client, hash(client, sections));
             if (Files.isDirectory(folder)) {
                 packs.put(
-                        client,
-                        PackFiles.folder(
-                                folder,
-                                "vetsmod_retro_" + client.yamlName(),
-                                "Minecraft " + client.yamlName()));
+                        client, PackFiles.folder(folder, client, "Minecraft " + client.yamlName()));
             }
         }
         return packs;
@@ -187,36 +180,6 @@ public final class OldClients {
             clear.rects().forEach(rect -> text.append('\t').append(rect.toYaml()));
             text.append('\n');
         }
-        return sha1(text.toString().getBytes(StandardCharsets.UTF_8));
-    }
-
-    /**
-     * The SHA-1 of some bytes.
-     *
-     * @param bytes the bytes
-     * @return 40 lower-case hex digits
-     */
-    static String sha1(byte[] bytes) {
-        try {
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-1").digest(bytes));
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("every Java has SHA-1", e);
-        }
-    }
-
-    /**
-     * Writes a client's files as its folder, whole or not at all ({@link AtomicFolders#install}),
-     * then deletes the client's other folders: those of older rows, and temporary ones a day old.
-     *
-     * @param root the folder every client's folders are in
-     * @param client the client
-     * @param hash its {@link #hash}
-     * @param files each file by its path in the folder, such as
-     *     {@code assets/minecraft/textures/block/white_wool.png}
-     * @throws IOException when the folder cannot be written
-     */
-    static void install(Path root, RetroSource client, String hash, Map<String, byte[]> files)
-            throws IOException {
-        AtomicFolders.install(folder(root, client, hash), files);
+        return Digests.sha1(text.toString().getBytes(StandardCharsets.UTF_8));
     }
 }

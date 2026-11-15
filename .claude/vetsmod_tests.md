@@ -26,14 +26,14 @@ When you add, rename or delete a test, or change what it asserts, update its ent
 - [`org.wynnvets.distribute.distributor`](#orgwynnvetsdistributedistributor) — [`GraidsDistributorTest`](#graidsdistributortest), [`MemberSlotPresserTest`](#memberslotpressertest), [`ObjectivesDistributorTest`](#objectivesdistributortest), [`RandomDistributorTest`](#randomdistributortest), [`SplitDistributorTest`](#splitdistributortest)
 - [`org.wynnvets.distribute.recipients`](#orgwynnvetsdistributerecipients) — [`NameResolverTest`](#nameresolvertest), [`NoAspectsFilterTest`](#noaspectsfiltertest)
 - [`org.wynnvets.extras`](#orgwynnvetsextras) — [`ExtrasCommandsTest`](#extrascommandstest)
-- [`org.wynnvets.extras.panorama`](#orgwynnvetsextraspanorama) — [`ExtrasPanoramaTest`](#extraspanoramatest), [`PanoramaCommandTest`](#panoramacommandtest)
+- [`org.wynnvets.extras.panorama`](#orgwynnvetsextraspanorama) — [`PanoramaCommandTest`](#panoramacommandtest)
 - [`org.wynnvets.extras.sudoku`](#orgwynnvetsextrassudoku) — [`SudokuBoardTest`](#sudokuboardtest), [`SudokuClientTest`](#sudokuclienttest)
 - [`org.wynnvets.fetcher.lookup`](#orgwynnvetsfetcherlookup) — [`MojangCooldownTest`](#mojangcooldowntest), [`PlayerLookupTest`](#playerlookuptest)
 - [`org.wynnvets.fetcher.lookup.providers`](#orgwynnvetsfetcherlookupproviders) — [`PlayerDbProviderTest`](#playerdbprovidertest), [`VetsSnapshotProviderTest`](#vetssnapshotprovidertest)
 - [`org.wynnvets.fetcher.ondemand`](#orgwynnvetsfetcherondemand) — [`CheckReportRendererTest`](#checkreportrenderertest), [`LeaderboardFetcherTest`](#leaderboardfetchertest), [`OnlineMemberServiceTest`](#onlinememberservicetest), [`ReturnersRosterProbeTest`](#returnersrosterprobetest), [`TimeLabelsTest`](#timelabelstest)
 - [`org.wynnvets.fetcher.polling`](#orgwynnvetsfetcherpolling) — [`LaurelPollerTest`](#laurelpollertest), [`PolledJsonMapTest`](#polledjsonmaptest), [`PolledJsonTest`](#polledjsontest), [`PollingServiceTest`](#pollingservicetest), [`StaffRanksPollerTest`](#staffrankspollertest)
 - [`org.wynnvets.guild`](#orgwynnvetsguild) — [`GuildCheckResultTest`](#guildcheckresulttest), [`GuildCheckerOwnerTest`](#guildcheckerownertest), [`RegistrationTierTest`](#registrationtiertest), [`ReturnersReauthTest`](#returnersreauthtest), [`StaffRankCheckerTest`](#staffrankcheckertest)
-- [`org.wynnvets.items`](#orgwynnvetsitems) — [`ItemDefinitionsTest`](#itemdefinitionstest), [`LegacyLoreTextTest`](#legacyloretexttest), [`ScreenshotLatchTest`](#screenshotlatchtest)
+- [`org.wynnvets.items`](#orgwynnvetsitems) — [`ItemDefinitionsTest`](#itemdefinitionstest), [`LegacyLoreTextTest`](#legacyloretexttest), [`LegacyTooltipRendererTest`](#legacytooltiprenderertest), [`ScreenshotLatchTest`](#screenshotlatchtest)
 - [`org.wynnvets.laurels`](#orgwynnvetslaurels) — [`LaurelCommandsTest`](#laurelcommandstest), [`LaurelMetricTest`](#laurelmetrictest), [`StreakCrawlTest`](#streakcrawltest)
 - [`org.wynnvets.listeners`](#orgwynnvetslisteners) — [`PartyRosterListenerTest`](#partyrosterlistenertest), [`RankChangeListenerTest`](#rankchangelistenertest), [`UrlWrapJoinerTest`](#urlwrapjoinertest)
 - [`org.wynnvets.logging`](#orgwynnvetslogging) — [`VetsLoggerTest`](#vetsloggertest)
@@ -51,11 +51,11 @@ When you add, rename or delete a test, or change what it asserts, update its ent
 - [`org.wynnvets.rendering.panorama`](#orgwynnvetsrenderingpanorama) — [`HostedCubeMapTextureTest`](#hostedcubemaptexturetest), [`HostedPanoramaTest`](#hostedpanoramatest), [`PanoramaDownloadsTest`](#panoramadownloadstest)
 - [`org.wynnvets.retro`](#orgwynnvetsretro) — [`LivePackTest`](#livepacktest), [`RetroCommandsTest`](#retrocommandstest), [`RetroModeManagerTest`](#retromodemanagertest), [`WynntilsConfigOverridesTest`](#wynntilsconfigoverridestest)
 - [`org.wynnvets.retro.manifest`](#orgwynnvetsretromanifest) — [`AssetSectionsTest`](#assetsectionstest), [`ManifestParserTest`](#manifestparsertest), [`ModelSectionsTest`](#modelsectionstest), [`PartSectionsTest`](#partsectionstest), [`RetroPartTest`](#retroparttest), [`ScreenSectionsTest`](#screensectionstest), [`ShippedAssetsTest`](#shippedassetstest), [`ShippedBundledArtTest`](#shippedbundledarttest), [`ShippedEquipmentTest`](#shippedequipmenttest), [`ShippedItemModelsTest`](#shippeditemmodelstest), [`ShippedManifestTest`](#shippedmanifesttest), [`ShippedOldClientsTest`](#shippedoldclientstest), [`ShippedPanoramaTest`](#shippedpanoramatest), [`ShippedPartsTest`](#shippedpartstest), [`ShippedPotionsTest`](#shippedpotionstest), [`ShippedScreensTest`](#shippedscreenstest), [`ShippedStacksTest`](#shippedstackstest), [`ShippedTexturesTest`](#shippedtexturestest), [`ShippedVanillaTweaksTest`](#shippedvanillatweakstest), [`StackSectionsTest`](#stacksectionstest), [`TextureSectionsTest`](#texturesectionstest)
-- [`org.wynnvets.retro.pack`](#orgwynnvetsretropack) — [`OldClientFetchTest`](#oldclientfetchtest), [`OldClientsTest`](#oldclientstest), [`PackFilesTest`](#packfilestest), [`RetroPackInjectorTest`](#retropackinjectortest), [`RetroPackResourcesTest`](#retropackresourcestest), [`ZipDirectoryTest`](#zipdirectorytest)
+- [`org.wynnvets.retro.pack`](#orgwynnvetsretropack) — [`HttpRangesTest`](#httprangestest), [`OldClientFetchTest`](#oldclientfetchtest), [`OldClientsTest`](#oldclientstest), [`PackFilesTest`](#packfilestest), [`RetroPackInjectorTest`](#retropackinjectortest), [`RetroPackResourcesTest`](#retropackresourcestest), [`ZipDirectoryTest`](#zipdirectorytest)
 - [`org.wynnvets.retro.pack.generate`](#orgwynnvetsretropackgenerate) — [`BundledArtTest`](#bundledarttest), [`DrawnArtTest`](#drawnarttest), [`GenerationStepsTest`](#generationstepstest), [`ModelJsonTest`](#modeljsontest), [`PackOutputTest`](#packoutputtest), [`RetroPackGeneratorTest`](#retropackgeneratortest), [`RetroSourcesTest`](#retrosourcestest), [`TintFactorsTest`](#tintfactorstest)
-- [`org.wynnvets.retro.render`](#orgwynnvetsretrorender) — [`IdentityMemoTest`](#identitymemotest), [`RetroAccessoriesTest`](#retroaccessoriestest), [`RetroContainerTitlesTest`](#retrocontainertitlestest), [`RetroGuardTest`](#retroguardtest), [`RetroHeartFlashTest`](#retroheartflashtest), [`RetroHudGlyphsTest`](#retrohudglyphstest), [`RetroHudReadingsTest`](#retrohudreadingstest), [`RetroHudTest`](#retrohudtest), [`RetroInventoryEffectsTest`](#retroinventoryeffectstest), [`RetroSlotIconsTest`](#retrosloticonstest), [`RetroSlotValuesTest`](#retroslotvaluestest), [`RetroSlotsTest`](#retroslotstest), [`RetroStackModelsTest`](#retrostackmodelstest)
+- [`org.wynnvets.retro.render`](#orgwynnvetsretrorender) — [`IdentityMemoTest`](#identitymemotest), [`RetroAccessoriesTest`](#retroaccessoriestest), [`RetroContainerTitlesTest`](#retrocontainertitlestest), [`RetroGuardTest`](#retroguardtest), [`RetroHeartFlashTest`](#retroheartflashtest), [`RetroHudGlyphsTest`](#retrohudglyphstest), [`RetroHudReadingsTest`](#retrohudreadingstest), [`RetroHudTest`](#retrohudtest), [`RetroInventoryEffectsTest`](#retroinventoryeffectstest), [`RetroSlotIconsTest`](#retrosloticonstest), [`RetroSlotValuesTest`](#retroslotvaluestest), [`RetroSlotsTest`](#retroslotstest), [`RetroStackModelsTest`](#retrostackmodelstest), [`RetroStacksTest`](#retrostackstest)
 - [`org.wynnvets.retro.rules`](#orgwynnvetsretrorules) — [`ModelRulesTest`](#modelrulestest), [`OldClientRulesTest`](#oldclientrulestest), [`PartFilterTest`](#partfiltertest), [`RetroAssetIdsTest`](#retroassetidstest), [`RuleUsageTest`](#ruleusagetest), [`TextureRulesTest`](#texturerulestest)
-- [`org.wynnvets.util`](#orgwynnvetsutil) — [`ConfigValueTextTest`](#configvaluetexttest), [`DurationsTest`](#durationstest), [`JsonTest`](#jsontest), [`TickDelaysTest`](#tickdelaystest), [`UuidsTest`](#uuidstest)
+- [`org.wynnvets.util`](#orgwynnvetsutil) — [`AtomicFoldersTest`](#atomicfolderstest), [`ConfigValueTextTest`](#configvaluetexttest), [`DurationsTest`](#durationstest), [`JsonTest`](#jsontest), [`TickDelaysTest`](#tickdelaystest), [`UuidsTest`](#uuidstest)
 
 ## `org.wynnvets`
 
@@ -1695,25 +1695,11 @@ Test: [`ExtrasCommandsTest.java`](../src/test/java/org/wynnvets/extras/ExtrasCom
 
 ## `org.wynnvets.extras.panorama`
 
-### `ExtrasPanoramaTest`
-
-Test: [`ExtrasPanoramaTest.java`](../src/test/java/org/wynnvets/extras/panorama/ExtrasPanoramaTest.java) · Subject: [`ExtrasPanorama`](../src/client/java/org/wynnvets/extras/panorama/ExtrasPanorama.java)
-
-`ExtrasPanorama` swaps the panorama behind the main menu for Vetlas while `/wv extras panorama` is on and retro is off. The suite pins the two parts that need no running client: the gate, `shows(on, retro, failed)`, and that Vetlas's faces are downloaded and not in the jar. Reading the setting, downloading, loading and releasing the texture, and drawing need a client and are not tested; the download's checks are `PanoramaDownloadsTest`'s and the pins `HostedPanoramaTest`'s. A downloaded face is checked against its pinned size and SHA-256, so no test reads the faces' shape.
-
-- **`vetlasShowsOnlyWhileTheEggIsOnRetroIsOffAndNothingHasFailed`**: `shows(on, retro, failed)` is true only for on, retro off, not failed.
-  - `shows(true, false, false)` is true.
-  - `shows(false, false, false)` is false: the egg is off.
-  - `shows(true, true, false)` is false: retro is on, and the egg gives way.
-  - `shows(true, false, true)` is false: Vetlas failed this session.
-- **`vetlasIsDownloadedNotBundled`**: The jar carries the pins, not the faces: about 5 MB that few players want.
-  - For each face 0 to 5: the classpath has no resource at `/` plus `HostedPanorama.VETLAS.path(face)`, that is `/assets/vetsmod/textures/gui/title/background/vetlas_<n>.png`.
-
 ### `PanoramaCommandTest`
 
 Test: [`PanoramaCommandTest.java`](../src/test/java/org/wynnvets/extras/panorama/PanoramaCommandTest.java) · Subject: [`PanoramaCommand`](../src/client/java/org/wynnvets/extras/panorama/PanoramaCommand.java)
 
-`PanoramaCommand` builds `/wv extras panorama`, with `on` and `off`. The suite pins the text of the green reply, `text(on, retro, failed, download)`, where `download` is a `PanoramaDownloads.State`. The tree is `ExtrasCommandsTest`'s, and the command itself is not run: it reads the stored setting and answers through Wynntils' chat.
+`PanoramaCommand` builds `/wv extras panorama`, with `on` and `off`. The suite pins the text and the colour of the reply, `PanoramaCommand.line(on, retro, failed, download)`, where `download` is a `PanoramaDownloads.State`. The tree is `ExtrasCommandsTest`'s, and the command itself is not run: it reads the stored setting and answers through Wynntils' chat. Two private helpers read the line: `text(on, retro, failed, download)` is `line(...).getString()`, and `colour(line)` is the colour of its style.
 
 - **`eachAnswerSaysWhetherItIsOnAndWhatKeepsItFromShowing`**: With its faces here, the reply says whether Vetlas is on and, when it is, whether a failure this session or retro keeps it from showing.
   - `text(true, false, false, HERE)` equals "The Vetlas panorama is on: it shows behind the main menu."
@@ -1726,9 +1712,13 @@ Test: [`PanoramaCommandTest.java`](../src/test/java/org/wynnvets/extras/panorama
   - `text(true, false, false, DOWNLOADING)` equals "The Vetlas panorama is on: it shows behind the main menu once it is downloaded."
   - `text(true, false, false, MISSING)` equals the same: turning it on starts the download, so missing is about to be downloading.
   - `text(true, true, false, DOWNLOADING)` equals "The Vetlas panorama is on, and shows once retro is off.": retro outranks a download still running.
-  - `text(true, false, false, FAILED)` equals "The Vetlas panorama is on, but could not be downloaded: the next start-up tries again."
+  - `text(true, false, false, FAILED)` equals "The Vetlas panorama is on, but could not be downloaded or read: the next start-up tries again."
   - `text(true, true, false, FAILED)` equals the same: a failed download outranks retro.
   - `text(true, false, true, FAILED)` equals "The Vetlas panorama is on, but could not be drawn: it returns after a restart.": a failure to draw outranks a failed download.
+- **`aFailureIsColouredAsRetroColoursItsOwn`**: The reply is red for a failure to draw, yellow for a failed download and green otherwise.
+  - `colour(PanoramaCommand.line(true, false, true, HERE))` equals `TextColor.fromLegacyFormat(ChatFormatting.RED)`: stopped for the session.
+  - `colour(PanoramaCommand.line(true, false, false, FAILED))` equals `TextColor.fromLegacyFormat(ChatFormatting.YELLOW)`: a failed download.
+  - `colour(PanoramaCommand.line(true, false, false, HERE))` equals `TextColor.fromLegacyFormat(ChatFormatting.GREEN)`.
 
 ## `org.wynnvets.extras.sudoku`
 
@@ -2805,6 +2795,19 @@ Test: [`LegacyLoreTextTest.java`](../src/test/java/org/wynnvets/items/LegacyLore
   - `LegacyLoreText.isBetaLevelLine("Lv. Min: 26 extra")` is false
   - `LegacyLoreText.isBetaLevelLine(null)` is false
 
+### `LegacyTooltipRendererTest`
+
+Test: [`LegacyTooltipRendererTest.java`](../src/test/java/org/wynnvets/items/LegacyTooltipRendererTest.java) · Subject: [`LegacyTooltipRenderer`](../src/client/java/org/wynnvets/items/LegacyTooltipRenderer.java)
+
+`LegacyTooltipRenderer` strips the percentage suffix Wynntils or wynnmod appends to an item's name before matching the name against `definitions.yml`. The suite pins the package-private `stripPercentSuffix` on each form the two mods write. Rewriting a tooltip needs the hovered stack and the config, and is not tested; the class's static fields are three compiled patterns, so loading it builds no Minecraft object.
+
+- **`eachSuffixWynntilsOrWynnmodWritesIsStripped`**: Wynntils writes ` [61.7%]`, and ` [~61.7%]` for an estimate (since 4.2.9); wynnmod writes `[16,6%]` and the like in the system locale.
+  - `stripPercentSuffix("Sword [61.7%]")` equals `"Sword"`.
+  - `stripPercentSuffix("Sword [16,6%]")` equals `"Sword"` (a comma for the decimal point).
+  - `stripPercentSuffix("Sword [~61.7%]")` equals `"Sword"` (Wynntils' estimate).
+  - `stripPercentSuffix("Sword [100%]")` equals `"Sword"` (no decimal part).
+  - `stripPercentSuffix("Sword[" + U+0661 U+0666 U+066B U+0666 + "%]")` equals `"Sword"`: Arabic-Indic digits around the Arabic decimal separator, as wynnmod writes them in an Arabic locale.
+
 ### `ScreenshotLatchTest`
 
 Test: [`ScreenshotLatchTest.java`](../src/test/java/org/wynnvets/items/ScreenshotLatchTest.java) · Subject: [`ScreenshotLatch`](../src/client/java/org/wynnvets/items/ScreenshotLatch.java)
@@ -3594,29 +3597,28 @@ Test: [`HostedCubeMapTextureTest.java`](../src/test/java/org/wynnvets/rendering/
 
 Test: [`HostedPanoramaTest.java`](../src/test/java/org/wynnvets/rendering/panorama/HostedPanoramaTest.java) · Subject: [`HostedPanorama`](../src/client/java/org/wynnvets/rendering/panorama/HostedPanorama.java)
 
-`HostedPanorama` pins the two panoramas vetsmod hosts on i.wynnvets.org, Old Detlas and Vetlas: each face's address, size and SHA-256, the path it is kept at, and the folder's name. The suite pins the pins' shape, since a wrong one only shows as a failed download in game. Whether the hosted files match the pins is not tested here (it needs the network); the download checks it at run time.
+`HostedPanorama` pins the two panoramas vetsmod hosts on i.wynnvets.org, Old Detlas and Vetlas: each face's address, size and SHA-256, the path it is kept at, and the folder's name. The suite pins the pins' shape and that every pin feeds the folder's name, since a wrong one only shows as a failed download in game. Whether the hosted files match the pins is not tested here (it needs the network); the download checks it at run time.
 
 - **`everyFaceIsPinnedAtTheTopLevelOfIWynnvetsOrg`**: For each of the two sets, six faces, each at `https://i.wynnvets.org/<name>.png`, with a real hash and size.
   - `faces().size()` is 6.
   - Each face's `uri` matches `https://i\.wynnvets\.org/[A-Za-z0-9]+\.png`: nginx sends only `/<name>.<ext>` to the bucket, so a face in a folder would 404.
   - Each `sha256` is 64 lower-case hex digits, and each `size` is above 0.
   - No two faces, across both sets, share an address or a SHA-256.
-- **`eachSetKeepsItsFacesWhereItsReaderLooks`**: `OLD_DETLAS.path(0)` is `assets/minecraft/textures/gui/title/background/panorama_0.png` (where retro's rules look, since retro opens the folder as a pack), and `VETLAS.path(5)` is `assets/vetsmod/textures/gui/title/background/vetlas_5.png`.
 - **`eachSetsFolderIsNamedByItsPins`**: `hash()` is 16 lower-case hex digits for each set, and for each face of each set, `hash(faces, path)` with that face's SHA-256 replaced by 64 zeros differs from `hash()`: every pin feeds the folder's name, so a new pin makes a new folder. `OLD_DETLAS` and `VETLAS` differ in `hash()` and in `folderName()`.
 
 ### `PanoramaDownloadsTest`
 
 Test: [`PanoramaDownloadsTest.java`](../src/test/java/org/wynnvets/rendering/panorama/PanoramaDownloadsTest.java) · Subject: [`PanoramaDownloads`](../src/client/java/org/wynnvets/rendering/panorama/PanoramaDownloads.java)
 
-`PanoramaDownloads` downloads a hosted panorama when something first wants it, and keeps it whole or not at all. The suite pins its checks over six faces made here (`"face 0"` and so on), each pinned to its own bytes, so no test reaches i.wynnvets.org: a download keeps a face only when it is the pinned file, and reading a kept set checks every face again, deleting a set that changed and latching one that cannot be read. `get` is tested against an HTTP server on this machine. Each test ends with `clearForTesting()`, which forgets the session's running and failed sets. The threads need a running client and are not tested.
+`PanoramaDownloads` downloads a hosted panorama when something first wants it, and keeps it whole or not at all. The suite pins its checks over six faces made here (`"face 0"` and so on), each pinned to its own bytes, so no test reaches i.wynnvets.org: a download keeps a face only when it is the pinned file, and reading a kept set checks every face again, deleting a set that changed or lacks a face and latching one that cannot be read. `get` is tested against a `LocalHttpServer` (an HTTP server on this machine). `writeVetlasFolder(root)` writes a folder at `VETLAS`'s place for its current pins holding the test's six faces, which are not `VETLAS`'s pinned files. Each test ends with `clearForTesting()`, which forgets the session's running and failed sets. The threads need a running client and are not tested.
 
 - **`aDownloadKeepsEachFaceAtItsPath`**: `fetch(FACES, PATH, serve)`, with a fetcher that serves each face's bytes, gives a map of `faces/0.png` to `faces/5.png` in order, each holding its face's bytes.
-- **`aFaceThatIsNotThePinnedFileFailsTheWholeDownload`**: `fetch` throws `IOException` for a fetcher that returns an empty array (the wrong size), for one that flips a bit of the right size (the wrong hash), and for one that throws `IOException("offline")`.
-- **`aKeptSetIsReadBackOnlyWhileEveryFaceIsStillThePinnedOne`**: A set installed with `AtomicFolders.install` reads back through `readFolder` as the six faces' bytes. After face 3's file is overwritten with `changed`, `readFolder` throws `IOException`; after it is deleted, `readFolder` throws `IOException` again.
-- **`aShippedSetThatIsMissingOrChangedReadsAsNothingAndAChangedOneIsDeleted`**: Over a temporary root, `read(root, VETLAS)` is `null` and `state(root, VETLAS)` is `MISSING` while nothing is there. After a folder at `VETLAS`'s name is made holding the test's six faces (not the pinned files), `state` is `HERE`, `read` is `null`, the folder no longer exists, and `state` is `MISSING` again, not `FAILED`: a changed folder is deleted, so the next request downloads it again at once.
-- **`aSetThatCannotBeReadIsKeptAndCountsAsFailedSoNothingReadsItAgainAndAgain`**: The same folder, with face 0's file replaced by a folder of that name, which cannot be read but is no sign of a bad download: `read` is `null`, the folder is kept, and `state` is `FAILED` until the next start-up.
-- **`aFaceIsReadOnlyFromAnOkThatDeclaresItsPinnedLength`**: Against a `com.sun.net.httpserver.HttpServer` on `127.0.0.1`, `get` of a face pinned to 6 bytes gives the 6 bytes a `200` declaring 6 sends, and throws `IOException` for a `200` declaring 13 (a longer body), a chunked `200` (no length declared), a `404` and a `302` to the good file (redirects are not followed).
-- **`aSetsFolderIsNamedByItsSetAndItsPins`**: `folder(root, OLD_DETLAS)` equals `root/old_detlas/<OLD_DETLAS.hash()>`.
+- **`aFaceThatIsNotThePinnedFileFailsTheWholeDownload`**: `fetch` throws `PanoramaDownloads.NotPinnedException`, which is what `read` deletes a set on and not what it marks failed, for a fetcher that returns an empty array (the wrong size) and for one that flips a bit of the right size (the wrong hash), and throws `IOException` for one that throws `IOException("offline")`.
+- **`aKeptSetIsReadBackOnlyWhileEveryFaceIsStillThePinnedOne`**: A set installed with `AtomicFolders.install` reads back through `readFolder` as the six faces' bytes. After face 3's file is overwritten with `changed`, `readFolder` throws `NotPinnedException`; after it is deleted, `readFolder` throws `NoSuchFileException`.
+- **`aSetThatIsMissingOrChangedReadsAsNothingAndAChangedOneIsDeleted`**: Over a temporary root, `read(root, VETLAS)` is `null` and `state(root, VETLAS)` is `MISSING` while nothing is there. After a folder at `VETLAS`'s name is made holding the test's six faces (not the pinned files), `state` is `HERE`, `read` is `null`, the folder no longer exists, and `state` is `MISSING` again, not `FAILED`: a changed folder is deleted, so the next request downloads it again at once.
+- **`aSetThatLacksAFaceIsDeletedSoItIsDownloadedAgain`**: With the folder written and face 0's file deleted (face 0 is read first, so its absence is what the read meets), `read(root, VETLAS)` is `null`, the folder no longer exists, and `state` is `MISSING`, not `FAILED`: an incomplete set is deleted, so the next request downloads it again at once.
+- **`aSetThatCannotBeReadIsKeptAndCountsAsFailedSoNothingReadsItAgainAndAgain`**: The same folder, with face 0's file replaced by a folder of that name, which cannot be read but is no sign of a bad download: `read` is `null`, the folder is kept, and `state` is `FAILED` until the next start-up. After face 0's folder is replaced by a file holding face 0's bytes, which can be read again, `read` is still `null` and the folder is still a directory: a failed set is not read again, so it is not found changed and deleted.
+- **`aFaceIsReadOnlyFromAnOkThatDeclaresItsPinnedLength`**: Against a `LocalHttpServer` (a `com.sun.net.httpserver.HttpServer` on `127.0.0.1`), `get` of a face pinned to 6 bytes gives the 6 bytes a `200` declaring 6 sends, and throws `IOException` for a `200` declaring 13 (a longer body), a chunked `200` (no length declared), a `404` and a `302` to the good file (redirects are not followed).
 
 ## `org.wynnvets.retro`
 
@@ -3624,7 +3626,7 @@ Test: [`PanoramaDownloadsTest.java`](../src/test/java/org/wynnvets/rendering/pan
 
 Test: [`LivePackTest.java`](../src/test/java/org/wynnvets/retro/LivePackTest.java) · Subject: [`LivePack`](../src/client/java/org/wynnvets/retro/LivePack.java)
 
-`LivePack` answers what the retro pack drawn right now holds: the pack's copy of Wynncraft's unique tooltip border, its other copies of Wynncraft's textures, the vanilla item definitions it copied, the items it generated and the `image_edits` it painted. Every answer is true or present only while the pack is drawn and only if its generation wrote it. The suite drives `RetroModeManager` with reports built in the test; `reset` clears its state after each test.
+`LivePack` answers what the retro pack drawn right now holds: the pack's copy of Wynncraft's unique tooltip border, its other copies of Wynncraft's textures, the vanilla item definitions it copied, the items it generated, the `image_edits` it painted and the Avomod item models it left as Avomod's. Every answer is true or present only while the pack is drawn and only if its generation wrote it. The suite drives `RetroModeManager` with reports built in the test; `reset` clears its state after each test.
 
 - **`theLegacyStyleIsDrawnOnlyWhileTheLivePackHasBothItsSprites`**: A report with both sprites, then the pack going live, then a report with the frame alone, then a new reload.
   - After `generated(generatedWith(LEGACY_TOOLTIP_SPRITES))`: `LivePack.isLegacyTooltipStyle()` is false, as the pack is not live yet.
@@ -3652,6 +3654,11 @@ Test: [`LivePackTest.java`](../src/test/java/org/wynnvets/retro/LivePackTest.jav
   - After a generation that wrote `vetsmod:retro/accessory/ring_gold`, `isGeneratedItem` of it is false while the pack is not live.
   - Once the pack is live it is true, and false for `vetsmod:retro/accessory/ring_iron`.
   - After a new reload starts it is false again.
+- **`anAvomodModelIsLeftAsAvomodsOnlyWhileThePackWhoseGenerationLeftItIsDrawn`**: A report whose generation left `avomod2:item/scroll_sd` (`scroll`) as Avomod's (`unstubbedWith({scroll})`), then the pack going live, then a new reload.
+  - After `generated(unstubbedWith({scroll}))`: `LivePack.isUnstubbedAvomodModel(scroll)` is false, as the pack is not live yet.
+  - After `packWentLive(reloadStarted())`: it is true.
+  - `isUnstubbedAvomodModel("avomod2:item/potion_sp_strength")` is false: one the generation stubbed, or whose part it had off.
+  - After another `reloadStarted()`: `isUnstubbedAvomodModel(scroll)` is false.
 - **`aCopiedItemAndAGeneratedItemAreDifferentQuestions`**: The report keeps the copied vanilla item definitions and the generated items apart.
   - With `minecraft:bow` copied and `vetsmod:retro/accessory/ring_gold` generated, and the pack live: `isGeneratedItem("minecraft:bow")` is false.
   - `itemDefinition("vetsmod:retro/accessory/ring_gold")` is empty.
@@ -3670,7 +3677,9 @@ Test: [`RetroCommandsTest.java`](../src/test/java/org/wynnvets/retro/RetroComman
 - **`turningRetroOnEndsWithItsCreditsOnHoverAndAClickToTheReadme`**: `toggleLine(true, RELOADING)` reads `Retro textures on. Reloading resources… (Hover for credits)`; its last sibling's hover names `wynntils.net`, `wynncraft.com`, `mojang.com`, `vanillatweaks.net` and the README's `Credits section`, and its click opens that section on GitHub.
 - **`aFirstOnSaysTheOldTexturesDownloadAndThenHowItWent`**: The fetch of the old clients' textures takes a few seconds before the reload, which would otherwise look stuck.
   - `toggleLine(true, FETCHING)` reads `Retro textures on. Downloading the old textures from Mojang first (this happens once); they show in a few seconds… (Hover for credits)`.
-  - `fetchedLine(true, true)` reads `Retro: the old textures are downloaded. Reloading resources…`; `fetchedLine(false, true)` says they could not be downloaded, that today's stand in until the next start-up tries again, and that resources reload; `fetchedLine(true, false)` adds no reload.
+  - `fetchedLine(wrote, complete, reloading)`: `fetchedLine(true, true, true)` reads `Retro: the old textures are downloaded. Reloading resources…`; `fetchedLine(false, false, true)` says they could not be downloaded, that today's stand in until the next start-up tries again, and that resources reload.
+  - `fetchedLine(true, false, false)` reads `Retro: some of the old textures could not be downloaded; today's stand in for them until the next start-up tries again.`: one client failed and another wrote, and no reload follows.
+  - `fetchedLine(true, true, false)` reads `Retro: the old textures are downloaded.`: no reload.
 - **`everyAnswerThatRetroIsOnHasTheCreditsAndOffHasNone`**: `UNCHANGED`, `FETCHING` and `NO_WYNNCRAFT_PACK` when on end with ` (Hover for credits)`; `RELOADING` and `UNCHANGED` when off do not mention credits.
 - **`partsListsAndTakesAPartOnOrOff`**: The `parts` child.
   - It has a command: a bare `parts` lists them.
@@ -3693,7 +3702,7 @@ Test: [`RetroCommandsTest.java`](../src/test/java/org/wynnvets/retro/RetroComman
 
 Test: [`RetroModeManagerTest.java`](../src/test/java/org/wynnvets/retro/RetroModeManagerTest.java) · Subject: [`RetroModeManager`](../src/client/java/org/wynnvets/retro/RetroModeManager.java)
 
-`RetroModeManager` holds the retro mode's state. The suite pins the live flag (which finished reload may say the retro pack is drawn), which report counts as the live one, `isLiveOnWynncraft`, the rule file it keeps for the session, the parts that are on, read outside the game as every part, and when a finished fetch of the old clients' files queues a reload (`reloadAfterFetch`). The setting goes through `VetsConfig` and the latch posts a chat line through Wynntils, so the suite leaves both alone; `RetroPackResourcesTest` reaches the latch through the pack, which swallows that line's failure.
+`RetroModeManager` holds the retro mode's state. The suite pins the live flag (which finished reload may say the retro pack is drawn), which report counts as the live one, `isLiveOnWynncraft`, the rule file it keeps for the session, the parts that are on, read outside the game as every part, what turning retro on says about the resources (`enableOutcome`), and when a finished fetch of the old clients' files queues a reload (`reloadAfterFetch`). The setting goes through `VetsConfig` and the latch posts a chat line through Wynntils, so the suite leaves both alone; `RetroPackResourcesTest` reaches the latch through the pack, which swallows that line's failure.
 
 - **`aReloadThatFinishesLateCannotMarkALaterOneLive`**: Two reloads start, and the first finishes after the second has started.
   - After `packWentLive(first)`: `isPackLive()` is false.
@@ -3720,6 +3729,12 @@ Test: [`RetroModeManagerTest.java`](../src/test/java/org/wynnvets/retro/RetroMod
   - A change with retro off and no retro pack is `UNCHANGED`.
   - A change with retro on and no Wynncraft pack is `NO_WYNNCRAFT_PACK`.
   - With retro off and no Wynncraft pack it is `UNCHANGED`: nothing waits for it.
+- **`turningRetroOnSaysTheTexturesAreDownloadingOnlyOverWynncraftsPack`**: `enableOutcome(enabled, latched, fetching, reload, wynncraftLoaded)`.
+  - `(true, false, true, true, true)` is `FETCHING`: the fetch's end reloads.
+  - `(true, false, true, false, false)` is `NO_WYNNCRAFT_PACK`: the fetched textures show only once Wynncraft's pack loads.
+  - `(true, true, false, true, true)` is `LATCHED`: a stopped session outranks the reload that drops its empty pack.
+  - `(false, true, false, true, true)` is `RELOADING`: off, what stopped it does not matter.
+  - `(false, false, false, false, false)` is `UNCHANGED`.
 - **`aFetchOfTheOldClientsReloadsOnlyWhatRetroOnOverWynncraftNeeds`**: `reloadAfterFetch(wrote, active, wynncraftLoaded, retroLoaded)`, which says whether the end of a fetch of the old clients' files queues a reload.
   - `(true, true, true, true)` is true: new files the loaded retro pack lacks.
   - `(false, true, true, false)` is true: retro is on with no retro pack yet, and `setEnabled` left its reload to the fetch.
@@ -3826,7 +3841,7 @@ The parser's reading of `AssetSections`: the image edits, copies, recipes, blank
   - With a `hue_of` recipe `a` and a `scale_from` recipe `b`, each used by a `source_copies` row, `copyHueOnly(manifest)` equals `{vetsmod:item/retro/a}`.
   - A recipe with both `hue_of` and `scale_from` throws `IllegalArgumentException`.
 - **`hueOfRefusesAColourWithoutOneStrongestChannel`**: A `hue_of` colour whose strongest channel is not one is refused by the parse.
-  - For `#808080`, `#808000`, `#008080`, `#800080` and `#000000`, `parseTextures` throws `IllegalArgumentException` whose message contains `recipes: 'a'` and `strongest`.
+  - For `#808080`, `#808000`, `#008080`, `#800080` and `#000000`, `parse` throws `IllegalArgumentException` whose message contains `recipes: 'a'` and `strongest`.
 - **`aSourceCopyPicksItsRecolourByItsRecipe`**: `SourceCopy.recolour()` is the recipe's recolour for the row's colour, and null for a plain copy.
   - `SourceCopy.of(art).recolour()` is `null` and its `source()` is the art.
   - A multiply recipe gives `Recolours.tint(colour)`, a scale recipe `Recolours.scale(from, colour)` and a hue recipe `Recolours.hueOnly(from, colour)`, each equal pixel for pixel on a probe.
@@ -3859,7 +3874,7 @@ The parser's reading of `AssetSections`: the image edits, copies, recipes, blank
 
 Test: [`ManifestParserTest.java`](../src/test/java/org/wynnvets/retro/manifest/ManifestParserTest.java) · Subject: [`RetroManifest`](../src/client/java/org/wynnvets/retro/manifest/RetroManifest.java), [`ManifestYaml`](../src/client/java/org/wynnvets/retro/manifest/ManifestYaml.java)
 
-`RetroManifest`'s parser on small fixtures fed through `ManifestFixtures.parse` and `parseTextures`. The suite pins what every section's mapping must satisfy (one document, no repeated keys, rows in file order, patterns that compile and are not empty, entries of the right shape), the empty manifest and its immutability, and the Wynntils settings. Each family's own rows are `TextureSectionsTest`'s, `ModelSectionsTest`'s, `AssetSectionsTest`'s, `StackSectionsTest`'s and `ScreenSectionsTest`'s.
+`RetroManifest`'s parser on small fixtures fed through `ManifestFixtures.parse`. The suite pins what every section's mapping must satisfy (one document, no repeated keys, rows in file order, patterns that compile and are not empty, entries of the right shape), the empty manifest and its immutability, and the Wynntils settings. Each family's own rows are `TextureSectionsTest`'s, `ModelSectionsTest`'s, `AssetSectionsTest`'s, `StackSectionsTest`'s and `ScreenSectionsTest`'s.
 
 - **`aRepeatedSectionFailsTheParse`**: A section named twice in one mapping makes `parse` throw `YAMLException` instead of letting the second list replace the first, and nothing from that document loads.
   - Parsing a fixture with `definitions: - "^FirstProbe$"` followed by a second `definitions: - "^SecondProbe$"` throws `YAMLException`
@@ -3884,7 +3899,7 @@ Test: [`ManifestParserTest.java`](../src/test/java/org/wynnvets/retro/manifest/M
   - The family `x: {colour: #00AA00` (unquoted, so empty) throws `IllegalArgumentException`.
   - The family `x: empty` throws `IllegalArgumentException`: every potion row is a mapping with a liquid's colour.
 - **`aRowKeyItsSectionDoesNotHaveFailsTheParse`**: A misspelt or foreign key in a row fails the parse, whichever section the row is in.
-  - Over seventeen rows (a `strenght` in a tint, a `note` in an item model, a `colour` in an image edit, a `huo_of` in a recipe, an `avomood` in a potion, a `from` in a content book state, a `regoin` in a Wynntils texture, `string` for `strings` in `lang`, extras in `stack_models`, `outlined_icons`, `accessory_tiers`, `slot_fills` and `slot_values`), `parseTextures` throws `IllegalArgumentException` whose message contains `unknown key`.
+  - Over seventeen rows (a `strenght` in a tint, a `note` in an item model, a `colour` in an image edit, a `huo_of` in a recipe, an `avomood` in a potion, a `from` in a content book state, a `regoin` in a Wynntils texture, `string` for `strings` in `lang`, extras in `stack_models`, `outlined_icons`, `accessory_tiers`, `slot_fills` and `slot_values`), `parse` throws `IllegalArgumentException` whose message contains `unknown key`.
 - **`wynntilsConfigReadsFeatureSettingAndValueInFileOrder`**: Two `ItemHighlight` settings and one `CustomPlayerListOverlay` setting.
   - `wynntilsConfig()` equals `[WynntilsSetting(ItemHighlight, highlightTexture, boxTransparent), WynntilsSetting(ItemHighlight, hotbarHighlightEnabled, false), WynntilsSetting(CustomPlayerListOverlay, userEnabled, false)]`.
   - For each of a feature name with a space, a setting name with a space, a feature with no settings (`{}`), an unquoted `false` and an empty value: parsing it throws `IllegalArgumentException`.
@@ -4098,10 +4113,8 @@ The shipped asset rows against the client jar: the source copies and recipes, th
 
 Test: [`ShippedBundledArtTest.java`](../src/test/java/org/wynnvets/retro/manifest/ShippedBundledArtTest.java) · Subject: the art under [`retro/vanilla_tweaks`](../src/client/resources/retro/vanilla_tweaks), against [`retro.yml`](../src/client/resources/retro.yml)
 
-The jar bundles Vanilla Tweaks' art, against the shipped rules: each texture is one this game has and one the retro pack draws from its bundle, so nothing ships unused. vetsmod's own art, the main menu's panorama, is downloaded and not bundled, so it is `ShippedPanoramaTest`'s. The suite walks each bundle's textures on the classpath (`ShippedFiles.bundledTextureIds`, over `ShippedFiles.BUNDLES`, which maps `VANILLA_TWEAKS` to `/retro/vanilla_tweaks` and holds nothing else). `ShippedFiles.downloaded(source)` is true for the old clients and for `VETSMOD`.
+The jar bundles Vanilla Tweaks' art, against the shipped rules: each texture is one this game has and one the retro pack draws from its bundle, so nothing ships unused. vetsmod's own art, the main menu's panorama, is downloaded and not bundled, so it is `ShippedPanoramaTest`'s. The suite walks each bundle's textures on the classpath (`ShippedFiles.bundledTextureIds`, over `ShippedFiles.BUNDLES`, which maps `VANILLA_TWEAKS` to `/retro/vanilla_tweaks` and holds nothing else).
 
-- **`theBundlesAreEverySourceNeitherDownloadedNorThePlayersOwn`**: The bundled sources are the `RetroSource` values that are not downloaded (an old client's or `VETSMOD`), not `PROGRAMMER_ART` and not `VANILLA`.
-  - `BUNDLES.keySet()` equals the set of `RetroSource.values()` for which `downloaded(source)` is false and which are neither `PROGRAMMER_ART` nor `VANILLA`.
 - **`everyBundleHoldsOnlyTexturesThisGameHas`**: For `VANILLA_TWEAKS`, the bundle is not empty and each id is in the 1.21.11 client jar.
   - For each `source` in `BUNDLES.keySet()`: `bundledTextureIds(source)` is not empty.
   - For each `id` of it: `textureInClientJar(id)` is true.
@@ -4224,7 +4237,7 @@ The shipped item model rows and tables against the client jar and vetsmod's own 
 
 Test: [`ShippedManifestTest.java`](../src/test/java/org/wynnvets/retro/manifest/ShippedManifestTest.java) · Subject: [`retro.yml`](../src/client/resources/retro.yml)
 
-The shipped rule file as a file: it loads, holds exactly the known sections, and the client jar's assets are on the test classpath. `ShippedFiles` holds what the `Shipped*Test` suites share: the files are read as production reads them (`src/client/resources` is on the test runtime classpath), and so is the client jar (Loom's `minecraft-clientOnly`, which carries the vanilla assets), so the suites check that every vanilla texture, model and equipment asset the files name exists in 1.21.11. vetsmod's own assets are on the classpath too. `BUNDLES` maps the one bundled source, `VANILLA_TWEAKS`, to its folder, and `downloaded(source)` is true for an old client and for `VETSMOD`: `CLIENT_JAR` gives those no textures (a game that has not downloaded them, or is offline), and `EVERYTHING_BLANK` gives every source but the downloaded ones every texture. The Wynncraft pack is not, so the suites pin ids taken from Wynncraft pack `a43ae4e6` and check that the rows cover them and send them where each row says. A new shipped family or section goes in a `Shipped<Family>Test`, and a parser test in `<Family>SectionsTest`.
+The shipped rule file as a file: it loads, holds exactly the known sections, and the client jar's assets are on the test classpath. `ShippedFiles` holds what the `Shipped*Test` suites share: the files are read as production reads them (`src/client/resources` is on the test runtime classpath), and so is the client jar (Loom's `minecraft-clientOnly`, which carries the vanilla assets), so the suites check that every vanilla texture, model and equipment asset the files name exists in 1.21.11. vetsmod's own assets are on the classpath too. `BUNDLES` maps the one bundled source, `VANILLA_TWEAKS`, to its folder, and `downloaded(source)` is true for an old client and for `VETSMOD`: `CLIENT_JAR` gives those no textures (a game that has not downloaded them, or is offline), and `EVERYTHING_BLANK` gives every source but the downloaded ones every texture. `wynncraftShipsAll(has)` builds the pack facts in which Wynncraft ships every texture asked about, none of them blank, and `has` says who else has what (`CLIENT_JAR` is one). `textureIds(root)` lists the textures of a pack folder as the generator does, through `PackFiles.folder` and `PackFiles.textureIds`, and `clientJarTextureIds` and `bundledTextureIds` are it over the client jar and a bundle. The Wynncraft pack is not, so the suites pin ids taken from Wynncraft pack `a43ae4e6` and check that the rows cover them and send them where each row says. A new shipped family or section goes in a `Shipped<Family>Test`, and a parser test in `<Family>SectionsTest`.
 
 - **`theRealFilesLoadWithoutError`**: `RetroManifest.load()` reads both shipped files with nothing catching, so a malformed edit, a repeated section included, fails the build rather than emptying the retro pack in game.
   - `manifest.sameName().size()` is above 0.
@@ -4241,7 +4254,7 @@ The shipped rule file as a file: it loads, holds exactly the known sections, and
 
 Test: [`ShippedOldClientsTest.java`](../src/test/java/org/wynnvets/retro/manifest/ShippedOldClientsTest.java) · Subject: the `old_clients` and `old_client_clears` rows of [`retro.yml`](../src/client/resources/retro.yml)read by [`TextureSections`](../src/client/java/org/wynnvets/retro/manifest/TextureSections.java)
 
-The shipped old-client rows against the files each old client has. The old jars are not on the classpath, but their texture names are: [`src/test/resources/retro/old_clients/`](../src/test/resources/retro/old_clients) holds one `<version>.txt` per client (`1.7.10.txt` and so on), listed from Mojang's jars, names only and no art. The suite works out what each client holds with `OldClientRules.targets` over the texture ids the client jar has today: a row's file counts when it is in the client's list, or is blank. It then tries the real `sources` rows under two sets of pack facts: `ONLINE`, where every old client holds what its rows take (and the other sources answer as `CLIENT_JAR` does), and `CLIENT_JAR`, where the old clients hold nothing, as in a game that has not fetched them or is offline.
+The shipped old-client rows against the files each old client has. The old jars are not on the classpath, but their texture names are: [`src/test/resources/retro/old_clients/`](../src/test/resources/retro/old_clients) holds one `<version>.txt` per client (`1.7.10.txt` and so on), listed from Mojang's jars, names only and no art. The suite works out once, for each client, the targets its rows take (`TAKEN`): `OldClientRules.targets` over the texture ids the client jar has today (`ShippedFiles.clientJarTextureIds`), kept when the row's file is in the client's list, or is blank. `HELD` is the texture ids of those targets, and the row test reads their row indices. It then tries the real `sources` rows under two sets of pack facts: `ONLINE`, where every old client holds what its rows take (and the other sources answer as `CLIENT_JAR` does), and `CLIENT_JAR`, where the old clients hold nothing, as in a game that has not fetched them or is offline. The class Javadoc has the recipe for listing a new client: its jar is the uri in `OldClients.JARS`, and each of its `assets/minecraft/textures` `.png` entries is a line, `minecraft:<path under textures, without .png>`.
 
 - **`everyRowTakesAFileItsClientHasForATextureThereIsToday`**: No row is a typo, a stale name or a file no client has.
   - For each client with rows, the rows that no texture takes (the first matching row, with a file the client has or a blank) are collected as `<version>: <pattern>`, and that list equals `List.of()`.
@@ -4262,14 +4275,11 @@ The shipped old-client rows against the files each old client has. The old jars 
   - `minecraft:entity/shield/base` decides `Copy(id, MINECRAFT_1_9_4)`.
   - `minecraft:item/oak_boat` decides `Copy(id, MINECRAFT_1_7_10)`: 1.7.10's boat icon.
   - `minecraft:entity/boat/oak` decides `Copy(id, VANILLA_TWEAKS)`: the boats stay oarless, as 1.7's boat has another layout and 1.9's has oars.
-- **`theBundleHasNoArtThe2013ArtIsAlreadyIn`**: Programmer Art or vanilla has the 1.7.10 art of these, or an old client takes it, so a Vanilla Tweaks copy would only stand in front of it.
-  - For each of `block/cobblestone`, `mossy_cobblestone`, `coal_ore`, `diamond_ore`, `gravel`, `lapis_block`, `crafting_table_front`, `redstone_torch`, `oak_planks`, `ice`, `netherrack`, `lava_still`, `water_still`, `water_overlay` and `entity/signs/oak`, each prefixed `minecraft:`: `inVanillaTweaks(id)` is false.
-
 ### `ShippedPanoramaTest`
 
 Test: [`ShippedPanoramaTest.java`](../src/test/java/org/wynnvets/retro/manifest/ShippedPanoramaTest.java) · Subject: the main menu's panorama rows of [`retro.yml`](../src/client/resources/retro.yml), against [`HostedPanorama`](../src/client/java/org/wynnvets/rendering/panorama/HostedPanorama.java)
 
-Retro's main menu shows Old Detlas, which is downloaded and not bundled, so the jar holds no faces to walk. The suite pins what the rules and the download must agree on: the rules read the panorama from `VETSMOD` alone, and the download keeps each face where the rules look. `PANORAMA` lists the six ids, `minecraft:gui/title/background/panorama_0` to `_5`. `facts(downloaded)` is a `PackFacts` in which Wynncraft ships every texture, none is transparent, and every source has it but `VETSMOD`, which has it only when `downloaded` is true.
+Retro's main menu shows Old Detlas, which is downloaded and not bundled, so the jar holds no faces to walk. The suite pins what the rules and the download must agree on: the rules read the panorama from `VETSMOD` alone, and the download keeps each face where the rules look. `PANORAMA` lists the six ids, `minecraft:gui/title/background/panorama_0` to `_5`. `facts(downloaded)` is a `ShippedFiles.wynncraftShipsAll` (Wynncraft ships every texture, none is transparent) in which every source has it but `VETSMOD`, which has it only when `downloaded` is true.
 
 - **`theMainMenusPanoramaIsReadFromVetsmodsDownloadAlone`**: Each face has the downloaded art as its only source, so until it is downloaded Wynncraft's stays.
   - For each id of `PANORAMA`: `sourceOrder(id)` of the real rules equals `[VETSMOD]`.
@@ -4340,12 +4350,9 @@ The shipped potion rows: that every potion model gets its family's liquid (`POTI
 
 Test: [`ShippedScreensTest.java`](../src/test/java/org/wynnvets/retro/manifest/ShippedScreensTest.java) · Subject: [`ScreenSections`](../src/client/java/org/wynnvets/retro/manifest/ScreenSections.java)
 
-The shipped screen rows: the titles, the slot fills (their slots, glass and targets) and their labels, the hidden effects and the Wynntils settings.
+The shipped screen rows: the titles, the slot fills' first and last rows and their labels, the hidden effects and the Wynntils settings. What the rows between pick on each screen, and in which glass, is `RetroSlotsTest`'s.
 
 - **`realTitle`**: Helper: the title the real `container_titles` rows give a Wynntils container class (the first row whose pattern matches the whole name), or empty.
-- **`fill`**: Helper: a `ContainerSlots` row with no patterns, no `unless`, `fallback` false and `open` false, built from the given rows, columns, slots, `outsideBounds`, `all`, `except` and glass; compared against the real rows after `withoutPatterns`.
-- **`range`**: Helper: the set of slots from one to another, both included.
-- **`target`**: Helper: what a container row covers, as its pattern reads: its `containers()` pattern, or `title: ` and its `titles()` pattern.
 - **`theBanksAndTheTradeMarketGetPlainTitles`**: The Wynntils classes in `models/containers/containers/` (`personal/`, `trademarket/`) get their seeded titles; the Members screen and a class that only starts like a row get none.
   - For each of `AccountBankContainer` (`Account Bank`), `CharacterBankContainer` (`Character Bank`), `TradeMarketContainer` (`Trade Market`), `TradeMarketBuyContainer` (`Trade Market: Buy`), `TradeMarketSellContainer` (`Trade Market: Sell`), `TradeMarketOrderContainer` (`Trade Market: Order`), `TradeMarketFiltersContainer` (`Trade Market: Filters`) and `TradeMarketTradesContainer` (`Trade Market: Trades`): `realTitle(class)` equals `Optional.of(title)`.
   - The rest of Wynntils' `PersonalStorageContainer` family gets its titles: `MiscBucketContainer` (`Misc. Bucket`), `BookshelfContainer` (`Bookshelf`), `PersonalBlockBankContainer` (`Block Bank`), `IslandBlockBankContainer` (`Island Block Bank`).
@@ -4356,10 +4363,11 @@ The shipped screen rows: the titles, the slot fills (their slots, glass and targ
   - `realTitle("ContentBookContainer")` equals `Optional.of("Content Book")`.
   - For each of `AbilityTreeContainer`, `AbilityTreeResetContainer` and `AspectsContainer`: `realTitle(class)` equals `Optional.of(RetroManifest.KEEP)`.
   - `realTitle("CharacterCreationContainer")` is empty: no row.
-- **`theSlotFillsAreThePlayersFixedSlotsEachScreensButtonsAndEveryOtherScreensSlots`**: The player row first, then the seventy-two others, which are generated from `retro.yml`.
+- **`theSlotFillsStartWithThePlayersSlotsAndEndWithEveryOtherScreensSlots`**: The player row first and the catch-all last; what the rows between pick, `RetroSlotsTest` pins.
   - `slotFills().get(0)` equals `PlayerSlots()`.
-  - The other rows, with `withoutPatterns` applied, equal in order the rows of `retro.yml`'s `slot_fills`, each with its slots (`rows`, `cols`, `slots`, `outsideBounds` or `all`), its `except`, its `glass` and its `open`, written with `fill` (gray, white, lime or pink, never `open`) except for the six that are `clear` and `open`, which are written out whole: the item slots 11, 13 and 15 of the Powder Master's three views, slot 52 of the scavenger's tinker, slot 11 of the item upgrader's Ascension and Pouches views and slot 15 of its Powder Upgrade view. The last row is written out whole too: `all`, white, with `fallback` true, the row every other screen takes.
-  - `target` of those rows equals, in order, the same seventy-two patterns: the banks and storage, the Trade Market's buy and sell views, order, filters, trades, market and reveal screens, the blacksmith's and identifier's screens, the guild bank, the guild's management screen, the Mount Feeder, Character Info, the content book, the mastery tomes, then the titles `Merchant`, `Item Pedestal`, the three `Powder Master` views, `Powder Master.*`, `Housing Islands`, `Available Islands`, `Housing Master`, `.+ Type Blocks`, `Scavenger: Merchant`, `Scavenger: Tinker`, `Item Upgrader` and its four views (`Ascension`, `Pouches`, `Powder Upgrade`, `Powder Remove`, some rows naming two or all of them), `Mount Settings`, `Party Finder: .*`, then the crafting station's class, the player trade's title `\S+ {4,}\S+` and the catch-all `title: .*`. Several screens name more than one row, so a class or a title repeats: the banks, the buy and sell views and Character Info, for instance.
+  - The last row's `titles()` pattern equals `.*`.
+  - Its `all()` is true.
+  - Its `fallback()` is true.
 - **`everyContainerWithSlotFillsHasItsLabelDrawnByRetro`**: Slot fills apply only on a screen whose label retro draws, so a container row on a class whose title is `keep` would never paint. The content book is a Wynntils full-screen view, where only rows naming its class apply.
   - For each of `TradeMarketContainer`, `TradeMarketOrderContainer`, `TradeMarketFiltersContainer`, `ContentBookContainer`, `MasteryTomesContainer`, `TradeMarketRevealItemsContainer`, the two `Blacksmith` and two `ItemIdentifier` screens, `GuildBankContainer`, `GuildManagementContainer`, `MountFeederContainer`, `CharacterInfoContainer`, `CraftingStationContainer`, `TradeMarketBuyContainer`, `TradeMarketSellContainer`, `TradeMarketTradesContainer`, `AccountBankContainer`, `CharacterBankContainer`, `MiscBucketContainer`, `BookshelfContainer`, `PersonalBlockBankContainer` and `IslandBlockBankContainer`: some `ContainerSlots` row's `containers()` pattern matches it.
   - `realTitle(class)` is not `keep`.
@@ -4469,9 +4477,11 @@ The shipped texture rows against the client jar: the sources, the aliases, the v
 
 Test: [`ShippedVanillaTweaksTest.java`](../src/test/java/org/wynnvets/retro/manifest/ShippedVanillaTweaksTest.java) · Subject: the art under [`retro/vanilla_tweaks`](../src/client/resources/retro/vanilla_tweaks), against [`retro.yml`](../src/client/resources/retro.yml)
 
-The jar bundles Vanilla Tweaks art, so it must be credited; that nothing of it ships unused is `ShippedBundledArtTest`'s.
+The jar bundles Vanilla Tweaks art, so it must be credited, and it must hold none of the art the 2013 packs already give; that nothing of it ships unused is `ShippedBundledArtTest`'s.
 
 - **`witheredHeartsAreTheVisibleOnesAndNoOtherGuiIsTouched`**: Each of `withered_half`, `withered_full` and their `_blinking` forms decides `Copy(id, VANILLA_TWEAKS)` over `EVERYTHING_BLANK`, with bytes other than vanilla's; `hud/heart/full` still decides `VANILLA`.
+- **`theBundleHasNoArtThe2013ArtIsAlreadyIn`**: Programmer Art or vanilla has the 1.7.10 art of these, or an old client takes it, so a Vanilla Tweaks copy would only stand in front of it.
+  - For each of `block/cobblestone`, `mossy_cobblestone`, `coal_ore`, `diamond_ore`, `gravel`, `lapis_block`, `crafting_table_front`, `redstone_torch`, `oak_planks`, `ice`, `netherrack`, `lava_still`, `water_still`, `water_overlay` and `entity/signs/oak`, each prefixed `minecraft:`: `inVanillaTweaks(id)` is false.
 - **`creditsCarryTheWordingTheTermsRequire`**: `credits.txt` and `README.md` each contain `Vanilla Tweaks: https://vanillatweaks.net/`.
 
 ### `StackSectionsTest`
@@ -4493,6 +4503,8 @@ The parser's reading of `StackSections`: the stack models, the gear box icons, t
 - **`gearBoxIconsReadATypeAndAnItemAtTheirGroupsScaleInFileOrder`**: A group of scale 0.75 with `'SPEAR': 'minecraft:iron_shovel'`, then one of 0.5 with `'MASTERY_TOME': 'minecraft:book'`.
   - The entries of `gearBoxIcons()` equal `[SPEAR=GearBoxIcon(minecraft:iron_shovel, 0.75), MASTERY_TOME=GearBoxIcon(minecraft:book, 0.5)]`, in file order.
   - For each of the items `'Spear'` and `'SPEAR TYPE'` (not a gear type's upper-case name), and `'SPEAR'` with `'iron_shovel'` (no namespace), `'minecraft:iron_.*'` (a pattern) or `''` (no item), and for a group with no scale, scale 0 or scale 1.5: parsing `gear_box_icons` with it throws `IllegalArgumentException` (8 assertions).
+- **`aTypeInTwoGroupsFailsTheParse`**: Two `gear_box_icons` groups, of scale 0.75 and 0.5, each naming `HELMET`; each group is its own mapping, so YAML's duplicate-key check cannot see the repeat.
+  - Parsing it throws `IllegalArgumentException` whose message contains `HELMET is in two groups`.
 - **`accessoryArtNeedsTheColourOfItsEmptySlotsOutline`**: A `accessory_tiers` section with art names the colour of its empty slots' outline.
   - `emptyOutline()` equals `0x555555` for `empty_outline: '#555555'`.
   - Without the key, the parse throws `IllegalArgumentException`.
@@ -4552,11 +4564,22 @@ The parser's reading of `TextureSections`: the sources, the tints and their like
 
 ## `org.wynnvets.retro.pack`
 
+### `HttpRangesTest`
+
+Test: [`HttpRangesTest.java`](../src/test/java/org/wynnvets/retro/pack/HttpRangesTest.java) · Subject: [`HttpRanges`](../src/client/java/org/wynnvets/retro/pack/HttpRanges.java)
+
+`HttpRanges.of(uri)` reads byte ranges of a remote file, which `ZipDirectory` reads an old client's jar through. The suite pins the checks on what a server answers, against a `LocalHttpServer` (an HTTP server on this machine) serving the ten bytes `0123456789`: only a `206` for exactly the range asked, of exactly its length, is read. `partial(exchange, range, from, to)` answers a `206` whose `Content-Range` says `bytes <range>/10` and whose body is the file's bytes `from` up to `to`. The download itself needs the network and is not tested.
+
+- **`onlyAPartialAnswerForExactlyTheRangeAskedIsRead`**: Four paths: `/ranged` records the request's `Range` header and answers a `206` for `2-5` with bytes 2 to 5; `/whole` answers a `200` with the whole file; `/other` answers a `206` for `3-6` with bytes 3 to 6; `/short` answers a `206` for `2-5` with only bytes 2 to 4.
+  - `HttpRanges.of(uri("/ranged")).get(2, 4)` equals bytes 2 to 5 of the file, `2345`.
+  - The recorded `Range` header equals `bytes=2-5`: the last byte asked is offset + length - 1.
+  - For each of `/whole`, `/other` and `/short`: `HttpRanges.of(uri(path)).get(2, 4)` throws `IOException`: a `200` is not a partial answer, a `206` for another range is not the range asked, and a `206` that sends fewer bytes than asked is not whole.
+
 ### `OldClientFetchTest`
 
 Test: [`OldClientFetchTest.java`](../src/test/java/org/wynnvets/retro/pack/OldClientFetchTest.java) · Subject: [`OldClientFetch`](../src/client/java/org/wynnvets/retro/pack/OldClientFetch.java)
 
-`OldClientFetch` works out the files one old client's folder holds: it reads the rows' files out of the client's jar and writes each at today's texture id, cleared or blank as the rows say. The suite runs `fetch` over a jar built in memory by `TestZip` (also used by `ZipDirectoryTest`), which builds zips and records every range read through `HttpRanges`. The jar holds `wool_colored_white`, `water_still` with a `.mcmeta`, and a 64x64 `farmer` villager, all opaque. The rows take wool by pattern, the water, the farmer for `farmer` and `fisherman`, a blank for the villager types, and a file the jar lacks; today's textures are a fixed set of eight ids. The thread that runs `fetch` in the background and the download of the jar need the network and are not tested.
+`OldClientFetch` works out the files one old client's folder holds: it reads the rows' files out of the client's jar and writes each at today's texture id, cleared or blank as the rows say. The suite runs `fetch` over a jar built in memory by `TestZip` (also used by `ZipDirectoryTest`), which builds zips and records every range read through `HttpRanges`. The jar holds `wool_colored_white`, `water_still` with a `.mcmeta`, and a 64x64 `farmer` villager, all opaque. The rows, built with `ManifestFixtures.oldClientRow`, take wool by pattern, the water, the farmer for `farmer` and `fisherman`, a blank for the villager types, and a file the jar lacks; today's textures are a fixed set of eight ids. The thread that runs `fetch` in the background and the download of the jar need the network and are not tested.
 
 - **`eachFileIsWrittenAtEveryTodaysIdItStandsFor`**: `fetch(...).files()`.
   - Its keys equal the `.png` paths for `block/white_wool`, `block/water_still`, `entity/villager/profession/farmer`, `entity/villager/profession/fisherman` and `entity/villager/type/plains`, and the `.png.mcmeta` of `block/water_still`: black wool has no file of its own and stone no row.
@@ -4571,34 +4594,25 @@ Test: [`OldClientFetchTest.java`](../src/test/java/org/wynnvets/retro/pack/OldCl
   - None of its pixels has an alpha other than 0: a blank is fully transparent.
 - **`aDirectoryThatIsNotThePinnedOneIsRefused`**: A `Jar` whose directory SHA-1 is `1111...` instead of the zip's.
   - `fetch` throws `IOException`.
-- **`aTexturesPathInAJarOrAPackIsUnderItsNamespacesTextures`**: `assetPath("minecraft:blocks/stone")` equals `assets/minecraft/textures/blocks/stone.png`.
 
 ### `OldClientsTest`
 
 Test: [`OldClientsTest.java`](../src/test/java/org/wynnvets/retro/pack/OldClientsTest.java) · Subject: [`OldClients`](../src/client/java/org/wynnvets/retro/pack/OldClients.java)
 
-`OldClients` pins each old client's jar on Mojang's server and keeps the files fetched from it in `vetsmod/retro/<minecraft version>/<client version>/<hash>` folders, one folder per client and set of rows. The suite pins the pins and works the folders under a `@TempDir` standing for the game folder, with a `PNG` of three bytes standing for a texture and `TextureSections` parsed from a one-row fixture. The download is not tested.
+`OldClients` pins each old client's jar on Mojang's server and keeps the files fetched from it in `vetsmod/retro/<minecraft version>/<client version>/<hash>` folders, one folder per client and set of rows. The suite pins which sources have a pinned jar and works the folders under a `@TempDir` standing for the game folder, with a `PNG` of three bytes standing for a texture, written at `assets/minecraft/textures/block/white_wool.png` and `TextureSections` parsed from a one-row fixture for `1.7.10` by `sections(file, clears)`, with optional `old_client_clears` rows. `install(root, sections)` writes that file into the `1.7.10` folder of those rows' `hash` with `AtomicFolders.install`; how a folder is written is `AtomicFoldersTest`'s. The download is not tested.
 
-- **`everyOldClientIsPinnedToItsJarOnMojangsServer`**: `JARS` holds a jar for each old client and no other source.
+- **`everyOldClientAndNoOtherSourceHasAPinnedJar`**: `JARS` holds a jar for each old client and no other source.
   - For each `RetroSource`, `OldClients.JARS.containsKey(source)` equals `source.oldClient()`.
-  - The 1.7.10 jar's `uri().getHost()` equals `piston-data.mojang.com`.
-  - Its `uri().getPath()` contains its `sha1()`.
 - **`aClientIsMissingUntilItsFolderIsInstalledThenItOpens`**: A `1.7.10` row, then `install` of its folder.
   - Before it, `missing(root, sections)` equals `[MINECRAFT_1_7_10]`.
   - Before it, `open(root, sections)` is empty.
-  - After `install` of `block/white_wool` under the rows' `hash`, `missing` equals `List.of()`.
+  - After `install`, `missing` equals `List.of()`.
   - `open(...)`'s pack for `MINECRAFT_1_7_10` lists `minecraft:block/white_wool` among its texture ids.
-- **`newRowsMakeANewFolderAndTheInstallDeletesTheStaleOnes`**: Two sets of rows with different files, and the folder of the first installed.
-  - The two sets' `hash` values differ.
-  - With a day-old temporary folder and a fresh one beside the new hash's, `missing` for the new rows equals `[MINECRAFT_1_7_10]`.
-  - After installing the new rows' folder, it is a directory.
-  - The older rows' folder does not exist.
-  - The temporary folder a day old does not exist.
-  - The fresh temporary folder does exist: another game may still be writing it.
-- **`aFolderThatAlreadyHasItsNameIsKept`**: `install` twice under one hash, the second time with other bytes.
-  - The file in the folder holds the first bytes.
-  - The client's folder has 1 entry: no temporary folder is left.
-- **`aFileOutsideTheFolderIsRefused`**: `install` of a file named `../outside.png` throws `IOException`.
+- **`newRowsOrClearsMakeANewFolderSoTheClientIsMissingAgain`**: Three sets of rows: `before` takes `minecraft:blocks/wool_colored_white`, `rows` takes `minecraft:blocks/cloth_0`, and `clears` takes `before`'s file with an `old_client_clears` row of `Rect(0, 0, 1, 1)` for `minecraft:block/white_wool`. The folder of `before` is installed.
+  - `OldClients.hash(MINECRAFT_1_7_10, before)` is not equal to `hash` of `rows`.
+  - `hash` of `before` is not equal to `hash` of `clears`.
+  - `missing(root, rows)` equals `[MINECRAFT_1_7_10]`.
+  - `missing(root, clears)` equals `[MINECRAFT_1_7_10]`.
 
 ### `PackFilesTest`
 
@@ -4762,10 +4776,16 @@ Test: [`ZipDirectoryTest.java`](../src/test/java/org/wynnvets/retro/pack/ZipDire
 
 Test: [`BundledArtTest.java`](../src/test/java/org/wynnvets/retro/pack/generate/BundledArtTest.java) · Subject: [`BundledArt`](../src/client/java/org/wynnvets/retro/pack/generate/BundledArt.java)
 
-`BundledArt` opens the art the jar bundles, one pack per bundled source: Vanilla Tweaks' alone, since vetsmod's own panorama is downloaded. The suite reads a real texture of the bundle through `RetroSources`: the withered heart for `VANILLA_TWEAKS`.
+`BundledArt` opens the art the jar bundles, as the pack of one source: Vanilla Tweaks', alone, since vetsmod's own panorama is downloaded. The suite reads a real texture of it through `RetroSources`: the withered heart `minecraft:gui/sprites/hud/heart/withered_full` (`SAMPLE`) for `VANILLA_TWEAKS`.
 
-- **`eachBundleIsReadFromItsFolder`**: `SAMPLES` has a texture for every source of `BundledArt.FOLDERS`. Over each classpath folder, as in a development run, `has(<source>, sample)` is true, `has(VANILLA, sample)` false, `read` returns its bytes, and a file it lacks reads `null`.
-- **`eachBundleIsReadFromInsideAZip`**: The same over a temporary zip's file system per bundle, the sample at the bundle's folder, as in the mod's jar.
+Asserting helpers:
+
+- **`assertReads`**: Given a folder `root` and the bytes `png` of the sample's file: opens `RetroSources` with `BundledArt.open(root)` as the `VANILLA_TWEAKS` pack and an empty vanilla `MemoryPack`. `has(VANILLA_TWEAKS, SAMPLE)` is true and `has(VANILLA, SAMPLE)` false; `read(VANILLA_TWEAKS, <SAMPLE's file>)` equals `png`; `read(VANILLA_TWEAKS, minecraft:textures/block/stone_nothing.png)` is `null`.
+
+Tests:
+
+- **`theArtIsReadFromItsFolder`**: `assertReads` over the classpath folder `BundledArt.ROOT`, as in a development run, with the bytes of the sample's file in it.
+- **`theArtIsReadFromInsideAZip`**: `assertReads` over a temporary zip's file system, with the sample's file at `BundledArt.ROOT`, as in the mod's jar.
 - **`outsideARunningGameThereIsNoArtToFindAndNothingThrows`**: `open()` is empty with no vetsmod mod container under JUnit.
 
 ### `DrawnArtTest`
@@ -4929,8 +4949,13 @@ Each generation step run alone, or in `RetroPackGenerator.STEPS`' order, over ru
   - With `SourceCopyStep` run before `ModelStubStep`, as `STEPS` runs them: the liquid's pixel equals `0xFF385DC6`.
   - Both stubs equal `{"parent":"vetsmod:item/retro/tinted_potion","textures":{"liquid":"vetsmod:item/retro/potion/mana"}}`.
   - `SOURCE_COPIES` is 1, `POTIONS` is 2 and nothing is skipped.
+  - `unstubbedAvomod` equals `Set.of()`: Avomod's potion has its stub.
 - **`aPotionWhoseLiquidIsMissingIsReportedPerStub`**: When no source has the liquid's art, that is reported once and each stub that needs it is skipped.
   - No file; `skipped` has the one `no source has minecraft:item/potion_overlay to copy to` line then a `needs ..., which is missing` line for each of the two stubs.
+  - `unstubbedAvomod` equals `{avomod2:item/potion_mana}`: Avomod's art stands for it, so its stack draws the plain item.
+- **`anAvomodModelOfAPartOffIsNeitherStubbedNorLeftAsAvomods`**: The mana potion fixture, its liquid's art present, with `items` (which owns `avomod2:item/.*` in `genWithOff`'s fixture) off; `SourceCopyStep` then `ModelStubStep`.
+  - `avomod2:models/item/potion_mana.json` has no file.
+  - `unstubbedAvomod` equals `Set.of()`: the part off leaves Avomod's art alone.
 - **`aBlockModelRowThatIsNoIdIsOneSkippedLineAndTheRestStillRun`**: `ManifestYaml.literalId` takes a key with a capital, which only `Identifier` refuses.
   - `skipped` is `not a model id: minecraft:block/Redstone_torch`, and the next row's `torch.json` is written.
 - **`aBlockModelStubOfOurOwnModelNeedsTheTexturesThatModelNames`**: A `block_models` stub of a vetsmod model is written only once the textures that model names resolve.
@@ -4948,7 +4973,7 @@ Each generation step run alone, or in `RetroPackGenerator.STEPS`' order, over ru
 - **`anItemDefinitionIsCopiedUnderOurOwnId`**: A `gear_box_icons` item's vanilla definition is copied byte for byte to `vetsmod:items/retro/<namespace>/<item>.json`.
   - The copy equals vanilla's `iron_helmet.json`, `copiedItems` is `{minecraft:iron_helmet}` and `ITEM_DEFINITIONS` is 1.
   - `skipped` is `vanilla has no item definition for minecraft:gone`.
-- **`genWithOff`**: Helper: a generation with one part off, over a `parts` fixture that gives `blocks`, `armour`, `screens`, `hud` and `items` their ids.
+- **`genWithOff`**: Helper: a generation with one part off, over a `parts` fixture that gives `blocks`, `armour`, `screens`, `hud` and `items` their ids (`items` owns Wynncraft's `minecraft:item/wynn/` models and Avomod's `avomod2:item/` ones).
 - **`aTextureOfAPartOffStaysWynncraftsCountedAndUnreported`**: `same_name` over a block texture and a GUI one, both shipped, with `blocks` off.
   - The block texture has no file.
   - The GUI one is copied.
@@ -5067,12 +5092,12 @@ Test: [`RetroSourcesTest.java`](../src/test/java/org/wynnvets/retro/pack/generat
 - **`closingClosesEveryPackButVanilla`**: `close()` closes the `programmer_art` pack and the bundled art, not Minecraft's vanilla pack.
   - After `close()`, the art and tweaks packs' `closed()` are true and the vanilla pack's is false.
 - **`theBundledArtAnswersAsASourceOfItsOwn`**: With a tweaks pack, `present()` equals `[VANILLA_TWEAKS, VANILLA]`, and `has` and `read` answer for its texture.
-- **`theOldClientsAnswerFirstAndAreClosedWithTheRest`**: `open(null, Map.of(VANILLA_TWEAKS, tweaks), Map.of(MINECRAFT_1_7_10, old), vanilla)`, where `old` holds `minecraft:block/white_wool`.
+- **`theOldClientsAnswerFirstAndAreClosedWithTheRest`**: `open(null, Map.of(VANILLA_TWEAKS, tweaks, MINECRAFT_1_7_10, old), vanilla)`, where `old` holds `minecraft:block/white_wool`.
   - `present()` equals `[MINECRAFT_1_7_10, VANILLA_TWEAKS, VANILLA]`: the old client comes first.
   - `has(MINECRAFT_1_7_10, "minecraft:block/white_wool")` is true and `has(MINECRAFT_1_8_9, ...)` of it false: a client with no folder has nothing.
   - After `close()`, `old.closed()` is true and `vanilla.closed()` false.
 - **`aMissingOrBrokenProgrammerArtPackLeavesVanillaAlone`**: A `programmer_art` pack that is absent or cannot be opened leaves vanilla as the only source.
-  - `open(null, null, vanilla).present()` and `open(new ListedPack(null), null, vanilla).present()` each equal `[VANILLA]`.
+  - `open(null, Map.of(), vanilla).present()` and `open(new ListedPack(null), Map.of(), vanilla).present()` each equal `[VANILLA]`.
   - Reading `PROGRAMMER_ART` from the absent source gives `null`.
 
 ### `TintFactorsTest`
@@ -5164,7 +5189,7 @@ Test: [`RetroAccessoriesTest.java`](../src/test/java/org/wynnvets/retro/render/R
 
 Test: [`RetroContainerTitlesTest.java`](../src/test/java/org/wynnvets/retro/render/RetroContainerTitlesTest.java) · Subject: [`RetroContainerTitles`](../src/client/java/org/wynnvets/retro/render/RetroContainerTitles.java)
 
-`RetroContainerTitles` decides the title retro draws on a container: the first matching `container_titles` row, else the readable title, else a `glyph_titles` row, else Wynncraft's label; blanks the player inventory's label on a container that keeps Wynncraft's and on a Wynntils full-screen view; and draws such a container on the live pack's copy of Wynncraft's own texture. The suite pins the package-private `readableTitle(Component)` and `title(rows, glyphRows, containerClass, original)` on real `Component` titles built like Wynncraft's, glyph runs in its `interface` and `space` fonts beside default-font text, `inventoryLabel(drawn, original)` and `background(drawn, texture, liveCopy)`. Drawing the labels and backgrounds needs Wynntils' events and the mixin, and is not tested; the class's static fields start out as an empty weak reference, a null decision, an empty set and a flag, so loading it builds no Minecraft or Wynntils object, and `background` reads `PackFiles.TEXTURES`, a `FileToIdConverter`, which needs no running game. `BANK_GLYPHS` is Wynncraft's account bank title, `\uDAFF\uDFF0\uE00F\uDAFF\uDF68\uF000` (a spacing character, the bank art, a spacing character, the title glyph); `inFont(text, font)` is a literal in the font `minecraft:<font>`; `rows(yaml)` parses a fixture through `ManifestFixtures.parseTextures` and returns its `containerTitles()`.
+`RetroContainerTitles` decides the title retro draws on a container: the first matching `container_titles` row, else the readable title, else a `glyph_titles` row, else Wynncraft's label; blanks the player inventory's label on a container that keeps Wynncraft's and on a Wynntils full-screen view; and draws such a container on the live pack's copy of Wynncraft's own texture. The suite pins the package-private `readableTitle(Component)` and `title(rows, glyphRows, containerClass, original)` on real `Component` titles built like Wynncraft's, glyph runs in its `interface` and `space` fonts beside default-font text, `inventoryLabel(drawn, original)` and `background(drawn, texture, liveCopy)`. Drawing the labels and backgrounds needs Wynntils' events and the mixin, and is not tested; the class's static fields start out as an empty weak reference, a null decision, an empty set and a flag, so loading it builds no Minecraft or Wynntils object, and `background` reads `PackFiles.TEXTURES`, a `FileToIdConverter`, which needs no running game. `BANK_GLYPHS` is Wynncraft's account bank title, `\uDAFF\uDFF0\uE00F\uDAFF\uDF68\uF000` (a spacing character, the bank art, a spacing character, the title glyph); `inFont(text, font)` is a literal in the font `minecraft:<font>`; `rows(yaml)` parses a fixture through `ManifestFixtures.parse` and returns its `containerTitles()`.
 
 - **`glyphRunsInOtherFontsAreDropped`**: `BANK_GLYPHS` in `interface`, a spacing character in `space`, then `Returners: Members` in the default font.
   - `readableTitle(title)` equals `"Returners: Members"`.
@@ -5454,10 +5479,6 @@ Test: [`RetroSlotsTest.java`](../src/test/java/org/wynnvets/retro/render/RetroSl
   - `slots(fills, null, "Loot Chest", 27, null)` is empty.
 - **`whereTwoRowsPickASlotTheFirstOnesGlassShows`**: Rows `{container: 'A', slots: [0], glass: lime}`, `{container: 'A', rows: [0], glass: gray}` and `{container: 'A', slots: all}`, over 18 slots with no bounds.
   - `containerSlots(fills, "A", "Title", 18, null, false)` equals slot 0 as `Pane("lime", false)`, slots 1-8 as gray and slots 9-17 as white, the glass a row names nothing getting white.
-- **`theGlassColoursAreClearAndTheDyesEachAPane`**: The set of `ScreenSections.GLASS_COLOURS` equals the serialised names of Minecraft's 16 `DyeColor` values and `clear`.
-  - `RetroStacks.paneId("clear")` equals `glass_pane`.
-  - `paneId("gray")` equals `gray_stained_glass_pane`.
-  - `paneId("light_blue")` equals `light_blue_stained_glass_pane`.
 - **`theBanksButtonsAreWhiteBetweenTwoGreyEnds`**: The shipped rows. Wynntils' `PersonalStorageContainer` has the storage type at 47 and the pages at 51 and 52.
   - For each of `AccountBankContainer`, `CharacterBankContainer`, `PersonalBlockBankContainer`, `IslandBlockBankContainer`, `BookshelfContainer` and `MiscBucketContainer`, 54 slots, `BANK_BOUNDS`: `containerSlots` equals slots 46-52 on white glass and slots 45 and 53 on gray.
 - **`theTradeMarketsViewsAreGreyWithWhiteButtonsAndTheItemTradedLime`**: The shipped rows. By Wynntils' `TradeMarketModel`, the item on sale is at 22 (its sellable slot, an "Empty Item Slot" placeholder until one is picked), the price at 28 (`TM_SELL_PRICE_SLOT`) and, by `TradeMarketBulkSellFeature`'s `AMOUNT_ITEM_SLOT`, the quantity at 31, each always holding a named item, so they answer the mouse on their glass; the buy view's art puts its item, price and quantity in the same places.
@@ -5508,18 +5529,14 @@ Test: [`RetroSlotsTest.java`](../src/test/java/org/wynnvets/retro/render/RetroSl
   - `containerSlots` equals slots 1, 10, 19, 28, 37 and 46 on gray.
 - **`everyOtherScreenClosesEveryEmptySlotInWhite`**: The shipped rows.
   - `GuildMemberListContainer`, `Returners: Members`, 54 slots: `containerSlots` equals slots 0-53 on white.
-- **`eachScreenWithWaresOrAChoiceGlazesOnlyItsButtons`**: The shipped rows.
-  - `slots(...)` of `CharacterInfoContainer`, `Character Info`, 27 slots: all but the skill point books, 11-15.
-  - `TradeMarketContainer`, 54 slots: slots 45-53, the row under the listings.
+- **`eachScreenWithWaresOrAChoiceGlazesOnlyItsButtons`**: The shipped rows, on the screens no test of their own pins.
+  - `slots(...)` of `TradeMarketContainer`, 54 slots: slots 45-53, the row under the listings.
   - `TradeMarketRevealItemsContainer`, 9 slots: slot 8, the checkmark.
-  - Each of `BlacksmithSellContainer`, `BlacksmithRepairContainer`, `ItemIdentifierContainer` and `ItemIdentifierAugmentsContainer`, 27 slots, with the sell screen's bounds (11-15 and 20-24; Wynntils' rows 1 and 2, columns 2 to 6): every slot outside them.
-  - A nameless `Merchant`, 54 slots: slots 0-8 and the columns 0 and 8 of rows 1-5, not the wares, which run down to the last row.
   - A nameless `Item Pedestal`, 9 slots: `containerSlots` gives 0, 1, 2, 4, 6, 7 and 8 on gray and its sign (5) on white; its item (3) stays a slot.
   - A nameless `Housing Islands`, 27 slots: `containerSlots` gives the frame (0-8, 18-26, 9 and 17) on gray round the middle row's seven (10-16) on white. A nameless `Available Islands`, 45 slots: 1, 9, 18 and 37 on gray and 0, 10, 19, 27, 28 and 36 on white, the two left columns; the islands are slots.
   - `GuildBankContainer`, 45 slots: columns 0 and 1 of rows 0-4, its buttons; the rest is storage.
   - `GuildManagementContainer`, 27 slots: `{0, 1, 7, 8, 9, 10, 16, 17, 18, 19, 25, 26}`, the two columns each side; the middle's buttons are on plain slots.
   - `MountFeederContainer`, 45 slots: `{1, 10, 19, 28, 37}`, the column between the mount's slots and the food's.
-  - A nameless `Party Finder: Join`, 54 slots: all but the seven listings on each of rows 1 to 3 (columns 1 to 7).
   - `containerSlots` of `CraftingStationContainer`, `Jeweling`, 27 slots (three rows: Wynntils' bounds, rows 0 to 6, are its 27 and the inventory's 36): slots 1, 4, 18, 19 and 22 on gray, with slots 10 and 13 on white, 13 being the checkmark.
 - **`aPlayerTradeIsGlassOnlyOnItsCentreColumnAndCheckmarks`**: The shipped rows, with the title through `readableTitle`, so its rule and the row's pattern cannot drift apart. `containerSlots` of a 27-slot container titled with two names 4 or 14 spaces apart equals slots 4, 13 and 22 (the centre column) on gray and 5 and 21 (the checkmarks) on white; 3 spaces apart its `slots` are 0-26, through the fallback.
 - **`theScreensThatTakeThePlayersThingsKeepTheirEmptySlotsOpen`**: The shipped rows. `slots` is empty, over 54 slots and no bounds, for `IngredientPouchContainer`, `LootChestContainer`, `FlyingChestContainer`, `DailyRewardContainer`, `ChallengeRewardContainer`, `ObjectiveRewardContainer`, `ItemBombRewardContainer`, `IngredientBombRewardContainer` and `EventContainer`, the containers whose empty slots take the player's things.
@@ -5550,11 +5567,20 @@ Test: [`RetroStackModelsTest.java`](../src/test/java/org/wynnvets/retro/render/R
 - **`theTwoShieldIngredientsAreTheRealShieldWhateverWrapsTheirNames`**: Against the `minecraft:potion` rows, `Butterfly Buckler` in Wynncraft's spacing and `Router Shield` give `minecraft:shield`, and `Mega Fern` `null`.
 - **`modelFor`**: Helper: the lookup with `RetroPart.all()`.
 - **`aRowMatchesTheWholeName`**: `Active Blesses Extra` gives `null`.
-- **`avomodsModelsWithNoStubAreTheOnesThatGiveWay`**: `unstubbedAvomod` over a `Seen` listing `avomod2:item/scroll_sd`, `avomod2:item/potion_sp_strength` (stubbed) and `minecraft:item/wynn/scroll/scroll_teleport` is just `avomod2:item/scroll_sd`: the crafted scroll's Avomod art gives way to Wynncraft's own definition, a potion family's Avomod model keeps retro's stub, and Wynncraft's own models are not Avomod's.
 - **`aRowOfAPartThatIsOffIsPassedOver`**: The shields' row is `crafting`'s and a row with no part `items`'.
   - With `crafting` off, `Router Shield` gives `null`.
   - With `crafting` off, `Active Blesses` still gives `minecraft:nether_star`.
   - With `items` off, `Active Blesses` gives `null`.
+
+### `RetroStacksTest`
+
+Test: [`RetroStacksTest.java`](../src/test/java/org/wynnvets/retro/render/RetroStacksTest.java) · Subject: [`RetroStacks`](../src/client/java/org/wynnvets/retro/render/RetroStacks.java)
+
+`RetroStacks` makes the stacks retro draws for itself, the glass panes of the slot fills among them. The suite pins the package-private `paneId`, a `glass` colour's item id; making a stack needs Minecraft's item registry and is not tested.
+
+- **`clearIsThePlainPaneAndADyeItsStainedPane`**: One colour per branch.
+  - `RetroStacks.paneId("clear")` equals `glass_pane`.
+  - `paneId("light_blue")` equals `light_blue_stained_glass_pane`.
 
 ## `org.wynnvets.retro.rules`
 
@@ -5627,7 +5653,7 @@ Test: [`ModelRulesTest.java`](../src/test/java/org/wynnvets/retro/rules/ModelRul
 
 Test: [`OldClientRulesTest.java`](../src/test/java/org/wynnvets/retro/rules/OldClientRulesTest.java) · Subject: [`OldClientRules`](../src/client/java/org/wynnvets/retro/rules/OldClientRules.java)
 
-`OldClientRules` answers which of today's textures an old client's rows take, and which rectangles of a texture are cleared. The suite builds the rows and clears in the test.
+`OldClientRules` answers which of today's textures an old client's rows take, and which rectangles of a texture are cleared. The suite builds the rows, with `ManifestFixtures.oldClientRow`, and the clears in the test.
 
 - **`eachTextureTakesItsFirstMatchingRowInIdOrder`**: Three rows: the literal `minecraft:block/light_gray_wool` taking `minecraft:blocks/wool_colored_silver`, `'minecraft:block/(\w+)_wool'` taking `minecraft:blocks/wool_colored_$1`, and `'minecraft:entity/villager/type/\w+'` as a blank.
   - `targets(rows, today)` over `villager/type/plains`, `white_wool`, `stone` and `light_gray_wool` equals `[Target(light_gray_wool, wool_colored_silver, 0), Target(white_wool, wool_colored_white, 1), Target(villager/type/plains, null, 2)]`: the first matching row wins (light gray wool matches the second row too), `$1` is filled in, a blank's file is null, and the order is the ids' own, not the order they were given in.
@@ -5812,6 +5838,23 @@ Test: [`TextureRulesTest.java`](../src/test/java/org/wynnvets/retro/rules/Textur
   - `firstSourceWith(null, packs)` is null.
 
 ## `org.wynnvets.util`
+
+### `AtomicFoldersTest`
+
+Test: [`AtomicFoldersTest.java`](../src/test/java/org/wynnvets/util/AtomicFoldersTest.java) · Subject: [`AtomicFolders`](../src/client/java/org/wynnvets/util/AtomicFolders.java)
+
+`AtomicFolders.install(target, files)` writes a folder whole or not at all: under a temporary name beside `target`, then renamed, then it deletes the other folders beside it, older ones and temporary ones a day old. The suite runs it under a `@TempDir` with one file, `FILE` (`assets/minecraft/textures/block/white_wool.png`) holding `BYTES` (`{1, 2, 3}`), and counts a folder's entries with `entries(folder)`.
+
+- **`anInstallDeletesOlderFoldersAndAbandonedOnesButNotOneBeingWritten`**: Beside `current`: an installed `old` folder, a `current.tmp-abandoned` folder last modified two days ago, and a fresh `current.tmp-writing` folder; then `install(current, {FILE: BYTES})`.
+  - `current`'s `FILE` holds `BYTES`.
+  - `old` does not exist: an older folder.
+  - `current.tmp-abandoned` does not exist: a temporary folder a day old.
+  - `current.tmp-writing` does exist: one another game may still be writing.
+- **`aFolderThatAlreadyHasItsNameIsKept`**: `install` twice under one name, the second time with the bytes `{9}`.
+  - The file in the folder holds `BYTES`: the first bytes.
+  - `entries(parent)` equals 1: no temporary folder is left.
+- **`aFileOutsideTheFolderIsRefusedAndNothingIsLeft`**: `install` of a file named `../outside.png` throws `IOException`.
+  - `entries(parent)` equals 0: neither the file nor the temporary folder.
 
 ### `ConfigValueTextTest`
 

@@ -54,6 +54,12 @@ public record RetroManifest(
      */
     public static final String KEEP = "keep";
 
+    /**
+     * The {@code old_clients} value and the {@code wynntils_textures} value for a fully transparent
+     * texture.
+     */
+    static final String BLANK = "blank";
+
     /** The sections of {@code retro.yml}; any other is ignored. */
     // Package-private for unit tests. See ShippedManifestTest.
     static final Set<String> SECTIONS = sections();
@@ -86,7 +92,7 @@ public record RetroManifest(
      *     entry
      */
     public static RetroManifest load() throws IOException {
-        try (InputStream file = open(ManifestYaml.FILE)) {
+        try (InputStream file = open()) {
             RetroManifest manifest = parse(file);
             Map<String, Integer> counts = new LinkedHashMap<>();
             manifest.parts.addCounts(counts);
@@ -110,9 +116,11 @@ public record RetroManifest(
         return parse(InputStream.nullInputStream());
     }
 
-    private static InputStream open(String file) throws IOException {
-        InputStream in = RetroManifest.class.getResourceAsStream("/" + file);
-        if (in == null) throw new FileNotFoundException(file + " not found in resources");
+    private static InputStream open() throws IOException {
+        InputStream in = RetroManifest.class.getResourceAsStream("/" + ManifestYaml.FILE);
+        if (in == null) {
+            throw new FileNotFoundException(ManifestYaml.FILE + " not found in resources");
+        }
         return in;
     }
 
@@ -124,7 +132,7 @@ public record RetroManifest(
      */
     // Package-private for unit tests. See ManifestFixtures.
     static RetroManifest parse(InputStream file) {
-        Map<?, ?> rules = ManifestYaml.sections(file, ManifestYaml.FILE, SECTIONS);
+        Map<?, ?> rules = ManifestYaml.sections(file, SECTIONS);
         ItemTables tables = ItemTables.parse(rules);
         return new RetroManifest(
                 PartSections.parse(rules),

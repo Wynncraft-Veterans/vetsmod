@@ -35,6 +35,19 @@ public final class HostedCubeMapTexture extends CubeMapTexture {
 
     @Override
     public TextureContents loadContents(ResourceManager resources) throws IOException {
+        return decode(resourceId(), faces);
+    }
+
+    /**
+     * Decodes six faces into a cube map's layers. It touches nothing on the GPU, so it can run off
+     * the render thread, for {@link #apply} to upload there.
+     *
+     * @param id the texture's id, for the error
+     * @param faces the six faces' PNG bytes, face 0 first
+     * @return the layers, for the caller to apply or close
+     * @throws IOException when a face does not decode, or the faces are not all one size
+     */
+    public static TextureContents decode(Identifier id, List<byte[]> faces) throws IOException {
         try (NativeImage first = NativeImage.read(faces.get(LAYERS[0]))) {
             int width = first.getWidth();
             int height = first.getHeight();
@@ -44,8 +57,7 @@ public final class HostedCubeMapTexture extends CubeMapTexture {
                 for (int layer = 1; layer < LAYERS.length; layer++) {
                     try (NativeImage face = NativeImage.read(faces.get(LAYERS[layer]))) {
                         if (face.getWidth() != width || face.getHeight() != height) {
-                            throw new IOException(
-                                    "the faces of " + resourceId() + " are not all one size");
+                            throw new IOException("the faces of " + id + " are not all one size");
                         }
                         face.copyRect(layers, 0, 0, 0, layer * height, width, height, false, true);
                     }

@@ -8,21 +8,27 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.JarURLConnection;
 import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Stream;
+import java.util.Set;
+import java.util.function.BiPredicate;
 import javax.imageio.ImageIO;
+import net.minecraft.server.packs.PackResources;
+import org.wynnvets.retro.pack.PackFiles;
 import org.wynnvets.retro.rules.ModelRules;
 import org.wynnvets.retro.rules.PackFacts;
 import org.wynnvets.retro.rules.TextureRules;
 
 /**
- * The shipped rule files, read as the production code reads them, and what the suites that check
- * them share.
+ * The shipped rule file, read as the production code reads it, and what the suites that check
+ * the shipped files share.
  *
  * <p>The files are the contract, not stubs: {@code src/client/resources} is on the test runtime
  * classpath, so {@code RetroManifest.load()} reads exactly what production reads. So is the client
@@ -108,29 +114,47 @@ final class ShippedFiles {
      * @return the ids, sorted
      */
     static List<String> bundledTextureIds(RetroSource source) throws IOException {
-        Path assets;
         try {
-            assets =
-                    Path.of(
-                            ShippedFiles.class
-                                    .getResource(BUNDLES.get(source) + "/assets")
-                                    .toURI());
+            Path root = Path.of(ShippedFiles.class.getResource(BUNDLES.get(source)).toURI());
+            return textureIds(root).stream().sorted().toList();
         } catch (URISyntaxException e) {
             throw new IOException(e);
         }
-        try (Stream<Path> files = Files.walk(assets)) {
-            return files.map(file -> assets.relativize(file).toString().replace('\\', '/'))
-                    .filter(file -> file.endsWith(".png"))
-                    .map(file -> file.split("/", 3))
-                    .filter(parts -> parts.length == 3 && parts[1].equals("textures"))
-                    .map(
-                            parts ->
-                                    parts[0]
-                                            + ":"
-                                            + parts[2].substring(
-                                                    0, parts[2].length() - ".png".length()))
-                    .sorted()
-                    .toList();
+    }
+
+    /**
+     * Every texture the pack folder at {@code root} holds, listed as the generator lists a pack.
+     *
+     * @param root a folder that holds {@code assets}
+     * @return the ids, such as {@code minecraft:block/stone}
+     */
+    static Set<String> textureIds(Path root) {
+        try (PackResources pack = PackFiles.folder(root, "test", "test")) {
+            return PackFiles.textureIds(pack);
+        }
+    }
+
+    /**
+     * Every texture the client jar on the test classpath holds.
+     *
+     * @return the ids, such as {@code minecraft:block/stone}
+     */
+    static Set<String> clientJarTextureIds() throws IOException {
+        URL stone =
+                ShippedFiles.class.getResource(
+                        assetFile("minecraft:block/stone", "textures", ".png"));
+        assertNotNull(stone, "the client jar is on the test classpath");
+        try {
+            if (stone.openConnection() instanceof JarURLConnection connection) {
+                try (FileSystem jar =
+                        FileSystems.newFileSystem(Path.of(connection.getJarFileURL().toURI()))) {
+                    return textureIds(jar.getPath("/"));
+                }
+            }
+            Path block = Path.of(stone.toURI()).getParent();
+            return textureIds(block.getParent().getParent().getParent().getParent());
+        } catch (URISyntaxException e) {
+            throw new IOException(e);
         }
     }
 
@@ -149,37 +173,47 @@ final class ShippedFiles {
     }
 
     /**
+     * Packs on which Wynncraft ships every texture asked about, none of them blank, and the other
+     * sources have what {@code has} says.
+     */
+    static PackFacts wynncraftShipsAll(BiPredicate<RetroSource, String> has) {
+        return new PackFacts() {
+            @Override
+            public boolean wynncraftShips(String textureId) {
+                return true;
+            }
+
+            @Override
+            public boolean wynncraftTransparent(String textureId) {
+                return false;
+            }
+
+            @Override
+            public boolean has(RetroSource source, String textureId) {
+                return has.test(source, textureId);
+            }
+        };
+    }
+
+    /**
      * The packs as the client jar has them: vanilla holds what the jar holds, each bundled source
-     * what vetsmod bundles of it, the Programmer Art pack and the downloaded sources nothing (a game
-     * that has not fetched them yet, or is offline), and Wynncraft ships every texture asked about,
-     * none of them blank.
+     * what vetsmod bundles of it, the Programmer Art pack and the downloaded sources nothing (a
+     * game that has not fetched them yet, or is offline), and Wynncraft ships every texture asked
+     * about, none of them blank.
      */
     static final PackFacts CLIENT_JAR =
-            new PackFacts() {
-                @Override
-                public boolean wynncraftShips(String textureId) {
-                    return true;
-                }
-
-                @Override
-                public boolean wynncraftTransparent(String textureId) {
-                    return false;
-                }
-
-                @Override
-                public boolean has(RetroSource source, String textureId) {
-                    return switch (source) {
-                        case VANILLA -> textureInClientJar(textureId);
-                        case VANILLA_TWEAKS -> inBundle(source, textureId);
-                        case VETSMOD,
-                                PROGRAMMER_ART,
-                                MINECRAFT_1_7_10,
-                                MINECRAFT_1_8_9,
-                                MINECRAFT_1_9_4 ->
-                                false;
-                    };
-                }
-            };
+            wynncraftShipsAll(
+                    (source, textureId) ->
+                            switch (source) {
+                                case VANILLA -> textureInClientJar(textureId);
+                                case VANILLA_TWEAKS -> inBundle(source, textureId);
+                                case VETSMOD,
+                                        PROGRAMMER_ART,
+                                        MINECRAFT_1_7_10,
+                                        MINECRAFT_1_8_9,
+                                        MINECRAFT_1_9_4 ->
+                                        false;
+                            });
 
     /**
      * Every source has every texture, but for the bundled sources, which have what vetsmod

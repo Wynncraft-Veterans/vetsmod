@@ -4,23 +4,19 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.Arrays;
 import java.util.BitSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import net.minecraft.network.chat.Component;
-import net.minecraft.world.item.DyeColor;
 import org.junit.jupiter.api.Test;
 import org.wynnvets.rendering.image.Rect;
 import org.wynnvets.retro.RetroModeManager;
 import org.wynnvets.retro.manifest.AssetSections.Fill;
 import org.wynnvets.retro.manifest.ManifestFixtures;
-import org.wynnvets.retro.manifest.ScreenSections;
 import org.wynnvets.retro.manifest.ScreenSections.SlotFill;
 import org.wynnvets.retro.render.RetroSlots.Pane;
 import org.wynnvets.retro.render.RetroSlots.Panels;
@@ -282,21 +278,6 @@ class RetroSlotsTest {
         expected.put(0, new Pane("lime", false));
 
         assertEquals(expected, RetroSlots.containerSlots(fills, "A", "Title", 18, null, false));
-    }
-
-    @Test
-    void theGlassColoursAreClearAndTheDyesEachAPane() {
-        Set<String> dyes =
-                Arrays.stream(DyeColor.values())
-                        .map(DyeColor::getSerializedName)
-                        .collect(Collectors.toSet());
-        Set<String> expected = new TreeSet<>(dyes);
-        expected.add("clear");
-
-        assertEquals(expected, new TreeSet<>(ScreenSections.GLASS_COLOURS));
-        assertEquals("glass_pane", RetroStacks.paneId("clear"));
-        assertEquals("gray_stained_glass_pane", RetroStacks.paneId("gray"));
-        assertEquals("light_blue_stained_glass_pane", RetroStacks.paneId("light_blue"));
     }
 
     @Test
@@ -681,12 +662,6 @@ class RetroSlotsTest {
     void eachScreenWithWaresOrAChoiceGlazesOnlyItsButtons() {
         List<SlotFill> fills = RetroModeManager.manifest().screens().slotFills();
 
-        Set<Integer> notBooks = new TreeSet<>(range(0, 26));
-        notBooks.removeAll(range(11, 15));
-        assertEquals(
-                notBooks,
-                slots(fills, "CharacterInfoContainer", "Character Info", 27, null),
-                "all but the skill point books");
         assertEquals(
                 range(45, 53),
                 slots(fills, "TradeMarketContainer", "Trade Market", 54, null),
@@ -695,28 +670,6 @@ class RetroSlotsTest {
                 Set.of(8),
                 slots(fills, "TradeMarketRevealItemsContainer", "Reveal", 9, null),
                 "the checkmark");
-        // Wynntils' BlacksmithSellContainer bounds: rows 1 and 2, columns 2 to 6.
-        Set<Integer> bench = new TreeSet<>(range(11, 15));
-        bench.addAll(range(20, 24));
-        Set<Integer> aroundBench = new TreeSet<>(range(0, 26));
-        aroundBench.removeAll(bench);
-        for (String screen :
-                List.of(
-                        "BlacksmithSellContainer",
-                        "BlacksmithRepairContainer",
-                        "ItemIdentifierContainer",
-                        "ItemIdentifierAugmentsContainer")) {
-            assertEquals(aroundBench, slots(fills, screen, "Title", 27, bench), screen);
-        }
-        Set<Integer> frame = new TreeSet<>(range(0, 8));
-        for (int row = 1; row < 6; row++) {
-            frame.add(row * 9);
-            frame.add(row * 9 + 8);
-        }
-        assertEquals(
-                frame,
-                slots(fills, null, "Merchant", 54, null),
-                "the wares, down to the last row, are slots");
         Map<Integer, Pane> pedestal = glazed(Set.of(0, 1, 2, 4, 6, 7, 8), "gray");
         pedestal.put(5, new Pane("white", false));
         assertEquals(
@@ -754,14 +707,6 @@ class RetroSlotsTest {
                 Set.of(1, 10, 19, 28, 37),
                 slots(fills, "MountFeederContainer", "Mount Feeder", 45, null),
                 "the column between the mount's slots and the food's");
-        Set<Integer> listings = new TreeSet<>(range(0, 53));
-        for (int row = 1; row < 4; row++) {
-            listings.removeAll(range(row * 9 + 1, row * 9 + 7));
-        }
-        assertEquals(
-                listings,
-                slots(fills, null, "Party Finder: Join", 54, null),
-                "all but the listings");
         // Three rows: Wynntils' bounds, rows 0 to 6, are its 27 slots and the inventory's 36.
         Map<Integer, Pane> station = glazed(Set.of(1, 4, 18, 19, 22), "gray");
         station.putAll(glazed(Set.of(10, 13), "white"));

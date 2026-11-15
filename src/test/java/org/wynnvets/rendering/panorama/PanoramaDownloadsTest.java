@@ -7,14 +7,11 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -24,13 +21,16 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.wynnvets.util.AtomicFolders;
+import org.wynnvets.util.Digests;
+import org.wynnvets.util.LocalHttpServer;
 
 /**
  * Tests for {@link PanoramaDownloads}' checks, over faces made here and pinned to themselves: a
- * download keeps a face only when it is the pinned file, and reading a kept set checks each face
- * again, deleting a set that changed and marking failed one that cannot be read; and a face is
- * read only from a {@code 200} declaring its pinned length, against a server on this machine.
- * The download's threads need a running client and are not tested.
+ * download keeps a face only when it is the pinned file; reading a kept set checks each face
+ * again, deleting a set that changed or lacks a face, and marking failed, and not reading again,
+ * one that cannot be read; and a face is read only from a {@code 200} declaring its pinned
+ * length, against a server on this machine. The download's threads need a running client and
+ * are not tested.
  */
 class PanoramaDownloadsTest {
 
@@ -54,7 +54,7 @@ class PanoramaDownloadsTest {
                     new HostedPanorama.Face(
                             URI.create("https://i.wynnvets.org/face" + face + ".png"),
                             bytes.length,
-                            HostedPanorama.sha256(bytes)));
+                            Digests.sha256(bytes)));
         }
     }
 
@@ -84,12 +84,13 @@ class PanoramaDownloadsTest {
 
     @Test
     void aFaceThatIsNotThePinnedFileFailsTheWholeDownload() {
+        // NotPinnedException is what read() deletes a set on, rather than marking it failed.
         assertThrows(
-                IOException.class,
+                PanoramaDownloads.NotPinnedException.class,
                 () -> PanoramaDownloads.fetch(FACES, PATH, face -> new byte[0]),
                 "the wrong size");
         assertThrows(
-                IOException.class,
+                PanoramaDownloads.NotPinnedException.class,
                 () ->
                         PanoramaDownloads.fetch(
                                 FACES,
@@ -123,20 +124,23 @@ class PanoramaDownloadsTest {
         for (int face = 0; face < 6; face++) assertArrayEquals(BYTES.get(face), read.get(face));
 
         Files.write(folder.resolve(PATH.apply(3)), "changed".getBytes(StandardCharsets.UTF_8));
-        assertThrows(IOException.class, () -> PanoramaDownloads.readFolder(folder, FACES, PATH));
+        assertThrows(
+                PanoramaDownloads.NotPinnedException.class,
+                () -> PanoramaDownloads.readFolder(folder, FACES, PATH));
         Files.delete(folder.resolve(PATH.apply(3)));
-        assertThrows(IOException.class, () -> PanoramaDownloads.readFolder(folder, FACES, PATH));
+        assertThrows(
+                NoSuchFileException.class, () -> PanoramaDownloads.readFolder(folder, FACES, PATH));
     }
 
     @Test
-    void aShippedSetThatIsMissingOrChangedReadsAsNothingAndAChangedOneIsDeleted(@TempDir Path root)
+    void aSetThatIsMissingOrChangedReadsAsNothingAndAChangedOneIsDeleted(@TempDir Path root)
             throws IOException {
         assertNull(PanoramaDownloads.read(root, HostedPanorama.VETLAS), "not downloaded yet");
         assertEquals(
                 PanoramaDownloads.State.MISSING,
                 PanoramaDownloads.state(root, HostedPanorama.VETLAS));
 
-        Path folder = writeShipped(root, face -> BYTES.get(face));
+        Path folder = writeVetlasFolder(root);
         assertEquals(
                 PanoramaDownloads.State.HERE, PanoramaDownloads.state(root, HostedPanorama.VETLAS));
 
@@ -149,9 +153,23 @@ class PanoramaDownloadsTest {
     }
 
     @Test
+    void aSetThatLacksAFaceIsDeletedSoItIsDownloadedAgain(@TempDir Path root) throws IOException {
+        Path folder = writeVetlasFolder(root);
+        // Face 0 is read first, so its absence is what the read meets.
+        Files.delete(folder.resolve(HostedPanorama.VETLAS.path(0)));
+
+        assertNull(PanoramaDownloads.read(root, HostedPanorama.VETLAS));
+        assertFalse(Files.exists(folder), "an incomplete set is deleted");
+        assertEquals(
+                PanoramaDownloads.State.MISSING,
+                PanoramaDownloads.state(root, HostedPanorama.VETLAS),
+                "not failed: it can be downloaded again at once");
+    }
+
+    @Test
     void aSetThatCannotBeReadIsKeptAndCountsAsFailedSoNothingReadsItAgainAndAgain(
             @TempDir Path root) throws IOException {
-        Path folder = writeShipped(root, face -> BYTES.get(face));
+        Path folder = writeVetlasFolder(root);
         // A face that is a folder cannot be read, which is no sign that the download was bad.
         Path face = folder.resolve(HostedPanorama.VETLAS.path(0));
         Files.delete(face);
@@ -163,14 +181,23 @@ class PanoramaDownloadsTest {
                 PanoramaDownloads.State.FAILED,
                 PanoramaDownloads.state(root, HostedPanorama.VETLAS),
                 "until the next start-up");
+
+        // Readable again, but a failed set is not read, so it is not found changed and deleted.
+        Files.delete(face);
+        Files.write(face, BYTES.get(0));
+        assertNull(PanoramaDownloads.read(root, HostedPanorama.VETLAS));
+        assertTrue(Files.isDirectory(folder), "not read again");
     }
 
-    /** Writes a folder for Vetlas's current pins, each face {@code bytes} of its number. */
-    private static Path writeShipped(Path root, IntFunction<byte[]> bytes) throws IOException {
+    /**
+     * Writes a folder at Vetlas's place for its current pins, holding {@link #BYTES}, which are
+     * not Vetlas's pinned faces.
+     */
+    private static Path writeVetlasFolder(Path root) throws IOException {
         Path folder = PanoramaDownloads.folder(root, HostedPanorama.VETLAS);
         Files.createDirectories(folder.resolve(HostedPanorama.VETLAS.path(0)).getParent());
         for (int face = 0; face < 6; face++) {
-            Files.write(folder.resolve(HostedPanorama.VETLAS.path(face)), bytes.apply(face));
+            Files.write(folder.resolve(HostedPanorama.VETLAS.path(face)), BYTES.get(face));
         }
         return folder;
     }
@@ -178,60 +205,40 @@ class PanoramaDownloadsTest {
     @Test
     void aFaceIsReadOnlyFromAnOkThatDeclaresItsPinnedLength() throws IOException {
         byte[] png = "a face".getBytes(StandardCharsets.UTF_8);
-        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-        server.createContext("/ok.png", exchange -> answer(exchange, 200, png, png.length));
-        server.createContext(
-                "/longer.png",
-                exchange ->
-                        answer(
-                                exchange,
-                                200,
-                                "a longer face".getBytes(StandardCharsets.UTF_8),
-                                13));
-        server.createContext("/chunked.png", exchange -> answer(exchange, 200, png, 0));
-        server.createContext("/missing.png", exchange -> answer(exchange, 404, new byte[0], -1));
-        server.createContext(
-                "/moved.png",
-                exchange -> {
-                    exchange.getResponseHeaders().add("Location", "/ok.png");
-                    answer(exchange, 302, new byte[0], -1);
-                });
-        server.start();
-        try {
-            String base = "http://127.0.0.1:" + server.getAddress().getPort();
-            assertArrayEquals(png, PanoramaDownloads.get(served(base + "/ok.png", png.length)));
+        byte[] longer = "a longer face".getBytes(StandardCharsets.UTF_8);
+        try (LocalHttpServer server = new LocalHttpServer()) {
+            server.answer(
+                            "/ok.png",
+                            exchange -> LocalHttpServer.send(exchange, 200, png, png.length))
+                    .answer(
+                            "/longer.png",
+                            exchange -> LocalHttpServer.send(exchange, 200, longer, longer.length))
+                    .answer("/chunked.png", exchange -> LocalHttpServer.send(exchange, 200, png, 0))
+                    .answer(
+                            "/missing.png",
+                            exchange -> LocalHttpServer.send(exchange, 404, new byte[0], -1))
+                    .answer(
+                            "/moved.png",
+                            exchange -> {
+                                exchange.getResponseHeaders().add("Location", "/ok.png");
+                                LocalHttpServer.send(exchange, 302, new byte[0], -1);
+                            })
+                    .start();
+
+            assertArrayEquals(
+                    png, PanoramaDownloads.get(served(server.uri("/ok.png"), png.length)));
             for (String refused :
                     List.of("/longer.png", "/chunked.png", "/missing.png", "/moved.png")) {
                 assertThrows(
                         IOException.class,
-                        () -> PanoramaDownloads.get(served(base + refused, png.length)),
+                        () -> PanoramaDownloads.get(served(server.uri(refused), png.length)),
                         refused);
             }
-        } finally {
-            server.stop(0);
         }
     }
 
     /** A face at {@code uri} pinned to {@code size} bytes; its hash is not what get() checks. */
-    private static HostedPanorama.Face served(String uri, long size) {
-        return new HostedPanorama.Face(URI.create(uri), size, "0".repeat(64));
-    }
-
-    /**
-     * Answers with {@code body}: {@code length} bytes declared, 0 for chunked, -1 for no body.
-     */
-    private static void answer(HttpExchange exchange, int status, byte[] body, long length)
-            throws IOException {
-        exchange.sendResponseHeaders(status, length);
-        try (OutputStream out = exchange.getResponseBody()) {
-            if (length != -1) out.write(body);
-        }
-    }
-
-    @Test
-    void aSetsFolderIsNamedByItsSetAndItsPins(@TempDir Path root) {
-        assertEquals(
-                root.resolve("old_detlas").resolve(HostedPanorama.OLD_DETLAS.hash()),
-                PanoramaDownloads.folder(root, HostedPanorama.OLD_DETLAS));
+    private static HostedPanorama.Face served(URI uri, long size) {
+        return new HostedPanorama.Face(uri, size, "0".repeat(64));
     }
 }

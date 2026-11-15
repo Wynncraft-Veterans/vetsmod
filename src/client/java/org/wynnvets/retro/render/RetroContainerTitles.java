@@ -59,11 +59,11 @@ import org.wynnvets.retro.pack.PackFiles;
  * inventory's label, which the pack's {@code lang} restores, is blanked again there
  * ({@link #relabelInventory}), since it would be drawn over that art, and on a Wynntils
  * full-screen view, whose inventory part holds Wynncraft's buttons. A screen whose label retro
- * draws is a vanilla container, so {@link RetroSlots} paints slot fills on it (on a full-screen
- * view only the rows naming its class), and on no screen that keeps Wynncraft's label. Nothing changes unless the
- * retro pack is live and its {@code screens} part is on, and the background only on Wynncraft
- * ({@link RetroModeManager#isPartLiveOnWynncraft}): Wynntils posts the label events there alone, and
- * a vanilla container elsewhere draws its own label on the texture it asks for. Render thread
+ * draws is a vanilla container, so {@link RetroSlots} paints slot fills on it, and on no screen
+ * that keeps Wynncraft's label. Nothing changes unless the retro pack is live and its
+ * {@code screens} part is on, and the background only on Wynncraft
+ * ({@link RetroModeManager#isPartLiveOnWynncraft}): Wynntils posts the label events there alone,
+ * and a vanilla container elsewhere draws its own label on the texture it asks for. Render thread
  * only.</p>
  *
  * <p>The decisions the fallback makes are logged at debug, once per title, so a screen whose

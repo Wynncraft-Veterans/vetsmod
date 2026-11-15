@@ -69,11 +69,11 @@ final class LegacyTooltipRenderer {
 
     /**
      * Matches the percentage suffix Wynntils or wynnmod appends to an item name, such as
-     * " [61.7%]". wynnmod formats it in the system locale, so its decimal point can be a
-     * comma (" [16,6%]").
+     * " [61.7%]". Wynntils marks an estimate with a tilde (" [~61.7%]"); wynnmod formats it in the
+     * system locale, so its digits and decimal point can be that locale's (" [16,6%]").
      */
     private static final Pattern PERCENT_SUFFIX_PATTERN =
-            Pattern.compile("\\s*(\\[\\d+[.,]?\\d*%\\])$");
+            Pattern.compile("\\s*(\\[~?\\p{Nd}+(?:\\p{P}\\p{Nd}+)?%\\])$");
 
     private LegacyTooltipRenderer() {}
 
@@ -98,7 +98,8 @@ final class LegacyTooltipRenderer {
         String plainText =
                 LegacyItemHandler.normalizeName(
                         ChatFormatting.stripFormatting(firstLine.getString()));
-        // Wynntils' percentage suffix ("[61.7%]") is kept for the rewritten name but not matched.
+        // Wynntils' or wynnmod's percentage suffix ("[61.7%]") is kept for the rewritten name but
+        // not matched.
         Component raritySuffix = extractColoredSuffix(firstLine, plainText);
         if (plainText != null) plainText = stripPercentSuffix(plainText);
 
@@ -419,14 +420,15 @@ final class LegacyTooltipRenderer {
         return 1;
     }
 
-    private static String stripPercentSuffix(String plainText) {
+    // Package-private for unit tests. See LegacyTooltipRendererTest.
+    static String stripPercentSuffix(String plainText) {
         return PERCENT_SUFFIX_PATTERN.matcher(plainText).replaceFirst("");
     }
 
     /**
-     * Extracts a trailing Wynntils percentage suffix (e.g. "[61.7%]") from the original
-     * component, preserving its color. Wynntils appends the percentage as a sibling
-     * Component with its own Style/{@code TextColor}, so we check siblings first.
+     * Extracts a trailing Wynntils or wynnmod percentage suffix (e.g. "[61.7%]") from the original
+     * component, preserving its color. Both append the percentage as a sibling Component with its
+     * own Style/{@code TextColor}, so we check siblings first.
      * Falls back to scanning for §-codes in legacy-formatted text.
      * Returns null if no colored suffix is present.
      */
@@ -437,7 +439,7 @@ final class LegacyTooltipRenderer {
 
         String suffix = m.group(1);
 
-        // Wynntils adds the percentage as a sibling Component with its own Style.
+        // Both mods add the percentage as a sibling Component with its own Style.
         // Walk siblings last-to-first to find it.
         List<Component> siblings = original.getSiblings();
         for (int i = siblings.size() - 1; i >= 0; i--) {

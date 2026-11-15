@@ -5,10 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
-import org.wynnvets.retro.RetroReport;
 import org.wynnvets.retro.manifest.RetroManifest;
 import org.wynnvets.retro.manifest.RetroPart;
 import org.wynnvets.retro.manifest.StackSections.StackModel;
@@ -75,24 +73,5 @@ class RetroStackModelsTest {
         assertNull(
                 RetroStackModels.modelFor(
                         blesses, "Active Blesses", RetroPart.allBut(Set.of(RetroPart.ITEMS))));
-    }
-
-    @Test
-    void avomodsModelsWithNoStubAreTheOnesThatGiveWay() {
-        // A crafted scroll's Avomod art has no stub, so Wynncraft's own definition draws it; a
-        // potion family's Avomod model keeps retro's stub; Wynncraft's own models are not Avomod's.
-        RetroReport.Seen seen =
-                new RetroReport.Seen(
-                        Map.of(),
-                        Set.of(),
-                        List.of(
-                                "avomod2:item/scroll_sd",
-                                "avomod2:item/potion_sp_strength",
-                                "minecraft:item/wynn/scroll/scroll_teleport"),
-                        Set.of("avomod2:item/potion_sp_strength"),
-                        List.of(),
-                        Map.of());
-
-        assertEquals(Set.of("avomod2:item/scroll_sd"), RetroStackModels.unstubbedAvomod(seen));
     }
 }

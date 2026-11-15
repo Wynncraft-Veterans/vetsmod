@@ -36,40 +36,54 @@ public final class PanoramaCommand {
 
     private static int answer(boolean on) {
         ChatUtils.sendLocalMessageNewBlock(
-                Component.literal(
-                                text(
-                                        on,
-                                        RetroModeManager.isEnabled(),
-                                        ExtrasPanorama.hasFailed(),
-                                        ExtrasPanorama.download()))
-                        .withStyle(ChatFormatting.GREEN));
+                line(
+                        on,
+                        RetroModeManager.isEnabled(),
+                        ExtrasPanorama.hasFailed(),
+                        ExtrasPanorama.downloadState()));
         return 1;
     }
 
     /**
-     * The line the command answers with.
+     * The line the command answers with: red when Vetlas failed this session, yellow when its
+     * download, or reading its kept faces, did, green otherwise.
      *
      * @param on whether the egg is on
      * @param retro whether retro is on, which the egg gives way to
      * @param failed whether Vetlas failed to load or draw this session
      * @param download where Vetlas's download stands
-     * @return the line's text
+     * @return the line
      */
     // Package-private for unit tests. See PanoramaCommandTest.
-    static String text(
+    static Component line(
             boolean on, boolean retro, boolean failed, PanoramaDownloads.State download) {
-        if (!on) return "The Vetlas panorama is off.";
+        if (!on) return line(ChatFormatting.GREEN, "The Vetlas panorama is off.");
         if (failed) {
-            return "The Vetlas panorama is on, but could not be drawn: it returns after a restart.";
+            return line(
+                    ChatFormatting.RED,
+                    "The Vetlas panorama is on, but could not be drawn: it returns after a"
+                            + " restart.");
         }
         if (download == PanoramaDownloads.State.FAILED) {
-            return "The Vetlas panorama is on, but could not be downloaded: the next start-up"
-                    + " tries again.";
+            return line(
+                    ChatFormatting.YELLOW,
+                    "The Vetlas panorama is on, but could not be downloaded or read: the next"
+                            + " start-up tries again.");
         }
-        if (retro) return "The Vetlas panorama is on, and shows once retro is off.";
-        return download == PanoramaDownloads.State.HERE
-                ? "The Vetlas panorama is on: it shows behind the main menu."
-                : "The Vetlas panorama is on: it shows behind the main menu once it is"
-                        + " downloaded.";
+        if (retro) {
+            return line(
+                    ChatFormatting.GREEN,
+                    "The Vetlas panorama is on, and shows once retro is off.");
+        }
+        return line(
+                ChatFormatting.GREEN,
+                download == PanoramaDownloads.State.HERE
+                        ? "The Vetlas panorama is on: it shows behind the main menu."
+                        : "The Vetlas panorama is on: it shows behind the main menu once it is"
+                                + " downloaded.");
+    }
+
+    private static Component line(ChatFormatting colour, String text) {
+        return Component.literal(text).withStyle(colour);
     }
 }

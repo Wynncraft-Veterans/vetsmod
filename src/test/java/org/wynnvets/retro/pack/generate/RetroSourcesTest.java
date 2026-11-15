@@ -43,7 +43,7 @@ class RetroSourcesTest {
         MemoryPack vanilla = new MemoryPack("vanilla").texture("minecraft:block/a", PNG);
         MemoryPack art = new MemoryPack("art").texture("minecraft:block/b", PNG);
 
-        try (RetroSources sources = RetroSources.open(new ListedPack(art), null, vanilla)) {
+        try (RetroSources sources = RetroSources.open(new ListedPack(art), Map.of(), vanilla)) {
             assertEquals(
                     List.of(RetroSource.PROGRAMMER_ART, RetroSource.VANILLA), sources.present());
             assertTrue(sources.has(RetroSource.VANILLA, "minecraft:block/a"));
@@ -61,7 +61,8 @@ class RetroSourcesTest {
         MemoryPack art = new MemoryPack("art");
         MemoryPack tweaks = new MemoryPack("tweaks");
 
-        RetroSources.open(new ListedPack(art), tweaks, vanilla).close();
+        RetroSources.open(new ListedPack(art), Map.of(RetroSource.VANILLA_TWEAKS, tweaks), vanilla)
+                .close();
 
         assertTrue(art.closed());
         assertTrue(tweaks.closed());
@@ -73,7 +74,8 @@ class RetroSourcesTest {
         MemoryPack vanilla = new MemoryPack("vanilla");
         MemoryPack tweaks = new MemoryPack("tweaks").texture("minecraft:block/c", PNG);
 
-        try (RetroSources sources = RetroSources.open(null, tweaks, vanilla)) {
+        try (RetroSources sources =
+                RetroSources.open(null, Map.of(RetroSource.VANILLA_TWEAKS, tweaks), vanilla)) {
             assertEquals(
                     List.of(RetroSource.VANILLA_TWEAKS, RetroSource.VANILLA), sources.present());
             assertTrue(sources.has(RetroSource.VANILLA_TWEAKS, "minecraft:block/c"));
@@ -94,8 +96,11 @@ class RetroSourcesTest {
         try (RetroSources sources =
                 RetroSources.open(
                         null,
-                        Map.of(RetroSource.VANILLA_TWEAKS, tweaks),
-                        Map.of(RetroSource.MINECRAFT_1_7_10, old),
+                        Map.of(
+                                RetroSource.VANILLA_TWEAKS,
+                                tweaks,
+                                RetroSource.MINECRAFT_1_7_10,
+                                old),
                         vanilla)) {
             assertEquals(
                     List.of(
@@ -116,14 +121,14 @@ class RetroSourcesTest {
 
         assertEquals(
                 List.of(RetroSource.VANILLA),
-                RetroSources.open(null, null, vanilla).present(),
+                RetroSources.open(null, Map.of(), vanilla).present(),
                 "not in the client's list");
         assertEquals(
                 List.of(RetroSource.VANILLA),
-                RetroSources.open(new ListedPack(null), null, vanilla).present(),
+                RetroSources.open(new ListedPack(null), Map.of(), vanilla).present(),
                 "cannot be opened");
         assertNull(
-                RetroSources.open(null, null, vanilla)
+                RetroSources.open(null, Map.of(), vanilla)
                         .read(
                                 RetroSource.PROGRAMMER_ART,
                                 Identifier.parse("minecraft:textures/a.png")),

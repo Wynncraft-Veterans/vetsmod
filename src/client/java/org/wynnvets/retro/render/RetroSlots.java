@@ -40,21 +40,17 @@ import org.wynnvets.retro.manifest.ScreenSections.SlotFill;
  *
  * <p>Slot fills apply on the inventory screen and on the containers whose label
  * {@link RetroContainerTitles} draws, since those show the vanilla container; never on a container
- * that keeps Wynncraft's label and art, and only while the retro pack is live. A {@code player} row
- * picks the player's slots that Wynntils names, matched by the slot's own inventory and its index
- * there, never by the menu index (in the inventory's menu, 7 and 8 are armour). A container row
- * picks slots of a chest by row, column and number, every slot outside Wynntils' bounds, or every
- * slot ({@code slots: all}); never a slot in its {@code except}, nor any slot of a container its
- * {@code unless} matches. On a Wynntils full-screen view, Wynncraft fills the part below the chest
- * with its own buttons, so the player's slots there are not the player's (the content book's
- * scroll buttons are menu slots 65 and 69): only the container rows naming its class apply, and
- * their {@code slots} past the chest pick that part by menu index. A picked slot shows glass under
- * its item if it has one, since its item cannot be moved: the player's white, a container's in its
- * row's {@code glass}, the first row's where two rows pick it; a slot of an {@code open} row, which
- * the player fills, shows its glass too but still answers the mouse while empty. An accessory
- * slot, which the player fills, stays a slot under a white edge. With the {@code glass} part off no
- * row picks a slot; the inventory's slots the live pack painted over stay inert, and it paints them
- * only with {@code screens} on.</p>
+ * that keeps Wynncraft's label and art, and only while the retro pack is live. Which slots a
+ * container row picks, and in which glass, {@link SlotFill.ContainerSlots} says. A {@code player}
+ * row picks the player's slots that Wynntils names, on white glass, matched by the slot's own
+ * inventory and its index there, never by the menu index (in the inventory's menu, 7 and 8 are
+ * armour). On a Wynntils full-screen view the part below the chest holds Wynncraft's buttons (the
+ * content book's scroll buttons are menu slots 65 and 69), so there the player's slots are the
+ * container's, by menu index, and no {@code player} row applies. A picked slot shows glass under
+ * its item if it has one, and while it looks empty it does not answer the mouse, unless its row is
+ * {@code open}. An accessory slot, which the player fills, stays a slot under a white edge. With
+ * the {@code glass} part off no row picks a slot; the inventory's slots the live pack painted over
+ * stay inert, and it paints them only with {@code screens} on.</p>
  *
  * <ul>
  *   <li>{@link #paintIfPanel}, for
@@ -64,9 +60,9 @@ import org.wynnvets.retro.manifest.ScreenSections.SlotFill;
  *   <li>{@link #hovered}, for
  *       {@link org.wynnvets.mixin.client.retro.RetroHoveredSlotMixin RetroHoveredSlotMixin}: no
  *       hovered slot over an inventory slot the live pack's {@code image_edits} painted over (the
- *       crafting grid, result and offhand; {@link LivePack#imageEdits}), nor over an
- *       empty panel slot that never takes an item. Accessory slots stay hoverable, so an
- *       accessory can still be put on by click or drag. Only on Wynncraft
+ *       crafting grid, result and offhand; {@link LivePack#imageEdits}), nor over an empty panel
+ *       slot that never takes an item. Accessory slots stay hoverable, so an accessory can still
+ *       be put on by click or drag. Only on Wynncraft
  *       ({@link RetroModeManager#isLiveOnWynncraft()}): the pack can stay live in singleplayer,
  *       where every slot is a slot, and the crafting grid the texture edits hide still works.</li>
  * </ul>
@@ -74,9 +70,9 @@ import org.wynnvets.retro.manifest.ScreenSections.SlotFill;
  * <p>Which slots a screen has is worked out once per screen, and again if its label decision
  * changes. A failure drawing a slot is logged once and costs that slot that frame. A failure
  * finding what the mouse is over is logged once and stops the mouse rule until the game restarts,
- * so every slot then answers the mouse. The row logic works on plain
- * numbers ({@link #containerSlots}, {@link #covers}, {@link #paintedOver}, {@link #panelsOf}) and
- * is unit-tested; nothing static here touches Wynntils. Render thread only.</p>
+ * so every slot then answers the mouse. The row logic works on plain numbers
+ * ({@link #containerSlots}, {@link #covers}, {@link #paintedOver}, {@link #panelsOf}) and is
+ * unit-tested; nothing static here touches Wynntils. Render thread only.</p>
  */
 public final class RetroSlots {
 
@@ -161,9 +157,9 @@ public final class RetroSlots {
 
     /**
      * Marks {@code slot} when a {@code slot_fills} row picks it on {@code screen}: its glass,
-     * under its item if it has one; and for an accessory slot,
-     * which stays a plain slot, a thick white edge along its bottom, and for the last along its
-     * right, which sets the four apart from the inventory they sit in.
+     * under its item if it has one; and for an accessory slot, which stays a plain slot, a thick
+     * white edge along its bottom, and for the last along its right, which sets the four apart
+     * from the inventory they sit in.
      *
      * @param graphics the graphics, translated to the screen's container as a slot is drawn
      * @param screen the screen drawing the slot
@@ -325,15 +321,15 @@ public final class RetroSlots {
             boolean fullScreen) {
         Panels found = new Panels(new BitSet(), new HashMap<>(), new BitSet());
         for (SlotKey slot : slots) {
-            boolean containers = !slot.own() || fullScreen;
-            int index = slot.containerSlot();
+            boolean byMenuIndex = !slot.own() || fullScreen;
+            int inventorySlot = slot.containerSlot();
             Pane pane =
-                    containers
+                    byMenuIndex
                             ? containerPanels.get(slot.index())
-                            : (playerPanels.contains(index) ? Pane.PLAYERS : null);
+                            : (playerPanels.contains(inventorySlot) ? Pane.PLAYERS : null);
             if (pane != null) {
                 found.picked().set(slot.index());
-                if (containers || !accessories.contains(index)) {
+                if (byMenuIndex || !accessories.contains(inventorySlot)) {
                     found.glass().put(slot.index(), pane);
                 }
             }
@@ -363,9 +359,7 @@ public final class RetroSlots {
 
     /**
      * The slots the {@code slot_fills} container rows glaze on one container, whatever they hold,
-     * with each one's glass: the first row's that picks it. A {@code fallback} row counts only
-     * when no row before it applied. On a full-screen view only a row naming the
-     * container's class applies, and its {@code slots} past the chest pick the part below it.
+     * each with its glass, as {@link SlotFill.ContainerSlots} has the rows pick them.
      *
      * @param fills the {@code slot_fills} rows; {@code player} rows are skipped
      * @param containerClass the simple name of its Wynntils container class, or {@code null}

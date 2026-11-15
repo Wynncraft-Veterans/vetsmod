@@ -27,12 +27,8 @@ class ModelRulesTest {
     private static final String STONE = "minecraft:block/stone";
     private static final String HEART = "minecraft:gui/sprites/hud/heart/full";
 
-    private static ModelRules rules(String textures) {
-        return rules(textures, "");
-    }
-
-    private static ModelRules rules(String textures, String ingredients) {
-        return new ModelRules(ManifestFixtures.parse(textures + "\n" + ingredients).models());
+    private static ModelRules rules(String yaml) {
+        return new ModelRules(ManifestFixtures.parse(yaml).models());
     }
 
     // ----- Item models -----
@@ -216,7 +212,6 @@ class ModelRulesTest {
     void anIngredientsParentIsItsRow() {
         ModelRules rules =
                 rules(
-                        "",
                         """
                         ingredients:
                           gold_nugget: 'minecraft:item/gold_nugget'
@@ -243,8 +238,6 @@ class ModelRulesTest {
                           'minecraft:item/wynn/(potion|weapon|ingredient)/\\w+':
                             texture: 'minecraft:item/iron_shovel'
                             parent: handheld
-                        """,
-                        """
                         ingredients:
                           gold_nugget: 'minecraft:item/gold_nugget'
                           ram_horn: keep
@@ -324,8 +317,8 @@ class ModelRulesTest {
                           '.*': {texture: 'minecraft:item/stick', parent: handheld}
                         equipment:
                           '.*': 'minecraft:iron'
-                        """,
-                        "ingredients: {gold_nugget: 'minecraft:item/gold_nugget'}\n");
+                        ingredients: {gold_nugget: 'minecraft:item/gold_nugget'}
+                        """);
 
         assertEquals(Optional.empty(), rules.itemStub(null));
         assertEquals(Optional.empty(), rules.potionStub(null));

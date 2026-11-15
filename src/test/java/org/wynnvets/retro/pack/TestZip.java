@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.zip.CRC32;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
+import org.wynnvets.util.Digests;
 
 /** A zip built in memory and read back through {@link HttpRanges}, as a remote jar is. */
 final class TestZip {
@@ -60,7 +61,7 @@ final class TestZip {
                 "0000000000000000000000000000000000000000",
                 directoryOffset,
                 directorySize,
-                OldClients.sha1(directory()));
+                Digests.sha1(directory()));
     }
 
     static Builder builder() {

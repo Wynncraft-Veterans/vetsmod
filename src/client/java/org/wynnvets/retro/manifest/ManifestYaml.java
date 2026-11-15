@@ -20,7 +20,7 @@ import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
 
 /**
- * The shapes the rule files are written in: readers for one value and walkers over a section's
+ * The shapes {@code retro.yml} is written in: readers for one value and walkers over a section's
  * rows. Every method takes a {@code where}, the path its error message names, and throws an
  * {@link IllegalArgumentException} on a value of the wrong shape.
  */
@@ -28,10 +28,10 @@ final class ManifestYaml {
 
     static final String FILE = "retro.yml";
 
-    /** A colour as the files write it: {@code '#RRGGBB'}. */
+    /** A colour as the file writes it: {@code '#RRGGBB'}. */
     private static final Pattern COLOUR = Pattern.compile("#[0-9A-Fa-f]{6}");
 
-    /** A range of numbers as the files write it: {@code '45-53'}. */
+    /** A range of numbers as the file writes it: {@code '45-53'}. */
     private static final Pattern RANGE = Pattern.compile("(\\d+)-(\\d+)");
 
     /** A table's name: it goes into model and texture ids. */
@@ -80,7 +80,7 @@ final class ManifestYaml {
     }
 
     /** The file's one document, a mapping of sections; an empty file has none. */
-    static Map<?, ?> sections(InputStream input, String file, Set<String> known) {
+    static Map<?, ?> sections(InputStream input, Set<String> known) {
         LoaderOptions options = new LoaderOptions();
         // A repeated key would silently replace the earlier section or row.
         options.setAllowDuplicateKeys(false);
@@ -89,11 +89,11 @@ final class ManifestYaml {
                         .load(new InputStreamReader(input, StandardCharsets.UTF_8));
         if (document == null) return Map.of();
         if (!(document instanceof Map<?, ?> sections)) {
-            throw new IllegalArgumentException(file + ": not a mapping of sections");
+            throw new IllegalArgumentException(FILE + ": not a mapping of sections");
         }
         for (Object name : sections.keySet()) {
             if (name == null || !known.contains(name)) {
-                VetsLogger.debug("{}: ignored the unknown section {}", file, name);
+                VetsLogger.debug("{}: ignored the unknown section {}", FILE, name);
             }
         }
         return sections;
@@ -175,6 +175,28 @@ final class ManifestYaml {
             Map<?, ?> fields = mapping(entry, rowWhere);
             onlyKeys(fields, rowWhere, allowed);
             rows.add(row.read(fields, rowWhere));
+        }
+        return rows;
+    }
+
+    /**
+     * A list of groups, each a mapping whose rows share its settings, merged in file order. A key
+     * in two groups is a parse error, as a repeated key in one mapping is.
+     *
+     * @param keys the keys a group may have
+     * @param group reads one group's rows
+     */
+    static <V> Map<String, V> groupRows(
+            Object section, String where, List<String> keys, MappingRow<Map<String, V>> group) {
+        Map<String, V> rows = new LinkedHashMap<>();
+        for (Map<String, V> read : listRows(section, where, keys, group)) {
+            read.forEach(
+                    (key, value) -> {
+                        if (rows.putIfAbsent(key, value) != null) {
+                            throw new IllegalArgumentException(
+                                    where + ": " + key + " is in two groups");
+                        }
+                    });
         }
         return rows;
     }

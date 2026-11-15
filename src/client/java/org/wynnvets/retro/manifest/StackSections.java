@@ -1,7 +1,6 @@
 package org.wynnvets.retro.manifest;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -163,14 +162,11 @@ public record StackSections(
     }
 
     private static Map<String, GearBoxIcon> gearBoxIcons(Object section) {
-        Map<String, GearBoxIcon> rows = new LinkedHashMap<>();
-        ManifestYaml.listRows(
-                        section,
-                        ManifestYaml.inFile(GEAR_BOX_ICONS),
-                        List.of("scale", "items"),
-                        StackSections::gearBoxGroup)
-                .forEach(rows::putAll);
-        return rows;
+        return ManifestYaml.groupRows(
+                section,
+                ManifestYaml.inFile(GEAR_BOX_ICONS),
+                List.of("scale", "items"),
+                StackSections::gearBoxGroup);
     }
 
     /** A group of {@code gear_box_icons}: the types that share its scale. */
@@ -186,14 +182,11 @@ public record StackSections(
     }
 
     private static Map<String, OutlinedIcon> outlinedIcons(Object section) {
-        Map<String, OutlinedIcon> rows = new LinkedHashMap<>();
-        ManifestYaml.listRows(
-                        section,
-                        ManifestYaml.inFile(OUTLINED_ICONS),
-                        List.of("outline", "scale", "art"),
-                        StackSections::outlinedGroup)
-                .forEach(rows::putAll);
-        return rows;
+        return ManifestYaml.groupRows(
+                section,
+                ManifestYaml.inFile(OUTLINED_ICONS),
+                List.of("outline", "scale", "art"),
+                StackSections::outlinedGroup);
     }
 
     /** A group of {@code outlined_icons}: the types that share its outline and scale. */

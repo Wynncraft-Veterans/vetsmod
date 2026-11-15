@@ -78,15 +78,15 @@ public record ModelSections(
      */
     public record Equipment(Pattern assets, String target) {}
 
-    static ModelSections parse(Map<?, ?> textures, ItemTables tables) {
+    static ModelSections parse(Map<?, ?> sections, ItemTables tables) {
         List<ItemModel> itemModels = new ArrayList<>(tables.itemModels());
-        itemModels.addAll(itemModels(textures.get(ITEM_MODELS)));
+        itemModels.addAll(itemModels(sections.get(ITEM_MODELS)));
         return new ModelSections(
                 itemModels,
                 tables.potions(),
-                equipment(textures.get(EQUIPMENT)),
-                blockModels(textures.get(BLOCK_MODELS)),
-                ingredients(textures.get(INGREDIENTS)));
+                equipment(sections.get(EQUIPMENT)),
+                blockModels(sections.get(BLOCK_MODELS)),
+                ingredients(sections.get(INGREDIENTS)));
     }
 
     void addCounts(Map<String, Integer> counts) {

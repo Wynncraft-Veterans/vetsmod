@@ -1,7 +1,15 @@
 package org.wynnvets.util;
 
+import java.io.IOException;
 import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.function.Predicate;
 
 /**
  * The mod's shared HTTP transport.
@@ -81,6 +89,44 @@ public final class HttpClients {
      */
     public static HttpClient standard() {
         return STANDARD;
+    }
+
+    /**
+     * Sends {@code request} over {@link #standard()} and waits at most {@code within} for the whole
+     * answer, body included. A request's own timeout ends when the headers arrive, so alone it
+     * would let a slow body run on; an exchange that takes longer is cancelled. Only an answer that
+     * {@code wanted} accepts, from its status and headers, has its body read: any other's is
+     * discarded unread.
+     *
+     * @param request the request
+     * @param wanted whether an answer's body is read
+     * @param within how long the whole exchange may take
+     * @return the answer, its body {@code null} unless {@code wanted} accepted it
+     * @throws IOException when the exchange fails, takes longer than {@code within}, or the thread
+     *     is interrupted
+     */
+    public static HttpResponse<byte[]> bytesWithin(
+            HttpRequest request, Predicate<HttpResponse.ResponseInfo> wanted, Duration within)
+            throws IOException {
+        CompletableFuture<HttpResponse<byte[]>> exchange =
+                STANDARD.sendAsync(
+                        request,
+                        answer ->
+                                wanted.test(answer)
+                                        ? HttpResponse.BodySubscribers.ofByteArray()
+                                        : HttpResponse.BodySubscribers.replacing(null));
+        try {
+            return exchange.get(within.toMillis(), TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            exchange.cancel(true);
+            Thread.currentThread().interrupt();
+            throw new IOException("interrupted reading " + request.uri(), e);
+        } catch (TimeoutException e) {
+            exchange.cancel(true);
+            throw new IOException(request.uri() + " took over " + within, e);
+        } catch (ExecutionException e) {
+            throw new IOException(request.uri() + " failed", e.getCause());
+        }
     }
 
     private HttpClients() {}

@@ -15,8 +15,8 @@ import org.wynnvets.retro.rules.RetroAssetIds;
 
 /**
  * Tests for {@link LivePack}: whether the pack's copy of Wynncraft's unique tooltip border, its
- * other copies of Wynncraft's textures, its item definitions and its image edits count, by whether
- * the pack is drawn and what its generation wrote.
+ * other copies of Wynncraft's textures, its item definitions, its image edits and the Avomod models
+ * it left as Avomod's count, by whether the pack is drawn and what its generation wrote.
  */
 class LivePackTest {
 
@@ -45,8 +45,29 @@ class LivePackTest {
             Set<String> copiedItems,
             Set<String> generatedItems,
             Map<String, List<Rect>> imageEdits) {
+        return generated(copies, copiedItems, generatedItems, imageEdits, Set.of());
+    }
+
+    /** A report whose generation left {@code unstubbedAvomod} as Avomod's. */
+    private static RetroReport unstubbedWith(Set<String> unstubbedAvomod) {
+        return generated(Set.of(), Set.of(), Set.of(), Map.of(), unstubbedAvomod);
+    }
+
+    private static RetroReport generated(
+            Set<String> copies,
+            Set<String> copiedItems,
+            Set<String> generatedItems,
+            Map<String, List<Rect>> imageEdits,
+            Set<String> unstubbedAvomod) {
         RetroReport.Seen seen =
-                new RetroReport.Seen(Map.of(), Set.of(), List.of(), Set.of(), List.of(), Map.of());
+                new RetroReport.Seen(
+                        Map.of(),
+                        Set.of(),
+                        List.of(),
+                        Set.of(),
+                        unstubbedAvomod,
+                        List.of(),
+                        Map.of());
         return new RetroReport(
                 "wynntils_preloaded/test",
                 List.of(),
@@ -107,7 +128,7 @@ class LivePackTest {
 
     @Test
     void aWynncraftTexturesCopyCountsOnlyWhileTheLivePackWroteIt() {
-        // The real rule files copy Wynncraft's chest texture to this vetsmod id.
+        // The real retro.yml copies Wynncraft's chest texture to this vetsmod id.
         String chest = "minecraft:gui/container/generic_54";
         String copy = "vetsmod:gui/container/wynncraft/generic_54";
         RetroModeManager.generated(generatedWith(Set.of(copy)));
@@ -159,6 +180,22 @@ class LivePackTest {
 
         RetroModeManager.reloadStarted();
         assertFalse(LivePack.isGeneratedItem(ring), "a reload");
+    }
+
+    @Test
+    void anAvomodModelIsLeftAsAvomodsOnlyWhileThePackWhoseGenerationLeftItIsDrawn() {
+        String scroll = "avomod2:item/scroll_sd";
+        RetroModeManager.generated(unstubbedWith(Set.of(scroll)));
+        assertFalse(LivePack.isUnstubbedAvomodModel(scroll), "not live yet");
+
+        RetroModeManager.packWentLive(RetroModeManager.reloadStarted());
+        assertTrue(LivePack.isUnstubbedAvomodModel(scroll));
+        assertFalse(
+                LivePack.isUnstubbedAvomodModel("avomod2:item/potion_sp_strength"),
+                "one the generation stubbed, or whose part it had off");
+
+        RetroModeManager.reloadStarted();
+        assertFalse(LivePack.isUnstubbedAvomodModel(scroll), "a reload");
     }
 
     @Test

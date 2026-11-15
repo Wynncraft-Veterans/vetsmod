@@ -274,119 +274,6 @@ blank_textures: []
 # small stubs. A model takes the first of: its ingredients row (under item/wynn/ingredient/), a
 # potions row, a row the tables make (materials, content_book_activities), an item_models row.
 
-# ---- Item models ----------------------------------------------------------------------------
-
-# Model pattern -> what its stub draws:
-# - a texture id, in block/ or item/: held flat, on a layer the stack's colour does not tint.
-# - {texture: <id>, parent: handheld | handheld_rod | bow | generated}: held like that vanilla item.
-# - {model: <id>}: that model as the stub's parent, tinted by the stack's colour as the vanilla
-#   item is (a dyed item keeps its dye).
-item_models:
-  # -- Gear
-  # Weapons: one vanilla item per class, for the plain models and every skin.
-  'minecraft:item/wynn/(weapon/\w+/spear_|skin/spear/)\w+': {texture: 'minecraft:item/iron_shovel', parent: handheld}
-  'minecraft:item/wynn/(weapon/\w+/wand_|skin/wand/)\w+': {texture: 'minecraft:item/stick', parent: handheld}
-  # The frying pan is also every cooking station's pan, so it stays Wynncraft's.
-  'minecraft:item/wynn/(weapon/\w+/dagger_|skin/dagger/(?!frying_pan$))\w+': 'minecraft:item/shears'
-  'minecraft:item/wynn/(weapon/\w+/bow_|skin/bow/)\w+': {texture: 'minecraft:item/bow', parent: bow}
-  'minecraft:item/wynn/(weapon/\w+/relik_|skin/relik/)\w+': {texture: 'minecraft:item/iron_pickaxe', parent: handheld}
-  # Armour: the vanilla piece of the same material (pale_ is a paler copy).
-  'minecraft:item/wynn/armor/\w+/(?:pale_)?gold_(helmet|chestplate|leggings|boots)': 'minecraft:item/golden_$1'
-  'minecraft:item/wynn/armor/\w+/(?:pale_)?(chainmail|iron|diamond|netherite)_(helmet|chestplate|leggings|boots)': 'minecraft:item/$1_$2'
-  # Titanium, Wynncraft's tier above diamond: netherite.
-  'minecraft:item/wynn/armor/\w+/(?:pale_)?titanium_(helmet|chestplate|leggings|boots)': 'minecraft:item/netherite_$1'
-  # Leather keeps the stack's dye, as vanilla's leather does.
-  'minecraft:item/wynn/armor/\w+/(?:pale_)?leather_(helmet|chestplate|leggings|boots)': {model: 'minecraft:item/leather_$1'}
-  # Profession tools, whatever their material.
-  'minecraft:item/wynn/tool/\w+_axe': {texture: 'minecraft:item/iron_axe', parent: handheld}
-  'minecraft:item/wynn/tool/\w+_pickaxe': {texture: 'minecraft:item/iron_pickaxe', parent: handheld}
-  'minecraft:item/wynn/tool/\w+_rod': {texture: 'minecraft:item/fishing_rod', parent: handheld_rod}
-  'minecraft:item/wynn/tool/\w+_scythe': {texture: 'minecraft:item/iron_hoe', parent: handheld}
-  # Unidentified gear boxes, in the GUI (gui/loot/) and held (loot/): one chest; the GUI draws
-  # the box's type over it (gear_box_icons).
-  'minecraft:item/wynn/(gui/)?loot/(unique|rare|legendary|fabled|mythic|set)': {model: 'vetsmod:item/retro/chest'}
-  # Mastery tomes: the enchanted book, their type drawn over it in the GUI (outlined_icons).
-  'minecraft:item/wynn/mastery_tome/\w+': 'minecraft:item/enchanted_book'
-
-  # -- Other items
-  # Dungeon keys, broken or not: the 2013 tripwire hook (source_copies).
-  'minecraft:item/wynn/dungeon/key(_broken)?': 'vetsmod:block/retro/tripwire_hook'
-  # Hashr's Crown, the Sand-Swept Tomb's token.
-  'minecraft:item/wynn/dungeon/token/sand_swept_tomb': 'minecraft:item/golden_helmet'
-  'minecraft:item/wynn/scroll/\w+': 'minecraft:item/map'                 # teleportation scrolls
-  # The woodcutting papers and scrolls (crafting paper, Raid scrolls, notes).
-  'minecraft:item/wynn/economy/woodcutting/(?:paper_(?:brown|cream|white)|scroll_\w+)': 'minecraft:item/paper'
-  # Meals: the nearest food, 2013's where one fits.
-  'minecraft:item/wynn/economy/meals/fried': 'minecraft:item/cooked_chicken'  # a drumstick
-  'minecraft:item/wynn/economy/meals/generic(_item)?': 'minecraft:item/cooked_beef'  # a steak on a plate
-  'minecraft:item/wynn/economy/meals/salad': 'minecraft:item/beetroot_soup'   # 2013's one bowl is the soup's
-  'minecraft:item/wynn/economy/meals/soup': 'minecraft:item/mushroom_stew'
-  'minecraft:item/wynn/economy/meals/spicy': 'minecraft:item/bread'  # a filled flatbread
-  'minecraft:item/wynn/economy/meals/steamed': 'minecraft:item/baked_potato'  # a leaf-wrapped dumpling
-  # Mount saddles (the raptor's red, the wyvern's white) and what calls each mount.
-  'minecraft:item/wynn/mount/horse_saddle': 'minecraft:item/saddle'
-  'minecraft:item/wynn/mount/raptor_saddle': 'vetsmod:item/retro/saddle_red'
-  'minecraft:item/wynn/mount/wyvern_saddle': 'vetsmod:item/retro/saddle_white'
-  'minecraft:item/wynn/mount/horse_whistle': {model: 'vetsmod:item/retro/leather_horse_armor'}
-  'minecraft:item/wynn/mount/wyvern_whistle': 'minecraft:item/iron_horse_armor'
-  'minecraft:item/wynn/mount/raptor_whistle': 'minecraft:item/copper_horse_armor'
-  # The ingredient pouch and the crafter bags: the bundle, which 2013 lacked.
-  'minecraft:item/wynn/pouch/(ingredient_(empty|half|full)|crafter_(varied|packed|stuffed))': 'minecraft:item/bundle'
-  # Runes: music discs. The blank rune keeps Wynncraft's art.
-  'minecraft:item/wynn/rune/nii': {model: 'minecraft:item/music_disc_mellohi'}
-  'minecraft:item/wynn/rune/az': {model: 'minecraft:item/music_disc_wait'}
-  'minecraft:item/wynn/rune/tol': {model: 'minecraft:item/music_disc_cat'}
-  'minecraft:item/wynn/rune/ek': {model: 'minecraft:item/music_disc_13'}
-  'minecraft:item/wynn/rune/uth': {model: 'minecraft:item/music_disc_mall'}
-  # Wards: the stained glass block of their colour.
-  'minecraft:item/wynn/ward/(black|blue|cyan|green|orange|pink|purple|red|white|yellow)': {model: 'minecraft:block/$1_stained_glass'}
-  # Powders: the dyes Wynncraft's own item definitions (items/<colour>_dye.json) send them to.
-  'minecraft:item/wynn/powder/small_air': 'minecraft:item/gray_dye'
-  'minecraft:item/wynn/powder/large_air': 'minecraft:item/light_gray_dye'
-  'minecraft:item/wynn/powder/small_earth': 'minecraft:item/lime_dye'
-  'minecraft:item/wynn/powder/large_earth': 'minecraft:item/green_dye'
-  'minecraft:item/wynn/powder/small_thunder': 'minecraft:item/yellow_dye'
-  'minecraft:item/wynn/powder/large_thunder': 'minecraft:item/orange_dye'
-  'minecraft:item/wynn/powder/small_water': 'minecraft:item/light_blue_dye'
-  'minecraft:item/wynn/powder/large_water': 'minecraft:item/cyan_dye'
-  'minecraft:item/wynn/powder/small_fire': 'minecraft:item/pink_dye'
-  'minecraft:item/wynn/powder/large_fire': 'minecraft:item/red_dye'
-  # Corkian augments.
-  'minecraft:item/wynn/augment/corkian_amplifier': 'minecraft:item/shulker_shell'
-  'minecraft:item/wynn/augment/corkian_simulator': 'minecraft:item/ender_eye'
-  'minecraft:item/wynn/augment/corkian_insulator': 'minecraft:item/spectral_arrow'
-  # The ability shard: a lingering potion in the colour of its name.
-  'minecraft:item/wynn/player/ability_shard': {model: 'vetsmod:item/retro/ability_shard'}
-  # Grey plant art, which Minecraft colours by biome or item definition and a potion stack leaves
-  # grey: green copies (source_copies). A new item on these textures needs adding here.
-  'minecraft:item/wynn/(?:dungeon/fragment/undergrowth_ruins|ingredient/(?:alga|algae_mat|ancient_moss|bioluminescent_moss|creepvine_cluster|thick_vines))': 'vetsmod:block/retro/green/vine'
-  'minecraft:item/wynn/ingredient/(?:decomposing_snapdragon|etheric_fern|liff_leaf|pristine_liff_leaf|munched_grass|secret_herb|sticky_fern|undiscovered_plant|viral_tentacle)': 'vetsmod:block/retro/green/fern'
-  'minecraft:item/wynn/ingredient/(?:canyon_parsley|illicit_helmlock|mega_fern|water_dropwort)': 'vetsmod:block/retro/green/large_fern_top'
-  'minecraft:item/wynn/ingredient/(?:hunters_disguise|waterfall_thyme)': 'vetsmod:block/retro/green/short_grass'
-  'minecraft:item/wynn/ingredient/(?:gert_skin|green_fin|green_foot|green_scale|sludge_parasite)': 'vetsmod:block/retro/green/lily_pad'
-  'minecraft:item/wynn/outer_void/drop/arable_chunk': {model: 'vetsmod:item/retro/arable_chunk'}   # a grass block
-
-  # -- Interface
-  # Wynncraft's tier layer under runes and wards, which Wynntils' highlight misses: retro's tag.
-  'minecraft:item/wynn/gui/layer/tier/(tab|full)': {model: 'vetsmod:item/retro/tier_tag'}
-  'minecraft:item/wynn/(gui/)?player/content_book': 'minecraft:item/knowledge_book'
-  # The content book's buttons beside its activities (content_book_activities).
-  'minecraft:item/wynn/gui/content_book/world_event_complete': 'minecraft:item/green_dye'
-  'minecraft:item/wynn/gui/content_book/complete': 'minecraft:item/bone_meal'
-  'minecraft:item/wynn/gui/content_book/locked': 'minecraft:item/gray_dye'
-  # An empty accessory slot: the outline of its type's art (accessory_tiers).
-  'minecraft:item/wynn/gui/slot/(ring|bracelet|necklace)': {model: 'vetsmod:item/retro/accessory/$1_empty'}
-  # The compass menu's buttons and the guild's boosts.
-  'minecraft:item/wynn/gui/character_info/recruit_friend': 'minecraft:item/structure_void'
-  'minecraft:item/wynn/gui/character_info/daily_(?:available|cooldown)': {model: 'vetsmod:item/retro/chest'}
-  'minecraft:item/wynn/gui/character_info/store': {model: 'vetsmod:item/retro/ender_chest'}
-  'minecraft:item/wynn/gui/character_info/ability_tree': 'minecraft:item/enchanted_book'
-  'minecraft:item/wynn/gui/character_info/skill_crystal': 'minecraft:item/slime_ball'
-  'minecraft:item/wynn/gui/character_info/book_(agility|defense|dexterity|intelligence|strength)': 'minecraft:item/written_book'
-  'minecraft:item/wynn/gui/store/silverbull_emblem': {model: 'minecraft:block/sea_lantern'}
-  # The brown bar over a player trade's centre column: blank, so each slot's tooltip still shows.
-  'minecraft:item/wynn/gui/(trade_icon|column)': {model: 'vetsmod:item/retro/blank'}
-
 # ---- Ingredients ----------------------------------------------------------------------------
 
 # Ingredient model stem (its file name under item/wynn/ingredient/) -> the model its stub parents,
@@ -416,6 +303,23 @@ ingredients:
   # Shields: a special renderer draws them, so stack_models does.
   butterfly_buckler: keep
   router_shield: keep
+
+# ---- Potions --------------------------------------------------------------------------------
+
+# Potion family -> its liquid's colour, and Avomod's model name if it has one. Wynncraft's
+# item/wynn/potion/<family>_<empty|half|full> become the full vanilla potion in that colour (the
+# potion_overlay recipe); a family with no row keeps its models. The skill potions take their skill
+# point's colour, healing, wisdom and drunkness vanilla's effect colours.
+potions:
+  strength: {colour: '#00AA00', avomod: potion_sp_strength}
+  dexterity: {colour: '#FFFF55', avomod: potion_sp_dexterity}
+  intelligence: {colour: '#55FFFF', avomod: potion_sp_intelligence}
+  defense: {colour: '#FF5555', avomod: potion_sp_defence}
+  agility: {colour: '#FFFFFF', avomod: potion_sp_agility}
+  healing: {colour: '#F82423', avomod: potion_health}
+  mana: {colour: '#385DC6', avomod: potion_mana}
+  wisdom: {colour: '#59C106'}
+  drunkness: {colour: '#551D4A'}
 
 # ---- Recipes --------------------------------------------------------------------------------
 
@@ -601,22 +505,118 @@ content_book_activities:
     time_trial: 'minecraft:item/magenta_dye'
     mount_enclosure: 'minecraft:item/cocoa_beans'
 
-# ---- Potions --------------------------------------------------------------------------------
+# ---- Item models ----------------------------------------------------------------------------
 
-# Potion family -> its liquid's colour, and Avomod's model name if it has one. Wynncraft's
-# item/wynn/potion/<family>_<empty|half|full> become the full vanilla potion in that colour (the
-# potion_overlay recipe); a family with no row keeps its models. The skill potions take their skill
-# point's colour, healing, wisdom and drunkness vanilla's effect colours.
-potions:
-  strength: {colour: '#00AA00', avomod: potion_sp_strength}
-  dexterity: {colour: '#FFFF55', avomod: potion_sp_dexterity}
-  intelligence: {colour: '#55FFFF', avomod: potion_sp_intelligence}
-  defense: {colour: '#FF5555', avomod: potion_sp_defence}
-  agility: {colour: '#FFFFFF', avomod: potion_sp_agility}
-  healing: {colour: '#F82423', avomod: potion_health}
-  mana: {colour: '#385DC6', avomod: potion_mana}
-  wisdom: {colour: '#59C106'}
-  drunkness: {colour: '#551D4A'}
+# Model pattern -> what its stub draws:
+# - a texture id, in block/ or item/: held flat, on a layer the stack's colour does not tint.
+# - {texture: <id>, parent: handheld | handheld_rod | bow | generated}: held like that vanilla item.
+# - {model: <id>}: that model as the stub's parent, tinted by the stack's colour as the vanilla
+#   item is (a dyed item keeps its dye).
+item_models:
+  # -- Gear
+  # Weapons: one vanilla item per class, for the plain models and every skin.
+  'minecraft:item/wynn/(weapon/\w+/spear_|skin/spear/)\w+': {texture: 'minecraft:item/iron_shovel', parent: handheld}
+  'minecraft:item/wynn/(weapon/\w+/wand_|skin/wand/)\w+': {texture: 'minecraft:item/stick', parent: handheld}
+  # The frying pan is also every cooking station's pan, so it stays Wynncraft's.
+  'minecraft:item/wynn/(weapon/\w+/dagger_|skin/dagger/(?!frying_pan$))\w+': 'minecraft:item/shears'
+  'minecraft:item/wynn/(weapon/\w+/bow_|skin/bow/)\w+': {texture: 'minecraft:item/bow', parent: bow}
+  'minecraft:item/wynn/(weapon/\w+/relik_|skin/relik/)\w+': {texture: 'minecraft:item/iron_pickaxe', parent: handheld}
+  # Armour: the vanilla piece of the same material (pale_ is a paler copy).
+  'minecraft:item/wynn/armor/\w+/(?:pale_)?gold_(helmet|chestplate|leggings|boots)': 'minecraft:item/golden_$1'
+  'minecraft:item/wynn/armor/\w+/(?:pale_)?(chainmail|iron|diamond|netherite)_(helmet|chestplate|leggings|boots)': 'minecraft:item/$1_$2'
+  # Titanium, Wynncraft's tier above diamond: netherite.
+  'minecraft:item/wynn/armor/\w+/(?:pale_)?titanium_(helmet|chestplate|leggings|boots)': 'minecraft:item/netherite_$1'
+  # Leather keeps the stack's dye, as vanilla's leather does.
+  'minecraft:item/wynn/armor/\w+/(?:pale_)?leather_(helmet|chestplate|leggings|boots)': {model: 'minecraft:item/leather_$1'}
+  # Profession tools, whatever their material.
+  'minecraft:item/wynn/tool/\w+_axe': {texture: 'minecraft:item/iron_axe', parent: handheld}
+  'minecraft:item/wynn/tool/\w+_pickaxe': {texture: 'minecraft:item/iron_pickaxe', parent: handheld}
+  'minecraft:item/wynn/tool/\w+_rod': {texture: 'minecraft:item/fishing_rod', parent: handheld_rod}
+  'minecraft:item/wynn/tool/\w+_scythe': {texture: 'minecraft:item/iron_hoe', parent: handheld}
+  # Unidentified gear boxes, in the GUI (gui/loot/) and held (loot/): one chest; the GUI draws
+  # the box's type over it (gear_box_icons).
+  'minecraft:item/wynn/(gui/)?loot/(unique|rare|legendary|fabled|mythic|set)': {model: 'vetsmod:item/retro/chest'}
+  # Mastery tomes: the enchanted book, their type drawn over it in the GUI (outlined_icons).
+  'minecraft:item/wynn/mastery_tome/\w+': 'minecraft:item/enchanted_book'
+
+  # -- Other items
+  # Dungeon keys, broken or not: the 2013 tripwire hook (source_copies).
+  'minecraft:item/wynn/dungeon/key(_broken)?': 'vetsmod:block/retro/tripwire_hook'
+  # Hashr's Crown, the Sand-Swept Tomb's token.
+  'minecraft:item/wynn/dungeon/token/sand_swept_tomb': 'minecraft:item/golden_helmet'
+  'minecraft:item/wynn/scroll/\w+': 'minecraft:item/map'                 # teleportation scrolls
+  # The woodcutting papers and scrolls (crafting paper, Raid scrolls, notes).
+  'minecraft:item/wynn/economy/woodcutting/(?:paper_(?:brown|cream|white)|scroll_\w+)': 'minecraft:item/paper'
+  # Meals: the nearest food, 2013's where one fits.
+  'minecraft:item/wynn/economy/meals/fried': 'minecraft:item/cooked_chicken'  # a drumstick
+  'minecraft:item/wynn/economy/meals/generic(_item)?': 'minecraft:item/cooked_beef'  # a steak on a plate
+  'minecraft:item/wynn/economy/meals/salad': 'minecraft:item/beetroot_soup'   # 2013's one bowl is the soup's
+  'minecraft:item/wynn/economy/meals/soup': 'minecraft:item/mushroom_stew'
+  'minecraft:item/wynn/economy/meals/spicy': 'minecraft:item/bread'  # a filled flatbread
+  'minecraft:item/wynn/economy/meals/steamed': 'minecraft:item/baked_potato'  # a leaf-wrapped dumpling
+  # Mount saddles (the raptor's red, the wyvern's white) and what calls each mount.
+  'minecraft:item/wynn/mount/horse_saddle': 'minecraft:item/saddle'
+  'minecraft:item/wynn/mount/raptor_saddle': 'vetsmod:item/retro/saddle_red'
+  'minecraft:item/wynn/mount/wyvern_saddle': 'vetsmod:item/retro/saddle_white'
+  'minecraft:item/wynn/mount/horse_whistle': {model: 'vetsmod:item/retro/leather_horse_armor'}
+  'minecraft:item/wynn/mount/wyvern_whistle': 'minecraft:item/iron_horse_armor'
+  'minecraft:item/wynn/mount/raptor_whistle': 'minecraft:item/copper_horse_armor'
+  # The ingredient pouch and the crafter bags: the bundle, which 2013 lacked.
+  'minecraft:item/wynn/pouch/(ingredient_(empty|half|full)|crafter_(varied|packed|stuffed))': 'minecraft:item/bundle'
+  # Runes: music discs. The blank rune keeps Wynncraft's art.
+  'minecraft:item/wynn/rune/nii': {model: 'minecraft:item/music_disc_mellohi'}
+  'minecraft:item/wynn/rune/az': {model: 'minecraft:item/music_disc_wait'}
+  'minecraft:item/wynn/rune/tol': {model: 'minecraft:item/music_disc_cat'}
+  'minecraft:item/wynn/rune/ek': {model: 'minecraft:item/music_disc_13'}
+  'minecraft:item/wynn/rune/uth': {model: 'minecraft:item/music_disc_mall'}
+  # Wards: the stained glass block of their colour.
+  'minecraft:item/wynn/ward/(black|blue|cyan|green|orange|pink|purple|red|white|yellow)': {model: 'minecraft:block/$1_stained_glass'}
+  # Powders: the dyes Wynncraft's own item definitions (items/<colour>_dye.json) send them to.
+  'minecraft:item/wynn/powder/small_air': 'minecraft:item/gray_dye'
+  'minecraft:item/wynn/powder/large_air': 'minecraft:item/light_gray_dye'
+  'minecraft:item/wynn/powder/small_earth': 'minecraft:item/lime_dye'
+  'minecraft:item/wynn/powder/large_earth': 'minecraft:item/green_dye'
+  'minecraft:item/wynn/powder/small_thunder': 'minecraft:item/yellow_dye'
+  'minecraft:item/wynn/powder/large_thunder': 'minecraft:item/orange_dye'
+  'minecraft:item/wynn/powder/small_water': 'minecraft:item/light_blue_dye'
+  'minecraft:item/wynn/powder/large_water': 'minecraft:item/cyan_dye'
+  'minecraft:item/wynn/powder/small_fire': 'minecraft:item/pink_dye'
+  'minecraft:item/wynn/powder/large_fire': 'minecraft:item/red_dye'
+  # Corkian augments.
+  'minecraft:item/wynn/augment/corkian_amplifier': 'minecraft:item/shulker_shell'
+  'minecraft:item/wynn/augment/corkian_simulator': 'minecraft:item/ender_eye'
+  'minecraft:item/wynn/augment/corkian_insulator': 'minecraft:item/spectral_arrow'
+  # The ability shard: a lingering potion in the colour of its name.
+  'minecraft:item/wynn/player/ability_shard': {model: 'vetsmod:item/retro/ability_shard'}
+  # Grey plant art, which Minecraft colours by biome or item definition and a potion stack leaves
+  # grey: green copies (source_copies). A new item on these textures needs adding here.
+  'minecraft:item/wynn/(?:dungeon/fragment/undergrowth_ruins|ingredient/(?:alga|algae_mat|ancient_moss|bioluminescent_moss|creepvine_cluster|thick_vines))': 'vetsmod:block/retro/green/vine'
+  'minecraft:item/wynn/ingredient/(?:decomposing_snapdragon|etheric_fern|liff_leaf|pristine_liff_leaf|munched_grass|secret_herb|sticky_fern|undiscovered_plant|viral_tentacle)': 'vetsmod:block/retro/green/fern'
+  'minecraft:item/wynn/ingredient/(?:canyon_parsley|illicit_helmlock|mega_fern|water_dropwort)': 'vetsmod:block/retro/green/large_fern_top'
+  'minecraft:item/wynn/ingredient/(?:hunters_disguise|waterfall_thyme)': 'vetsmod:block/retro/green/short_grass'
+  'minecraft:item/wynn/ingredient/(?:gert_skin|green_fin|green_foot|green_scale|sludge_parasite)': 'vetsmod:block/retro/green/lily_pad'
+  'minecraft:item/wynn/outer_void/drop/arable_chunk': {model: 'vetsmod:item/retro/arable_chunk'}   # a grass block
+
+  # -- Interface
+  # Wynncraft's tier layer under runes and wards, which Wynntils' highlight misses: retro's tag.
+  'minecraft:item/wynn/gui/layer/tier/(tab|full)': {model: 'vetsmod:item/retro/tier_tag'}
+  'minecraft:item/wynn/(gui/)?player/content_book': 'minecraft:item/knowledge_book'
+  # The content book's buttons beside its activities (content_book_activities).
+  'minecraft:item/wynn/gui/content_book/world_event_complete': 'minecraft:item/green_dye'
+  'minecraft:item/wynn/gui/content_book/complete': 'minecraft:item/bone_meal'
+  'minecraft:item/wynn/gui/content_book/locked': 'minecraft:item/gray_dye'
+  # An empty accessory slot: the outline of its type's art (accessory_tiers).
+  'minecraft:item/wynn/gui/slot/(ring|bracelet|necklace)': {model: 'vetsmod:item/retro/accessory/$1_empty'}
+  # The compass menu's buttons and the guild's boosts.
+  'minecraft:item/wynn/gui/character_info/recruit_friend': 'minecraft:item/structure_void'
+  'minecraft:item/wynn/gui/character_info/daily_(?:available|cooldown)': {model: 'vetsmod:item/retro/chest'}
+  'minecraft:item/wynn/gui/character_info/store': {model: 'vetsmod:item/retro/ender_chest'}
+  'minecraft:item/wynn/gui/character_info/ability_tree': 'minecraft:item/enchanted_book'
+  'minecraft:item/wynn/gui/character_info/skill_crystal': 'minecraft:item/slime_ball'
+  'minecraft:item/wynn/gui/character_info/book_(agility|defense|dexterity|intelligence|strength)': 'minecraft:item/written_book'
+  'minecraft:item/wynn/gui/store/silverbull_emblem': {model: 'minecraft:block/sea_lantern'}
+  # The brown bar over a player trade's centre column: blank, so each slot's tooltip still shows.
+  'minecraft:item/wynn/gui/(trade_icon|column)': {model: 'vetsmod:item/retro/blank'}
 
 # ==== Other files ============================================================================
 
@@ -903,8 +903,7 @@ glyph_titles:
 #   a full-screen view, slots past the chest's own pick the part below it, which holds Wynncraft's
 #   buttons: the inventory's three rows, then the hotbar.
 # White under a button, grey on the rest, lime under the item traded, clear (and open) under the
-# slot the player's item goes in; slots the player fills stay plain. The rows naming no glass are
-# white.
+# slot the player's item goes in; slots the player fills stay plain.
 slot_fills:
   - {player: wynntils}
   - {container: '((Account|Character|PersonalBlock|IslandBlock)Bank|Bookshelf|MiscBucket)Container', slots: [45, 53], glass: gray}

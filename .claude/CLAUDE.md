@@ -84,7 +84,8 @@ VetsmodClient (entry point)
                               (panorama/: HostedPanorama pins them, PanoramaDownloads fetches
                               and checks them, HostedCubeMapTexture draws Vetlas's)
   ├── util/                   Small shared helpers; AtomicFolders writes a folder whole or not
-                              at all (the old clients' files and the downloaded panoramas)
+                              at all (the old clients' files and the downloaded panoramas),
+                              Digests gives the hex digests their pins are written in
   ├── laurels/                Vets laurels on Wynntils' nametag badge bar: the standings model,
   │                           LaurelBadges (the only class touching Wynntils' badge types),
   │                           LaurelCommands (/wv laurels) and the temporary StreakCrawl;

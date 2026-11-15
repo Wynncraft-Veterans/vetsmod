@@ -34,8 +34,8 @@ import org.wynnvets.retro.rules.TextureDecision;
  *     RetroAssetIds.itemDefinitionCopy}
  * @param generatedItems the item definitions written for {@code accessory_tiers} and
  *     {@code outlined_icons}, by their {@code vetsmod} ids
- * @param imageEdits the rectangles {@code image_edits} painted, in the rule files' order, by the
- *     id of the texture written with them; a fill its palette guard refused is not among them
+ * @param imageEdits the rectangles {@code image_edits} painted, in {@code retro.yml}'s order, by
+ *     the id of the texture written with them; a fill its palette guard refused is not among them
  * @param skipped one line per rule that could not be applied, such as an alias whose target no
  *     source has, in the order the generator met them
  * @param partsOff the parts it left out, which explains a low count or a row that decided nothing
@@ -82,6 +82,8 @@ public record RetroReport(
      * @param models the item models the stubs were decided for: Wynncraft's under
      *     {@code minecraft:item/wynn/} and Avomod's, in id order
      * @param stubs the models among them that a stub replaced
+     * @param unstubbedAvomod the Avomod models among them whose part was on but that no stub
+     *     replaced
      * @param equipment the equipment assets the Wynncraft pack ships, in id order
      * @param tintFactors by texture id, the factors each tinted texture's red, green and blue were
      *     multiplied by
@@ -91,6 +93,7 @@ public record RetroReport(
             Set<String> wynncraftTextures,
             List<String> models,
             Set<String> stubs,
+            Set<String> unstubbedAvomod,
             List<String> equipment,
             Map<String, List<Double>> tintFactors) {
 
@@ -100,6 +103,7 @@ public record RetroReport(
             wynncraftTextures = Set.copyOf(wynncraftTextures);
             models = List.copyOf(models);
             stubs = Set.copyOf(stubs);
+            unstubbedAvomod = Set.copyOf(unstubbedAvomod);
             equipment = List.copyOf(equipment);
             Map<String, List<Double>> factors = new HashMap<>();
             tintFactors.forEach((textureId, rgb) -> factors.put(textureId, List.copyOf(rgb)));

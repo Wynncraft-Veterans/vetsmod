@@ -16,7 +16,10 @@ import org.wynnvets.retro.rules.RetroAssetIds;
  * Item-model stubs, for every model {@link ModelRules#modelStub} replaces among those Wynncraft
  * ships under {@code item/wynn/} and those of Avomod's in any pack up to Wynncraft's. Avomod points
  * a potion's item model at a model of its own, so its models are stubbed where a {@code potions}
- * row names them. {@link StubWriter} writes each one, but for a model whose part is off.
+ * row names them. {@link StubWriter} writes each one, but for a model whose part is off. An
+ * Avomod model whose part is on but that gets no stub is recorded
+ * ({@link PackOutput#unstubbedAvomod}), so that its stack draws as the plain item
+ * ({@link org.wynnvets.retro.LivePack#isUnstubbedAvomodModel LivePack}).
  */
 final class ModelStubStep implements GenerationStep {
 
@@ -62,6 +65,11 @@ final class ModelStubStep implements GenerationStep {
                             out.stubbed.add(id);
                         }
                     });
+            if (id.startsWith(RetroAssetIds.AVOMOD_MODELS)
+                    && !out.stubbed.contains(id)
+                    && gen.parts.modelOn(id)) {
+                out.unstubbedAvomod.add(id);
+            }
         }
         for (String stem : gen.manifest.models().ingredients().keySet()) {
             if (!stems.contains(stem)) out.skip("Wynncraft has no ingredient model " + stem);

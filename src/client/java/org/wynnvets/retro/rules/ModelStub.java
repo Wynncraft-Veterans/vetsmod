@@ -9,8 +9,8 @@ import org.wynnvets.retro.manifest.ParentKind;
 public sealed interface ModelStub {
 
     /**
-     * The rule the stub comes from: its section of the rule files, and for an {@code item_models}
-     * stub its kind.
+     * The rule the stub comes from: its section of {@code retro.yml}, and for an
+     * {@code item_models} stub its kind.
      *
      * @return {@code ingredients}, {@code potions}, {@code item_models (tint-proof)} or
      *     {@code item_models (model)}
@@ -81,8 +81,8 @@ public sealed interface ModelStub {
     }
 
     /**
-     * An ingredient's row in {@code retro.yml}'s {@code ingredients}: a stub that only names {@code parent}
-     * as its parent.
+     * An ingredient's row in {@code retro.yml}'s {@code ingredients}: a stub that only names
+     * {@code parent} as its parent.
      *
      * @param stem the ingredient's model stem
      * @param parent the vanilla item model the stub parents

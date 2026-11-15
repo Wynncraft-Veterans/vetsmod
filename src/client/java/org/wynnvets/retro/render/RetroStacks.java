@@ -65,7 +65,7 @@ final class RetroStacks {
      * @param colour one of {@link ScreenSections#GLASS_COLOURS}
      * @return {@code glass_pane} for clear, else {@code <dye>_stained_glass_pane}
      */
-    // Package-private for unit tests. See RetroSlotsTest.
+    // Package-private for unit tests. See RetroStacksTest.
     static String paneId(String colour) {
         return ScreenSections.CLEAR_GLASS.equals(colour)
                 ? "glass_pane"

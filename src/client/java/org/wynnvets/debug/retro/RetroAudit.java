@@ -25,14 +25,14 @@ import org.wynnvets.retro.rules.TextureDecision;
 
 /**
  * The retro report behind {@code /wv debug tree retro report}: what the last generation did, in
- * full, and what no generation measures because only someone editing the rule files needs it.
+ * full, and what no generation measures because only someone editing {@code retro.yml} needs it.
  * It starts from that generation's {@link RetroReport} and reads the packs loaded now again only
  * for what the report says about them, so a generation pays nothing for it.
  *
  * <p>The report is plain text, a section each:</p>
  * <ul>
  *   <li>the summary, the parts the generation left out, the counts, and the rules it skipped;</li>
- *   <li>every pattern row of the rule files with how many ids it decided
+ *   <li>every pattern row of {@code retro.yml} with how many ids it decided
  *       ({@link RuleUsage#of}), the rows that decided none first;</li>
  *   <li>the ingredient stems without a row whose model parents no vanilla model, the ones that
  *       need a look; asked for {@code ingredients}, every stem instead, with its row, its parent
@@ -286,7 +286,7 @@ public final class RetroAudit {
         return lines;
     }
 
-    /** A tint as the rule files write it; {@code none} for a row without one. */
+    /** A tint as {@code retro.yml} writes it; {@code none} for a row without one. */
     private static String factor(TintFactor factor) {
         return switch (factor) {
             case TintFactor.Colour colour -> String.format(Locale.ROOT, "'#%06X'", colour.rgb());

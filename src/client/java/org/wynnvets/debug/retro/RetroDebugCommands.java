@@ -32,7 +32,7 @@ import org.wynnvets.retro.manifest.RetroPart;
 import org.wynnvets.retro.pack.RetroPackInjector;
 
 /**
- * {@code /wv debug tree retro …}: the retro report, for whoever edits the retro rule files, and
+ * {@code /wv debug tree retro …}: the retro report, for whoever edits {@code retro.yml}, and
  * {@code /wv debug trigger retroDump}: retro's state.
  *
  * <p>{@code report} writes {@link RetroAudit}'s report on the

@@ -67,7 +67,7 @@ final class GenerationContext {
     /**
      * A generation over one reload's packs, with every part on.
      *
-     * @param manifest the rule files
+     * @param manifest the parsed {@code retro.yml}
      * @param stack the packs the reload loads, bottom first, without the retro pack
      * @param wynncraftIndex the index in {@code stack} of the Wynncraft pack
      * @param sources the sources, open for as long as this generation runs
@@ -86,7 +86,7 @@ final class GenerationContext {
     /**
      * A generation over one reload's packs.
      *
-     * @param manifest the rule files
+     * @param manifest the parsed {@code retro.yml}
      * @param stack the packs the reload loads, bottom first, without the retro pack
      * @param wynncraftIndex the index in {@code stack} of the Wynncraft pack
      * @param sources the sources, open for as long as this generation runs

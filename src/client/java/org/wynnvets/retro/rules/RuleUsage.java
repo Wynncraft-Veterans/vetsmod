@@ -9,16 +9,16 @@ import org.wynnvets.retro.manifest.ModelSections;
 import org.wynnvets.retro.manifest.TextureSections;
 
 /**
- * What one generation's ids made of the rule files' rows, for the retro report. It sits beside the
- * rules because its ranking of the sections must mirror {@link TextureRules#decide} and
+ * What one generation's ids made of {@code retro.yml}'s rows, for the retro report. It sits beside
+ * the rules because its ranking of the sections must mirror {@link TextureRules#decide} and
  * {@link ModelRules#modelStub}.
  *
  * @param rows every pattern row of the sections {@link #of} checks, in the order it lists them,
  *     each section's rows in file order
  * @param equipmentWithoutRow the equipment assets no {@code equipment} row matches, in the order
  *     given
- * @param stemsWithoutRow the ingredient stems with no row in {@code retro.yml}'s {@code ingredients}, in the
- *     order given
+ * @param stemsWithoutRow the ingredient stems with no row in {@code retro.yml}'s
+ *     {@code ingredients}, in the order given
  */
 public record RuleUsage(
         List<RowUse> rows, List<String> equipmentWithoutRow, List<String> stemsWithoutRow) {
@@ -31,9 +31,9 @@ public record RuleUsage(
     }
 
     /**
-     * How many ids one row of the rule files decided.
+     * How many ids one row of {@code retro.yml} decided.
      *
-     * @param section the row's section, as the rule files name it
+     * @param section the row's section, as {@code retro.yml} names it
      * @param pattern the row's pattern
      * @param ids how many of the ids the row decided; 0 for a row that decided nothing
      */
@@ -60,8 +60,8 @@ public record RuleUsage(
      * row that matched an id counts even when the generation then wrote nothing for it, which its
      * report's skipped lines say.</p>
      *
-     * @param textureRows the rule files' texture sections
-     * @param modelRows the rule files' model sections
+     * @param textureRows {@code retro.yml}'s texture sections
+     * @param modelRows {@code retro.yml}'s model sections
      * @param textures the texture ids decided, such as a generation's
      * @param models the item model ids the stubs were decided for, ingredients' among them
      * @param equipment the equipment asset ids

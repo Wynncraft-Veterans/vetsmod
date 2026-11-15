@@ -16,7 +16,7 @@ import org.wynnvets.retro.manifest.RetroPart;
 
 /**
  * Tests for {@link RetroModeManager}'s live flag: which finished reload may say the retro pack is
- * drawn, and which report counts as the live one; for the rule files it keeps for the session; and
+ * drawn, and which report counts as the live one; for the rule file it keeps for the session; and
  * for the parts that are on, read outside the game as every part.
  * The setting goes through {@code VetsConfig} and the latch posts a chat line through
  * Wynntils, so the suite leaves both alone;
@@ -60,7 +60,8 @@ class RetroModeManagerTest {
     @Test
     void theLiveReportIsTheLatestGenerationsOnlyWhileThePackIsLive() {
         RetroReport.Seen seen =
-                new RetroReport.Seen(Map.of(), Set.of(), List.of(), Set.of(), List.of(), Map.of());
+                new RetroReport.Seen(
+                        Map.of(), Set.of(), List.of(), Set.of(), Set.of(), List.of(), Map.of());
         RetroReport report =
                 new RetroReport(
                         "wynntils_preloaded/test",
@@ -119,6 +120,30 @@ class RetroModeManagerTest {
                 unchanged,
                 RetroModeManager.partsOutcome(true, false, false, false, false),
                 "retro is off, so nothing waits for Wynncraft's pack");
+    }
+
+    @Test
+    void turningRetroOnSaysTheTexturesAreDownloadingOnlyOverWynncraftsPack() {
+        // enabled, latched, fetching, reload, wynncraftLoaded
+        assertEquals(
+                RetroModeManager.Outcome.FETCHING,
+                RetroModeManager.enableOutcome(true, false, true, true, true),
+                "the fetch's end reloads");
+        assertEquals(
+                RetroModeManager.Outcome.NO_WYNNCRAFT_PACK,
+                RetroModeManager.enableOutcome(true, false, true, false, false),
+                "the fetched textures show only once Wynncraft's pack loads");
+        assertEquals(
+                RetroModeManager.Outcome.LATCHED,
+                RetroModeManager.enableOutcome(true, true, false, true, true),
+                "a stopped session outranks the reload that drops its empty pack");
+        assertEquals(
+                RetroModeManager.Outcome.RELOADING,
+                RetroModeManager.enableOutcome(false, true, false, true, true),
+                "off: what stopped it does not matter");
+        assertEquals(
+                RetroModeManager.Outcome.UNCHANGED,
+                RetroModeManager.enableOutcome(false, false, false, false, false));
     }
 
     @Test

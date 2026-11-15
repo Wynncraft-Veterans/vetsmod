@@ -19,9 +19,8 @@ import org.yaml.snakeyaml.constructor.SafeConstructor;
 
 /**
  * Tests for the shipped {@code retro.yml} as a file: that it loads, that it holds exactly the
- * known sections, and that the client jar's
- * assets are on the test classpath. See {@link ShippedFiles ShippedFiles} for what the shipped
- * suites read.
+ * known sections, and that the client jar's assets are on the test classpath. See
+ * {@link ShippedFiles ShippedFiles} for what the shipped suites read.
  */
 class ShippedManifestTest {
 

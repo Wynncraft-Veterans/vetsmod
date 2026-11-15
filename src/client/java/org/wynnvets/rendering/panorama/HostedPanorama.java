@@ -2,11 +2,9 @@ package org.wynnvets.rendering.panorama;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.function.IntFunction;
+import org.wynnvets.util.Digests;
 
 /**
  * vetsmod's own main-menu panoramas: screenshots, six cube faces each, about 5 MB a set, hosted on
@@ -154,20 +152,6 @@ public enum HostedPanorama {
         for (int i = 0; i < faces.size(); i++) {
             text.append(path.apply(i)).append('\t').append(faces.get(i).sha256()).append('\n');
         }
-        return sha256(text.toString().getBytes(StandardCharsets.UTF_8)).substring(0, 16);
-    }
-
-    /**
-     * The SHA-256 of some bytes.
-     *
-     * @param bytes the bytes
-     * @return 64 lower-case hex digits
-     */
-    static String sha256(byte[] bytes) {
-        try {
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("every Java has SHA-256", e);
-        }
+        return Digests.sha256(text.toString().getBytes(StandardCharsets.UTF_8)).substring(0, 16);
     }
 }

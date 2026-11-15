@@ -195,7 +195,7 @@ public class VetsmodClient implements ClientModInitializer {
         // Retro's Wynntils settings: its tick reaches Managers, so it registers here. It waits
         // for Wynntils to load its features, at the end of the first resource reload.
         WynntilsConfigOverrides.register();
-        // Retro's old-client textures: fetched once, off-thread, while retro is on.
+        // Retro's downloads (the old clients' textures, Old Detlas): off-thread, while retro is on.
         RetroModeManager.startUp();
     }
 

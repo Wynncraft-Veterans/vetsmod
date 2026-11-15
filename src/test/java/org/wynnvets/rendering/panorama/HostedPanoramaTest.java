@@ -12,8 +12,8 @@ import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tests for {@link HostedPanorama}'s pins: where each face is hosted, and where each set keeps
- * its faces.
+ * Tests for {@link HostedPanorama}'s pins: where each face is hosted, and how each set's folder is
+ * named.
  */
 class HostedPanoramaTest {
 
@@ -40,17 +40,6 @@ class HostedPanoramaTest {
                 assertTrue(hashes.add(face.sha256()), "no two faces alike: " + face);
             }
         }
-    }
-
-    @Test
-    void eachSetKeepsItsFacesWhereItsReaderLooks() {
-        // Retro opens Old Detlas's folder as a pack (ShippedPanoramaTest); Vetlas is read as files.
-        assertEquals(
-                "assets/minecraft/textures/gui/title/background/panorama_0.png",
-                HostedPanorama.OLD_DETLAS.path(0));
-        assertEquals(
-                "assets/vetsmod/textures/gui/title/background/vetlas_5.png",
-                HostedPanorama.VETLAS.path(5));
     }
 
     @Test

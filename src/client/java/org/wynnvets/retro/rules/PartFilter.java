@@ -15,7 +15,7 @@ import org.wynnvets.retro.manifest.RetroPart;
  * first {@code parts} row in file order whose pattern matches an id owns it, and an id no row owns
  * cannot be turned off. Every answer comes from the {@link PartSections} and the set it was made
  * with, so the class is pure. {@link TextureRules} and {@link ModelRules} do not know of it, so the
- * report and the item dump still read what the rule files say.
+ * report and the item dump still read what {@code retro.yml} says.
  */
 public final class PartFilter {
 
@@ -48,7 +48,7 @@ public final class PartFilter {
     }
 
     /**
-     * Whether every part is on, when nothing here changes what the rule files decide.
+     * Whether every part is on, when nothing here changes what {@code retro.yml} decides.
      *
      * @return whether it is
      */

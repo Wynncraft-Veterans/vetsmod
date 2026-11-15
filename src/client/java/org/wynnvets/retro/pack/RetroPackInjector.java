@@ -185,7 +185,7 @@ public final class RetroPackInjector {
      * files ({@link OldClients#open}) and, its files unchanged, the main menu's panorama
      * ({@link HostedPanorama#OLD_DETLAS}) as the {@code vetsmod} source. It never throws.
      *
-     * @param manifest the rule files the generation reads
+     * @param manifest the rule file the generation reads, parsed
      * @return each source's pack; none for what is not here
      */
     private static Map<RetroSource, PackResources> downloaded(RetroManifest manifest) {
@@ -196,10 +196,7 @@ public final class RetroPackInjector {
             if (panorama != null) {
                 packs.put(
                         RetroSource.VETSMOD,
-                        PackFiles.folder(
-                                panorama,
-                                "vetsmod_retro_" + RetroSource.VETSMOD.yamlName(),
-                                "vetsmod"));
+                        PackFiles.folder(panorama, RetroSource.VETSMOD, "vetsmod"));
             }
         } catch (Throwable t) {
             VetsLogger.warn("Retro pack: could not open the downloaded panorama", t);

@@ -2,6 +2,7 @@ package org.wynnvets.retro.manifest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.wynnvets.retro.manifest.ShippedFiles.realTextureRules;
+import static org.wynnvets.retro.manifest.ShippedFiles.wynncraftShipsAll;
 
 import java.io.IOException;
 import java.util.List;
@@ -26,24 +27,10 @@ class ShippedPanoramaTest {
                     .mapToObj(face -> "minecraft:gui/title/background/panorama_" + face)
                     .toList();
 
-    /** Wynncraft ships every texture asked about, and every source has it but, maybe, vetsmod. */
+    /** Every source has every texture asked about but, maybe, vetsmod's. */
     private static PackFacts facts(boolean downloaded) {
-        return new PackFacts() {
-            @Override
-            public boolean wynncraftShips(String textureId) {
-                return true;
-            }
-
-            @Override
-            public boolean wynncraftTransparent(String textureId) {
-                return false;
-            }
-
-            @Override
-            public boolean has(RetroSource source, String textureId) {
-                return source != RetroSource.VETSMOD || downloaded;
-            }
-        };
+        return wynncraftShipsAll(
+                (source, textureId) -> source != RetroSource.VETSMOD || downloaded);
     }
 
     @Test

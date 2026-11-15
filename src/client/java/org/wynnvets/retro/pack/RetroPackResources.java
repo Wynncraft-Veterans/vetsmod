@@ -22,7 +22,7 @@ import org.wynnvets.retro.rules.RetroAssetIds;
 /**
  * The retro pack as Minecraft's resource manager sees it: an in-memory pack of client resources
  * whose files are generated the first time anything asks for one where they can be, plus a few
- * static files answered from the rule files alone.
+ * static files answered from the rule file alone.
  *
  * <p>{@link RetroPackInjector} adds it to a reload on the render thread, where it must cost
  * nothing, so it starts out declared but empty: its namespaces and folders are fixed, and it has
@@ -40,7 +40,7 @@ import org.wynnvets.retro.rules.RetroAssetIds;
  * <p>The static files, the language files, are another matter: the language manager reads them
  * on the render thread (in the reload's apply step, and again whenever the player changes
  * language), so they must never wait on a generation. They come from a second supplier, memoised
- * under a lock of its own, which reads only the rule files; a request in their folder never
+ * under a lock of its own, which reads only the rule file; a request in their folder never
  * generates. A failed generation takes them with it, and a failure of their own empties the pack
  * before it ever generates, so a failed pack serves nothing.</p>
  *

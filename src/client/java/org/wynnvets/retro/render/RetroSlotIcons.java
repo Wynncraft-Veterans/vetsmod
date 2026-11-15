@@ -29,16 +29,15 @@ import org.wynnvets.retro.rules.RetroAssetIds;
  * <p>Every gear box is one chest in the retro pack, whatever its type, since Wynncraft gives every
  * box one model per tier ({@code item_models}). So the GUI draws the type's vanilla item over the
  * box, at the share of the slot its row's group gives and centred on it, after the slot's item, as
- * Wynntils'
- * own {@code UnidentifiedItemIconFeature} draws its icon (which {@code wynntils_config} turns off
- * while retro is on). Every mastery tome is one enchanted book the same way, drawn again here for
- * its glint, which a model's stub cannot give, so that the glint lies on the book and under the
- * icon. A weapon's and a tome's icon come with an outline of their own ({@code outlined_icons}),
- * the size their rows give, so they read over the art they are drawn on. The Ability Tree's button,
- * the same book, is drawn again for its glint alone, on a screen retro relabelled: the tree's own
- * screen keeps Wynncraft's art, and Wynntils' item class there is its Ability Points button. The
- * boxes and tomes are the {@code gear_boxes} part's; the button's glint needs only a relabelled
- * screen, which {@code screens} being on decides.
+ * Wynntils' own {@code UnidentifiedItemIconFeature} draws its icon (which {@code wynntils_config}
+ * turns off while retro is on). Every mastery tome is one enchanted book the same way, drawn again
+ * here for its glint, which a model's stub cannot give, so that the glint lies on the book and
+ * under the icon. A weapon's and a tome's icon come with an outline of their own
+ * ({@code outlined_icons}), the size their rows give, so they read over the art they are drawn on.
+ * The Ability Tree's button, the same book, is drawn again for its glint alone, on a screen retro
+ * relabelled: the tree's own screen keeps Wynncraft's art, and Wynntils' item class there is its
+ * Ability Points button. The boxes and tomes are the {@code gear_boxes} part's; the button's glint
+ * needs only a relabelled screen, which {@code screens} being on decides.
  * {@link org.wynnvets.listeners.RetroSlotIconListener RetroSlotIconListener} calls it for every
  * container and inventory slot and every hotbar slot.</p>
  *

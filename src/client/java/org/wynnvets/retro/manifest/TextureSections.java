@@ -52,9 +52,6 @@ public record TextureSections(
     private static final String OLD_CLIENTS = "old_clients";
     private static final String OLD_CLIENT_CLEARS = "old_client_clears";
 
-    /** An {@code old_clients} value: a fully transparent texture, at today's size. */
-    private static final String BLANK = "blank";
-
     static final Set<String> NAMES =
             Set.of(
                     SOURCES,
@@ -195,28 +192,26 @@ public record TextureSections(
         String where = ManifestYaml.inFile(OLD_CLIENTS);
         Map<RetroSource, List<OldClientRow>> clients = new EnumMap<>(RetroSource.class);
         ManifestYaml.textRows(
-                section,
-                where,
-                (version, rows, clientWhere) -> {
-                    RetroSource client = RetroSource.fromYaml(version);
-                    if (client == null || !client.oldClient()) {
-                        throw new IllegalArgumentException(
-                                where + ": not an old client: " + version);
-                    }
-                    List<OldClientRow> read =
-                            ManifestYaml.patternRows(
+                        section,
+                        where,
+                        (version, rows, clientWhere) -> {
+                            RetroSource client = RetroSource.fromYaml(version);
+                            if (client == null || !client.oldClient()) {
+                                throw new IllegalArgumentException(
+                                        where + ": not an old client: " + version);
+                            }
+                            return ManifestYaml.patternRows(
                                     rows,
                                     clientWhere,
                                     (pattern, value, rowWhere) ->
                                             new OldClientRow(
                                                     pattern,
-                                                    BLANK.equals(value)
+                                                    RetroManifest.BLANK.equals(value)
                                                             ? null
                                                             : ManifestYaml.replacement(
                                                                     value, pattern, rowWhere)));
-                    clients.put(client, read);
-                    return read;
-                });
+                        })
+                .forEach((version, rows) -> clients.put(RetroSource.fromYaml(version), rows));
         return clients;
     }
 

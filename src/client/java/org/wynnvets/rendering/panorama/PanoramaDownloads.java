@@ -1,7 +1,6 @@
 package org.wynnvets.rendering.panorama;
 
 import java.io.IOException;
-import java.net.URI;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
@@ -16,27 +15,26 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.function.Consumer;
 import java.util.function.IntFunction;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.util.Util;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.util.AtomicFolders;
+import org.wynnvets.util.Digests;
 import org.wynnvets.util.HttpClients;
 
 /**
  * Downloads the {@link HostedPanorama}s, each the first time something asks for it, and keeps them
  * in {@code vetsmod/panoramas/<set>/<hash>} in the game folder.
  *
- * <p>A set is fetched on a thread of its own, its six faces one after another, each checked
- * against its pinned size and SHA-256 before the folder is written, whole or not at all
+ * <p>A set is fetched on Minecraft's download threads, its six faces one after another, each
+ * checked against its pinned size and SHA-256 before the folder is written, whole or not at all
  * ({@link AtomicFolders}). It never throws: a set that fails is not tried again until the next
  * start-up, and whatever asked for it draws its fallback meanwhile. Reading a set back checks
- * every face again, since a file on disk can change: a folder that no longer matches its pins is
- * deleted, so the next request downloads it again, and a folder that cannot be read, or deleted,
- * counts as failed until the next start-up, so nothing reads it again and again.</p>
+ * every face again, since a file on disk can change: a folder that lacks a face or no longer
+ * matches its pins is deleted, so the next request downloads it again, and a folder that cannot
+ * be read, or deleted, counts as failed until the next start-up, so nothing reads it again and
+ * again.</p>
  */
 public final class PanoramaDownloads {
 
@@ -45,7 +43,7 @@ public final class PanoramaDownloads {
 
     private static final Set<HostedPanorama> RUNNING = ConcurrentHashMap.newKeySet();
 
-    /** The sets whose download failed this session. */
+    /** The sets whose download failed, or whose kept folder could not be read, this session. */
     private static final Set<HostedPanorama> FAILED = ConcurrentHashMap.newKeySet();
 
     private PanoramaDownloads() {}
@@ -64,7 +62,10 @@ public final class PanoramaDownloads {
         HERE,
         /** It is being downloaded. */
         DOWNLOADING,
-        /** Its download failed this session; the next start-up tries again. */
+        /**
+         * Its download failed, or its kept folder could not be read, this session; the next
+         * start-up tries again.
+         */
         FAILED,
         /** It is not here, and nothing is downloading it. */
         MISSING
@@ -96,7 +97,7 @@ public final class PanoramaDownloads {
                 : State.MISSING;
     }
 
-    /** Forgets every download running or failed this session. Tests only. */
+    // Test-only: forgets every download running or failed this session.
     static void clearForTesting() {
         RUNNING.clear();
         FAILED.clear();
@@ -114,46 +115,29 @@ public final class PanoramaDownloads {
     }
 
     /**
-     * Starts downloading a set, unless it is here already, is being downloaded, or failed this
-     * session.
+     * Starts downloading a set on Minecraft's download threads, unless it is not
+     * {@link State#MISSING}: here already, being downloaded, or failed this session.
      *
      * @param panorama the set
-     * @param done runs on the download's thread when it ends, with whether it wrote the set
-     * @return whether a download started, so {@code done} will run
      */
-    public static boolean start(HostedPanorama panorama, Consumer<Boolean> done) {
+    public static void start(HostedPanorama panorama) {
+        boolean taken = false;
         try {
             Path root = root();
-            if (root == null
-                    || FAILED.contains(panorama)
-                    || Files.isDirectory(folder(root, panorama))
-                    || !RUNNING.add(panorama)) {
-                return false;
+            if (root == null || state(root, panorama) != State.MISSING || !RUNNING.add(panorama)) {
+                return;
             }
-            Thread thread =
-                    new Thread(
-                            () -> {
-                                boolean wrote = false;
-                                try {
-                                    wrote = download(root, panorama);
-                                } finally {
-                                    RUNNING.remove(panorama);
-                                    done.accept(wrote);
-                                }
-                            },
-                            "vetsmod-panorama-" + panorama.folderName());
-            thread.setDaemon(true);
-            thread.start();
-            return true;
+            taken = true;
+            CompletableFuture.runAsync(() -> download(root, panorama), Util.nonCriticalIoPool())
+                    .whenComplete((done, t) -> RUNNING.remove(panorama));
         } catch (Throwable t) {
-            RUNNING.remove(panorama);
+            if (taken) RUNNING.remove(panorama);
             VetsLogger.warn("Could not start downloading the {} panorama", panorama, t);
-            return false;
         }
     }
 
     /** Downloads and keeps a set; a failure is logged once and latched until the next start-up. */
-    private static boolean download(Path root, HostedPanorama panorama) {
+    private static void download(Path root, HostedPanorama panorama) {
         long start = System.nanoTime();
         try {
             AtomicFolders.install(
@@ -163,7 +147,6 @@ public final class PanoramaDownloads {
                     "Downloaded the {} panorama in {} ms",
                     panorama,
                     (System.nanoTime() - start) / 1_000_000);
-            return true;
         } catch (Throwable t) {
             FAILED.add(panorama);
             VetsLogger.warn(
@@ -171,7 +154,6 @@ public final class PanoramaDownloads {
                             + " start-up tries again",
                     panorama,
                     t);
-            return false;
         }
     }
 
@@ -231,51 +213,33 @@ public final class PanoramaDownloads {
                             + " bytes, not "
                             + face.size());
         }
-        if (!HostedPanorama.sha256(bytes).equals(face.sha256())) {
+        if (!Digests.sha256(bytes).equals(face.sha256())) {
             throw new NotPinnedException(face.uri() + " is not the pinned file");
         }
         return bytes;
     }
 
     /**
-     * One face over the mod's shared HTTP client. Only a {@code 200} declaring exactly the pinned
-     * length is read, so no other answer's body is kept. The request's own timeout ends when the
-     * headers arrive, so the whole exchange waits at most {@link #TIMEOUT}, after which it is
-     * cancelled.
+     * One face over the mod's shared HTTP client, within {@link #TIMEOUT}
+     * ({@link HttpClients#bytesWithin}). Only a {@code 200} declaring exactly the pinned length has
+     * its body read, so no other answer's body is kept.
      */
     // Package-private for unit tests. See PanoramaDownloadsTest.
     static byte[] get(HostedPanorama.Face face) throws IOException {
-        URI uri = face.uri();
-        HttpRequest request = HttpRequest.newBuilder(uri).timeout(TIMEOUT).GET().build();
-        CompletableFuture<HttpResponse<byte[]>> exchange =
-                HttpClients.standard()
-                        .sendAsync(
-                                request,
-                                answer ->
-                                        answer.statusCode() == 200
-                                                        && answer.headers()
-                                                                        .firstValueAsLong(
-                                                                                "Content-Length")
-                                                                        .orElse(-1)
-                                                                == face.size()
-                                                ? HttpResponse.BodySubscribers.ofByteArray()
-                                                : HttpResponse.BodySubscribers.replacing(null));
-        HttpResponse<byte[]> response;
-        try {
-            response = exchange.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
-        } catch (InterruptedException e) {
-            exchange.cancel(true);
-            Thread.currentThread().interrupt();
-            throw new IOException("interrupted reading " + uri, e);
-        } catch (TimeoutException e) {
-            exchange.cancel(true);
-            throw new IOException(uri + " took over " + TIMEOUT, e);
-        } catch (ExecutionException e) {
-            throw new IOException(uri + " failed", e.getCause());
-        }
-        if (response.statusCode() != 200 || response.body() == null) {
+        HttpRequest request = HttpRequest.newBuilder(face.uri()).timeout(TIMEOUT).GET().build();
+        HttpResponse<byte[]> response =
+                HttpClients.bytesWithin(
+                        request,
+                        answer ->
+                                answer.statusCode() == 200
+                                        && answer.headers()
+                                                        .firstValueAsLong("Content-Length")
+                                                        .orElse(-1)
+                                                == face.size(),
+                        TIMEOUT);
+        if (response.body() == null) {
             throw new IOException(
-                    uri
+                    face.uri()
                             + " answered "
                             + response.statusCode()
                             + " with "
@@ -286,9 +250,10 @@ public final class PanoramaDownloads {
     }
 
     /**
-     * A set's faces as they are kept, each checked against its pin. A folder whose files are not
-     * the pinned ones is deleted, so the next {@link #start} downloads it again; one that cannot be
-     * read, or deleted, makes the set {@link State#FAILED} until the next start-up.
+     * A set's faces as they are kept, each checked against its pin. A folder that lacks a face or
+     * whose files are not the pinned ones is deleted, so the next {@link #start} downloads it
+     * again; one that cannot be read, or deleted, makes the set {@link State#FAILED} until the next
+     * start-up, and a failed set is not read.
      *
      * @param panorama the set
      * @return its six faces, face 0 first; {@code null} when it is not here whole and unchanged
@@ -314,7 +279,7 @@ public final class PanoramaDownloads {
     // Package-private for unit tests. See PanoramaDownloadsTest.
     static List<byte[]> read(Path root, HostedPanorama panorama) {
         Path folder = folder(root, panorama);
-        if (!Files.isDirectory(folder)) return null;
+        if (FAILED.contains(panorama) || !Files.isDirectory(folder)) return null;
         try {
             return readFolder(folder, panorama.faces(), panorama::path);
         } catch (NotPinnedException | NoSuchFileException e) {
@@ -356,7 +321,7 @@ public final class PanoramaDownloads {
      *
      * @return {@code vetsmod/panoramas} in the game folder, or {@code null} when it cannot be found
      */
-    static Path root() {
+    private static Path root() {
         try {
             return FabricLoader.getInstance().getGameDir().resolve("vetsmod").resolve("panoramas");
         } catch (RuntimeException | LinkageError e) {
@@ -372,6 +337,7 @@ public final class PanoramaDownloads {
      * @param panorama the set
      * @return {@code <root>/<set>/<hash>}
      */
+    // Package-private for unit tests. See PanoramaDownloadsTest.
     static Path folder(Path root, HostedPanorama panorama) {
         return root.resolve(panorama.folderName()).resolve(panorama.hash());
     }

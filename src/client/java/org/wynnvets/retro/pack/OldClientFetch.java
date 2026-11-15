@@ -8,11 +8,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.PackResources;
+import net.minecraft.util.Util;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.rendering.image.PixelDrawing;
 import org.wynnvets.rendering.image.Pixels;
 import org.wynnvets.rendering.image.PngCodec;
 import org.wynnvets.rendering.image.Rect;
@@ -20,6 +25,8 @@ import org.wynnvets.retro.manifest.RetroManifest;
 import org.wynnvets.retro.manifest.RetroSource;
 import org.wynnvets.retro.manifest.TextureSections;
 import org.wynnvets.retro.rules.OldClientRules;
+import org.wynnvets.util.AtomicFolders;
+import org.wynnvets.util.Digests;
 
 /**
  * Downloads the files the {@code old_clients} rows take from each old client, once, into
@@ -27,15 +34,26 @@ import org.wynnvets.retro.rules.OldClientRules;
  * read, as byte ranges of the jar on Mojang's server, so a client costs its directory and a few
  * dozen small textures rather than the whole jar.
  *
- * <p>It runs on a thread of its own, never in a resource reload, one fetch at a time. It catches
- * everything: a client that fails keeps no folder, so its textures come from the next source, and
- * the next start-up tries again. Nothing here latches retro.</p>
+ * <p>It runs on Minecraft's download threads, never in a resource reload, one fetch at a time. It
+ * catches everything: a client that fails keeps no folder, so its textures come from the next
+ * source, and it is not fetched again until the next start-up. Nothing here latches retro.</p>
  */
 public final class OldClientFetch {
 
     private static final AtomicBoolean RUNNING = new AtomicBoolean();
 
+    /** The clients whose fetch failed this session. */
+    private static final Set<RetroSource> FAILED = ConcurrentHashMap.newKeySet();
+
     private OldClientFetch() {}
+
+    /**
+     * How a fetch went.
+     *
+     * @param wrote whether it wrote any client's folder
+     * @param complete whether it fetched every client it set out to
+     */
+    public record Result(boolean wrote, boolean complete) {}
 
     /**
      * What one client's fetch writes, and the rows that wrote nothing.
@@ -46,56 +64,54 @@ public final class OldClientFetch {
     record Fetched(Map<String, byte[]> files, List<String> emptyRows) {}
 
     /**
-     * Starts fetching the files of every old client whose folder is missing, unless none is or a
-     * fetch is already running.
+     * Starts fetching the files of every old client whose folder is missing and whose fetch has
+     * not failed this session, unless there is none or a fetch is already running.
      *
-     * @param manifest the rule files
+     * @param manifest the rule file, parsed
      * @param vanilla Minecraft's vanilla pack: the texture ids there are, and a blank's size
-     * @param done runs on the fetch's thread when it ends, with whether it wrote a folder
+     * @param done runs on the fetch's thread when it ends
      * @return whether a fetch started, so {@code done} will run
      */
     public static boolean start(
-            RetroManifest manifest, PackResources vanilla, Consumer<Boolean> done) {
+            RetroManifest manifest, PackResources vanilla, Consumer<Result> done) {
+        boolean taken = false;
         try {
             Path root = OldClients.root();
             if (root == null) return false;
             TextureSections sections = manifest.textures();
             List<RetroSource> missing = OldClients.missing(root, sections);
+            missing.removeIf(FAILED::contains);
             if (missing.isEmpty() || !RUNNING.compareAndSet(false, true)) return false;
-            Thread thread =
-                    new Thread(
-                            () -> {
-                                boolean wrote = false;
-                                try {
-                                    wrote = fetchAll(root, sections, missing, vanilla);
-                                } finally {
-                                    RUNNING.set(false);
-                                    done.accept(wrote);
-                                }
-                            },
-                            "vetsmod-retro-old-clients");
-            thread.setDaemon(true);
-            thread.start();
+            taken = true;
+            CompletableFuture.supplyAsync(
+                            () -> fetchAll(root, sections, missing, vanilla),
+                            Util.nonCriticalIoPool())
+                    .whenComplete(
+                            (result, t) -> {
+                                RUNNING.set(false);
+                                done.accept(result != null ? result : new Result(false, false));
+                            });
             return true;
         } catch (Throwable t) {
-            RUNNING.set(false);
+            if (taken) RUNNING.set(false);
             VetsLogger.warn("Retro: could not start fetching the old clients' textures", t);
             return false;
         }
     }
 
     /** Fetches each client in turn; a failure costs only its client. */
-    private static boolean fetchAll(
+    private static Result fetchAll(
             Path root, TextureSections sections, List<RetroSource> clients, PackResources vanilla) {
-        boolean wrote = false;
         long start = System.nanoTime();
         Set<String> textureIds;
         try {
             textureIds = PackFiles.textureIds(vanilla);
         } catch (Throwable t) {
+            FAILED.addAll(clients);
             VetsLogger.warn("Retro: could not list vanilla's textures for the old clients", t);
-            return false;
+            return new Result(false, false);
         }
+        boolean wrote = false;
         for (RetroSource client : clients) {
             try {
                 OldClients.Jar jar = OldClients.JARS.get(client);
@@ -113,14 +129,16 @@ public final class OldClientFetch {
                             client.yamlName(),
                             row);
                 }
-                OldClients.install(
-                        root, client, OldClients.hash(client, sections), fetched.files());
+                AtomicFolders.install(
+                        OldClients.folder(root, client, OldClients.hash(client, sections)),
+                        fetched.files());
                 wrote = true;
                 VetsLogger.info(
                         "Retro: took {} files from Minecraft {}",
                         fetched.files().size(),
                         client.yamlName());
             } catch (Throwable t) {
+                FAILED.add(client);
                 VetsLogger.warn(
                         "Retro: could not fetch Minecraft {}'s textures; the next source draws"
                                 + " them until the next start-up",
@@ -130,7 +148,7 @@ public final class OldClientFetch {
         }
         VetsLogger.debug(
                 "Retro: old clients fetched in {} ms", (System.nanoTime() - start) / 1_000_000);
-        return wrote;
+        return new Result(wrote, clients.stream().noneMatch(FAILED::contains));
     }
 
     /** Vanilla's file of a texture, or {@code null}. */
@@ -144,16 +162,6 @@ public final class OldClientFetch {
         }
     }
 
-    /** Reads today's file of a texture, for a blank's size. */
-    @FunctionalInterface
-    interface TodaysTexture {
-        /**
-         * @param textureId the texture
-         * @return its PNG, or {@code null} when there is none
-         */
-        byte[] read(String textureId);
-    }
-
     /**
      * One client's files: its central directory, checked against the pin, then each file its rows
      * name with the {@code .mcmeta} beside it, each written at every texture id it stands for, with
@@ -163,7 +171,8 @@ public final class OldClientFetch {
      * @param rows the client's {@code old_clients} rows
      * @param clears the {@code old_client_clears} rows
      * @param textureIds the texture ids there are today
-     * @param today today's file of a texture, for a blank's size
+     * @param today today's file of a texture, for a blank's size: its PNG, or {@code null} when
+     *     there is none
      * @param ranges the jar's bytes
      * @return the files, by their paths in the client's folder
      * @throws IOException when the directory cannot be read or is not the pinned one, or a file
@@ -175,11 +184,11 @@ public final class OldClientFetch {
             List<TextureSections.OldClientRow> rows,
             List<TextureSections.OldClientClear> clears,
             Set<String> textureIds,
-            TodaysTexture today,
+            Function<String, byte[]> today,
             HttpRanges ranges)
             throws IOException {
         byte[] directory = ranges.get(jar.directoryOffset(), jar.directorySize());
-        if (!OldClients.sha1(directory).equals(jar.directorySha1())) {
+        if (!Digests.sha1(directory).equals(jar.directorySha1())) {
             throw new IOException("the central directory is not the pinned one");
         }
         Map<String, ZipDirectory.Entry> entries = ZipDirectory.parse(directory);
@@ -187,27 +196,27 @@ public final class OldClientFetch {
         Map<String, byte[]> files = new LinkedHashMap<>();
         Set<Integer> rowsWithFiles = new TreeSet<>();
         for (OldClientRules.Target target : OldClientRules.targets(rows, textureIds)) {
-            String path = assetPath(target.textureId());
+            String path = texturePath(target.textureId());
             if (path == null) continue;
             byte[] png;
             byte[] mcmeta = null;
             if (target.file() == null) {
-                byte[] todays = today.read(target.textureId());
+                byte[] todays = today.apply(target.textureId());
                 if (todays == null) continue;
                 int[] size = PngCodec.pngSize(todays);
                 png = PngCodec.png(Pixels.blank(size[0], size[1]));
             } else {
-                String entry = assetPath(target.file());
+                String entry = texturePath(target.file());
                 ZipDirectory.Entry found = entry == null ? null : entries.get(entry);
                 if (found == null) continue;
                 png = readOnce(read, found, ranges, jar);
-                ZipDirectory.Entry meta = entries.get(entry + ".mcmeta");
+                ZipDirectory.Entry meta = entries.get(entry + PackResources.METADATA_EXTENSION);
                 if (meta != null) mcmeta = readOnce(read, meta, ranges, jar);
                 png = cleared(png, OldClientRules.clears(clears, target.textureId()));
             }
             rowsWithFiles.add(target.row());
             files.put(path, png);
-            if (mcmeta != null) files.put(path + ".mcmeta", mcmeta);
+            if (mcmeta != null) files.put(path + PackResources.METADATA_EXTENSION, mcmeta);
         }
         List<String> emptyRows = new ArrayList<>();
         for (int i = 0; i < rows.size(); i++) {
@@ -235,25 +244,13 @@ public final class OldClientFetch {
     private static byte[] cleared(byte[] png, List<Rect> rects) throws IOException {
         if (rects.isEmpty()) return png;
         Pixels image = PngCodec.decode(png);
-        for (Rect rect : rects) {
-            int right = Math.min(image.width(), rect.x() + rect.width());
-            int bottom = Math.min(image.height(), rect.y() + rect.height());
-            for (int y = rect.y(); y < bottom; y++) {
-                for (int x = rect.x(); x < right; x++) image.set(x, y, 0);
-            }
-        }
+        for (Rect rect : rects) PixelDrawing.paint(image, rect, 0);
         return PngCodec.png(image);
     }
 
-    /**
-     * A texture's path in a pack or a jar.
-     *
-     * @param textureId a full texture id, such as {@code minecraft:blocks/stone}
-     * @return such as {@code assets/minecraft/textures/blocks/stone.png}; {@code null} for no id
-     */
-    // Package-private for unit tests. See OldClientFetchTest.
-    static String assetPath(String textureId) {
+    /** A texture's path in a pack or a jar; {@code null} for no id. */
+    private static String texturePath(String textureId) {
         Identifier file = PackFiles.textureFile(textureId);
-        return file == null ? null : "assets/" + file.getNamespace() + "/" + file.getPath();
+        return file == null ? null : PackFiles.path(file);
     }
 }

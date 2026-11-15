@@ -14,7 +14,7 @@ import org.wynnvets.retro.rules.PartFilter;
 
 /**
  * Tests for the shipped {@code parts} rows ({@link PartSections}): that every part has a row and
- * that the ids the rule files act on land in the part they should. See
+ * that the ids the rule file acts on land in the part they should. See
  * {@link ShippedFiles ShippedFiles}.
  */
 class ShippedPartsTest {

@@ -72,14 +72,19 @@ class RetroCommandsTest {
                 RetroCommands.toggleLine(true, RetroModeManager.Outcome.FETCHING).getString());
         assertEquals(
                 "Retro: the old textures are downloaded. Reloading resources…",
-                RetroCommands.fetchedLine(true, true).getString());
+                RetroCommands.fetchedLine(true, true, true).getString());
         assertEquals(
                 "Retro: could not download the old textures; today's stand in for them until the"
                         + " next start-up tries again. Reloading resources…",
-                RetroCommands.fetchedLine(false, true).getString());
+                RetroCommands.fetchedLine(false, false, true).getString());
+        assertEquals(
+                "Retro: some of the old textures could not be downloaded; today's stand in for"
+                        + " them until the next start-up tries again.",
+                RetroCommands.fetchedLine(true, false, false).getString(),
+                "one client failed and another wrote");
         assertEquals(
                 "Retro: the old textures are downloaded.",
-                RetroCommands.fetchedLine(true, false).getString());
+                RetroCommands.fetchedLine(true, true, false).getString());
     }
 
     @Test

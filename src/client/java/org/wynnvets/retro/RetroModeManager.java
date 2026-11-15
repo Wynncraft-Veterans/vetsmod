@@ -43,10 +43,13 @@ import org.wynnvets.retro.pack.RetroPackInjector;
  * is volatile. The live flag and the reload count change together, under the class lock, so a
  * reload that finishes late cannot mark the next one live.</p>
  *
- * <p>It also keeps what the code that draws reads: the rule files, parsed once a session
+ * <p>It also keeps what the code that draws reads: the rule file, parsed once a session
  * ({@link #manifest()}), the latest generation's report ({@link #lastReport()}), which
  * {@link LivePack} answers from while the pack is live ({@link #liveReport()}), and the parts of
  * retro that are on ({@link #partsOn()}).</p>
+ *
+ * <p>It starts retro's downloads too, at start-up and when retro is turned on
+ * ({@link #startDownloads}), and reloads once the old clients' files arrive.</p>
  */
 public final class RetroModeManager {
 
@@ -62,7 +65,7 @@ public final class RetroModeManager {
     /** The latest generation's report, or {@code null} before the first this session. */
     private static volatile RetroReport lastReport;
 
-    /** The rule files as {@link #manifest()} parsed them, or {@code null} before its first call. */
+    /** The rule file as {@link #manifest()} parsed it, or {@code null} before its first call. */
     private static volatile RetroManifest manifest;
 
     /** The parts that are on, or {@code null} before the first ask; written under the class lock. */
@@ -191,10 +194,10 @@ public final class RetroModeManager {
     }
 
     /**
-     * The rule files, for the code that reads them while drawing: parsed on the first call and
-     * kept for the session, since they ship in the jar. When they cannot be read, a warning is
-     * logged once and the rules are empty, so every reader does nothing; the pack generator reads
-     * the files itself, and stops retro when it cannot.
+     * The rule file, for the code that reads it while drawing: parsed on the first call and kept
+     * for the session, since it ships in the jar. When it cannot be read, a warning is logged once
+     * and the rules are empty, so every reader does nothing; the pack generator reads the file
+     * itself, and stops retro when it cannot.
      *
      * @return the parsed files, never {@code null}
      */
@@ -206,7 +209,7 @@ public final class RetroModeManager {
                 try {
                     manifest = RetroManifest.load();
                 } catch (IOException | RuntimeException e) {
-                    VetsLogger.warn("Retro: could not read the rule files; nothing is drawn", e);
+                    VetsLogger.warn("Retro: could not read retro.yml; nothing is drawn", e);
                     manifest = RetroManifest.empty();
                 }
             }
@@ -261,20 +264,40 @@ public final class RetroModeManager {
         } else {
             WynntilsConfigOverrides.restore();
         }
+        boolean active = isActive();
         boolean wynncraft = RetroPackInjector.isWynncraftLoaded();
-        boolean reload = (isActive() && wynncraft) != RetroPackInjector.isRetroLoaded();
+        boolean reload = (active && wynncraft) != RetroPackInjector.isRetroLoaded();
         // A fetch of the old clients' files reloads when it ends, so the reload waits for it.
-        boolean fetching = isActive() && fetchOldClients();
-        if (isActive()) downloadPanorama();
+        boolean fetching = active && startDownloads();
         if (reload && !fetching) {
             Minecraft mc = McUtils.mc();
             mc.execute(mc::reloadResourcePacks);
         }
-        if (enabled && latchReason != null) return Outcome.LATCHED;
+        return enableOutcome(enabled, latchReason != null, fetching, reload, wynncraft);
+    }
+
+    /**
+     * What turning retro on or off did about the resources.
+     *
+     * @param enabled whether retro is now on
+     * @param latched whether a failure has stopped retro until the game restarts
+     * @param fetching whether a fetch of the old clients' files started, which queues the reload
+     * @param reload whether the loaded packs no longer match the setting
+     * @param wynncraftLoaded whether a Wynncraft pack is loaded
+     * @return the outcome
+     */
+    // Package-private for unit tests. See RetroModeManagerTest.
+    static Outcome enableOutcome(
+            boolean enabled,
+            boolean latched,
+            boolean fetching,
+            boolean reload,
+            boolean wynncraftLoaded) {
+        if (enabled && latched) return Outcome.LATCHED;
         // Without Wynncraft's pack the fetched textures show only once it loads.
-        if (fetching && wynncraft) return Outcome.FETCHING;
+        if (fetching && wynncraftLoaded) return Outcome.FETCHING;
         if (reload) return Outcome.RELOADING;
-        if (enabled && !wynncraft) return Outcome.NO_WYNNCRAFT_PACK;
+        if (enabled && !wynncraftLoaded) return Outcome.NO_WYNNCRAFT_PACK;
         return Outcome.UNCHANGED;
     }
 
@@ -311,66 +334,60 @@ public final class RetroModeManager {
     }
 
     /**
-     * At start-up, while retro is on, fetches what retro downloads that is missing: the old
-     * clients' files ({@link OldClientFetch}), once per change to their rules, and the main menu's
-     * panorama ({@link #downloadPanorama}), once. Nothing is fetched while retro is off, so a
-     * player who never turns it on downloads nothing. A reload follows the old clients' files when
-     * it wrote any and the retro pack is loaded. Render thread only; it never throws.
+     * At start-up, while retro is on, starts what retro downloads that is missing
+     * ({@link #startDownloads}). Nothing is downloaded while retro is off, so a player who never
+     * turns it on downloads nothing. Render thread only; it never throws.
      */
     public static void startUp() {
         try {
-            if (isActive()) {
-                fetchOldClients();
-                downloadPanorama();
-            }
+            if (isActive()) startDownloads();
         } catch (RuntimeException | LinkageError e) {
-            VetsLogger.warn("Retro: could not start fetching the old textures", e);
+            VetsLogger.warn("Retro: could not start its downloads", e);
         }
     }
 
     /**
-     * Starts fetching the old clients' files that are missing; when it ends, a reload is queued if
-     * {@link #reloadAfterFetch} says so, and while retro is on a chat line says how the fetch went
-     * (dropped when there is no player yet, as at start-up). Render thread only.
+     * Starts what retro downloads that is missing: the old clients' files ({@link OldClientFetch}),
+     * once per change to their rules, and the main menu's panorama
+     * ({@link HostedPanorama#OLD_DETLAS}). The panorama never reloads and nothing waits for it,
+     * since it shows only on the main menu: the retro pack takes it in at its next generation.
+     * Render thread only.
      *
-     * @return whether a fetch started, so a reload may follow it
+     * @return whether the old clients' fetch started, so the reload follows it
+     *     ({@link #oldClientsFetched})
      */
-    private static boolean fetchOldClients() {
+    private static boolean startDownloads() {
+        PanoramaDownloads.start(HostedPanorama.OLD_DETLAS);
         Minecraft mc = McUtils.mc();
         return OldClientFetch.start(
                 manifest(),
                 mc.getVanillaPackResources(),
-                wrote ->
-                        mc.execute(
-                                () -> {
-                                    boolean reload =
-                                            reloadAfterFetch(
-                                                    wrote,
-                                                    isActive(),
-                                                    RetroPackInjector.isWynncraftLoaded(),
-                                                    RetroPackInjector.isRetroLoaded());
-                                    if (reload) mc.reloadResourcePacks();
-                                    if (isActive()) {
-                                        ChatUtils.sendLocalMessage(
-                                                RetroCommands.fetchedLine(wrote, reload));
-                                    }
-                                }));
+                result -> mc.execute(() -> oldClientsFetched(mc, result)));
     }
 
     /**
-     * Starts downloading the main menu's panorama ({@link HostedPanorama#OLD_DETLAS}) if it is
-     * missing, alongside the old clients' files. It never reloads and nothing waits for it, since
-     * it shows only on the main menu: the retro pack takes it in at its next generation, and until
-     * then, or if it fails, Wynncraft's panorama stays. Render thread only.
+     * Ends a fetch of the old clients' files: queues a reload if {@link #reloadAfterFetch} says
+     * so, and while retro is on says in chat how it went (dropped when there is no player yet, as
+     * at start-up). Render thread only.
      */
-    private static void downloadPanorama() {
-        PanoramaDownloads.start(HostedPanorama.OLD_DETLAS, wrote -> {});
+    private static void oldClientsFetched(Minecraft mc, OldClientFetch.Result result) {
+        boolean reload =
+                reloadAfterFetch(
+                        result.wrote(),
+                        isActive(),
+                        RetroPackInjector.isWynncraftLoaded(),
+                        RetroPackInjector.isRetroLoaded());
+        if (reload) mc.reloadResourcePacks();
+        if (isActive()) {
+            ChatUtils.sendLocalMessage(
+                    RetroCommands.fetchedLine(result.wrote(), result.complete(), reload));
+        }
     }
 
     /**
      * Whether a fetch of the old clients' files ending calls for a reload: while retro is on and
-     * not stopped, with a Wynncraft pack loaded, when it wrote files the loaded retro pack lacks, or
-     * when no retro pack is loaded yet ({@link #setEnabled} left the reload to it). It never
+     * not stopped, with a Wynncraft pack loaded, when it wrote files the loaded retro pack lacks,
+     * or when no retro pack is loaded yet ({@link #setEnabled} left the reload to it). It never
      * reloads a stopped retro.
      *
      * @param wrote whether the fetch wrote any client's files

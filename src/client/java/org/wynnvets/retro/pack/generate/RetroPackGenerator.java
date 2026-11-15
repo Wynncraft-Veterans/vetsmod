@@ -3,6 +3,7 @@ package org.wynnvets.retro.pack.generate;
 import com.google.gson.JsonObject;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -21,11 +22,11 @@ import org.wynnvets.retro.manifest.RetroSource;
 import org.wynnvets.retro.pack.PackFiles;
 
 /**
- * Builds the retro pack's files for one reload, from the rule files and the packs that reload
+ * Builds the retro pack's files for one reload, from the rule file and the packs that reload
  * loads: each {@link #STEPS step} turns its rules into plain files that Minecraft reads as it would
  * any pack's.
  *
- * <p>The language files are not generated: {@link #staticFiles} answers them from the rule files
+ * <p>The language files are not generated: {@link #staticFiles} answers them from the rule file
  * alone, so {@link org.wynnvets.retro.pack.RetroPackResources RetroPackResources} can serve them on
  * any thread.
  *
@@ -77,24 +78,6 @@ public final class RetroPackGenerator {
     private final Function<RetroManifest, Map<RetroSource, PackResources>> downloaded;
 
     /**
-     * A generator for one reload that reads no old client.
-     *
-     * @param stack the packs the reload loads, bottom first, without the retro pack
-     * @param wynncraftIndex the index in {@code stack} of the Wynncraft pack the retro pack sits
-     *     directly above
-     * @param programmerArt the client's {@code programmer_art} pack, or {@code null} when it has
-     *     none
-     * @param vanilla Minecraft's vanilla pack
-     */
-    public RetroPackGenerator(
-            List<PackResources> stack,
-            int wynncraftIndex,
-            Pack programmerArt,
-            PackResources vanilla) {
-        this(stack, wynncraftIndex, programmerArt, vanilla, manifest -> Map.of());
-    }
-
-    /**
      * A generator for one reload.
      *
      * @param stack the packs the reload loads, bottom first, without the retro pack
@@ -103,7 +86,7 @@ public final class RetroPackGenerator {
      * @param programmerArt the client's {@code programmer_art} pack, or {@code null} when it has
      *     none
      * @param vanilla Minecraft's vanilla pack
-     * @param downloaded opens the downloaded art that is here for the rule files read (the old
+     * @param downloaded opens the downloaded art that is here for the rule file read (the old
      *     clients' files and vetsmod's panorama), for the generation to close; it must not throw
      */
     public RetroPackGenerator(
@@ -128,7 +111,7 @@ public final class RetroPackGenerator {
      *
      * @return the files, each keyed by its full path, such as
      *     {@code minecraft:textures/block/stone.png}
-     * @throws IOException when a rule file cannot be read
+     * @throws IOException when the rule file cannot be read
      */
     public Map<Identifier, byte[]> generate() throws IOException {
         long start = System.nanoTime();
@@ -137,9 +120,10 @@ public final class RetroPackGenerator {
         PackOutput out = new PackOutput();
         List<RetroSource> present;
         RetroReport.Seen seen;
-        try (RetroSources sources =
-                RetroSources.open(
-                        programmerArt, BundledArt.open(), downloaded.apply(manifest), vanilla)) {
+        Map<RetroSource, PackResources> art = new EnumMap<>(RetroSource.class);
+        art.putAll(BundledArt.open());
+        art.putAll(downloaded.apply(manifest));
+        try (RetroSources sources = RetroSources.open(programmerArt, art, vanilla)) {
             present = sources.present();
             GenerationContext gen =
                     new GenerationContext(manifest, stack, wynncraftIndex, sources, out, partsOn);
@@ -165,13 +149,13 @@ public final class RetroPackGenerator {
     }
 
     /**
-     * The files the pack serves without generating, answered from the rule files alone: one
+     * The files the pack serves without generating, answered from the rule file alone: one
      * language file per {@code lang} locale, while {@code screens} is on. Reading them costs one
-     * parse of the rule files and no pack, so it is safe on any thread, the render thread
+     * parse of the rule file and no pack, so it is safe on any thread, the render thread
      * included.
      *
      * @return the files, each keyed by its full path
-     * @throws IOException when a rule file cannot be read
+     * @throws IOException when the rule file cannot be read
      */
     public static Map<Identifier, byte[]> staticFiles() throws IOException {
         return staticFiles(

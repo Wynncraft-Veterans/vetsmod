@@ -1,11 +1,13 @@
 package org.wynnvets.retro.manifest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.wynnvets.retro.manifest.ShippedFiles.EVERYTHING_BLANK;
 import static org.wynnvets.retro.manifest.ShippedFiles.assetFile;
 import static org.wynnvets.retro.manifest.ShippedFiles.bundledFile;
+import static org.wynnvets.retro.manifest.ShippedFiles.inVanillaTweaks;
 import static org.wynnvets.retro.manifest.ShippedFiles.realTextureRules;
 
 import java.io.IOException;
@@ -18,9 +20,9 @@ import org.wynnvets.retro.rules.TextureDecision;
 import org.wynnvets.retro.rules.TextureRules;
 
 /**
- * The Vanilla Tweaks art the jar bundles: the one GUI texture it draws, and its credit, as Vanilla
- * Tweaks' terms ask. That every bundled texture is one this game has and one the retro pack draws
- * is {@link ShippedBundledArtTest}'s.
+ * The Vanilla Tweaks art the jar bundles: the one GUI texture it draws, the textures it leaves to
+ * older art, and its credit, as Vanilla Tweaks' terms ask. That every bundled texture is one this
+ * game has and one the retro pack draws is {@link ShippedBundledArtTest}'s.
  */
 class ShippedVanillaTweaksTest {
 
@@ -52,6 +54,31 @@ class ShippedVanillaTweaksTest {
         assertEquals(
                 new TextureDecision.Copy(normal, RetroSource.VANILLA),
                 rules.decide(normal, EVERYTHING_BLANK));
+    }
+
+    @Test
+    void theBundleHasNoArtThe2013ArtIsAlreadyIn() {
+        // Programmer Art or vanilla has the 1.7.10 art of these, or an old client takes it, so a
+        // Vanilla Tweaks copy would only stand in front of it.
+        for (String textureId :
+                List.of(
+                        "minecraft:block/cobblestone",
+                        "minecraft:block/mossy_cobblestone",
+                        "minecraft:block/coal_ore",
+                        "minecraft:block/diamond_ore",
+                        "minecraft:block/gravel",
+                        "minecraft:block/lapis_block",
+                        "minecraft:block/crafting_table_front",
+                        "minecraft:block/redstone_torch",
+                        "minecraft:block/oak_planks",
+                        "minecraft:block/ice",
+                        "minecraft:block/netherrack",
+                        "minecraft:block/lava_still",
+                        "minecraft:block/water_still",
+                        "minecraft:block/water_overlay",
+                        "minecraft:entity/signs/oak")) {
+            assertFalse(inVanillaTweaks(textureId), textureId);
+        }
     }
 
     @Test

@@ -155,19 +155,25 @@ public final class RetroCommands {
     /**
      * The line a fetch of the old clients' textures ends with.
      *
-     * @param wrote whether it downloaded them
+     * @param wrote whether it downloaded any client's textures
+     * @param complete whether it downloaded every client's
      * @param reloading whether a resource reload follows
      * @return the line
      */
     // Package-private for unit tests. See RetroCommandsTest.
-    static Component fetchedLine(boolean wrote, boolean reloading) {
-        String text =
-                wrote
-                        ? "Retro: the old textures are downloaded."
-                        : "Retro: could not download the old textures; today's stand in for them"
-                                + " until the next start-up tries again.";
+    static Component fetchedLine(boolean wrote, boolean complete, boolean reloading) {
+        String text;
+        if (complete) {
+            text = "Retro: the old textures are downloaded.";
+        } else {
+            text =
+                    (wrote
+                                    ? "Retro: some of the old textures could not be downloaded;"
+                                    : "Retro: could not download the old textures;")
+                            + " today's stand in for them until the next start-up tries again.";
+        }
         return line(
-                wrote ? ChatFormatting.GREEN : ChatFormatting.YELLOW,
+                complete ? ChatFormatting.GREEN : ChatFormatting.YELLOW,
                 reloading ? text + " Reloading resources…" : text);
     }
 

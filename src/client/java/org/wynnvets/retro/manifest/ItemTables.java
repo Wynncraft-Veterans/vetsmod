@@ -60,9 +60,6 @@ record ItemTables(
     /** Wynncraft's potions all draw one of these three, whatever the bottle holds. */
     private static final String POTION_FILLS = "_(empty|half|full)";
 
-    /** Where Avomod's potion models are. */
-    private static final String AVOMOD_MODELS = RetroAssetIds.AVOMOD_NAMESPACE + ":item/";
-
     /** The rows made so far, and the shapes they come in. */
     private record Rows(List<ItemModel> itemModels, Map<String, SourceCopy> sourceCopies) {
 
@@ -177,7 +174,8 @@ record ItemTables(
             potions.add(new Potion(Pattern.compile(POTION_MODELS + family + POTION_FILLS), liquid));
             if (fields.get("avomod") != null) {
                 String avomod = ManifestYaml.name(fields.get("avomod"), rowWhere + ": avomod");
-                potions.add(new Potion(Pattern.compile(AVOMOD_MODELS + avomod), liquid));
+                potions.add(
+                        new Potion(Pattern.compile(RetroAssetIds.AVOMOD_MODELS + avomod), liquid));
             }
         }
         return potions;

@@ -119,8 +119,8 @@ public final class WynntilsConfigOverrides {
 
     /**
      * Changes every {@code wynntils_config} setting whose part is on to retro's value, saving the
-     * player's first where the snapshot has no entry for it. A saved setting the rule files no
-     * longer change, or whose part has gone off, is put back, and stays saved when it cannot be.
+     * player's first where the snapshot has no entry for it. A saved setting {@code retro.yml} no
+     * longer changes, or whose part has gone off, is put back, and stays saved when it cannot be.
      * Does nothing until Wynntils has loaded its features; the start-up step applies then.
      */
     public static void apply() {
@@ -173,7 +173,7 @@ public final class WynntilsConfigOverrides {
             toSet.put(entry, setting);
         }
         boolean changed = false;
-        // What is left is a setting the rule files no longer change.
+        // What is left is a setting retro.yml no longer changes.
         for (Saved gone : saved.values()) {
             PutBack result = putBack(settings, gone);
             changed |= result == PutBack.RESTORED;

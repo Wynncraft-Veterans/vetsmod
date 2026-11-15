@@ -206,7 +206,7 @@ class ShippedItemModelsTest {
     /** The sections of the real {@code retro.yml}. */
     private static Map<?, ?> realSections() throws IOException {
         try (InputStream in = ShippedItemModelsTest.class.getResourceAsStream("/retro.yml")) {
-            return ManifestYaml.sections(in, ManifestYaml.FILE, RetroManifest.SECTIONS);
+            return ManifestYaml.sections(in, RetroManifest.SECTIONS);
         }
     }
 
@@ -216,7 +216,7 @@ class ShippedItemModelsTest {
     }
 
     /**
-     * The texture a {@code source_copies} copy holds, read from the real rule files, or
+     * The texture a {@code source_copies} copy holds, read from the real rule file, or
      * {@code textureId} itself when no row copies to it.
      */
     private static String original(String textureId) throws IOException {

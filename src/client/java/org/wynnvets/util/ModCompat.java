@@ -13,22 +13,10 @@ import net.fabricmc.loader.api.FabricLoader;
  */
 public final class ModCompat {
 
-    /**
-     * Whether wynnmod (mod id {@code wynnmod}) is loaded.
-     * {@link org.wynnvets.mixin.client.NametagMixin NametagMixin} reads it to work around the
-     * rank badge wynnmod adds to player nametags.
-     */
+    /** Whether wynnmod (mod id {@code wynnmod}) is loaded. */
     public static final boolean WYNNMOD_PRESENT = FabricLoader.getInstance().isModLoaded("wynnmod");
 
-    /**
-     * Whether WynnExtras (mod id {@code wynnextras}) is loaded. Nothing reads it yet. The likely
-     * first reader is {@link org.wynnvets.mixin.client.NametagMixin NametagMixin}: WynnExtras
-     * appends its own badge to a player's nametag inside the {@code AvatarRenderer.submitNameTag}
-     * that mixin wraps, with a {@code @ModifyArg} on the label of each
-     * {@code SubmitNodeCollector.submitNameTag} call (in its Yarn names,
-     * {@code PlayerEntityRenderer.renderLabelIfPresent} and
-     * {@code OrderedRenderCommandQueue.submitLabel}).
-     */
+    /** Whether WynnExtras (mod id {@code wynnextras}) is loaded. */
     public static final boolean WYNNEXTRAS_PRESENT =
             FabricLoader.getInstance().isModLoaded("wynnextras");
 

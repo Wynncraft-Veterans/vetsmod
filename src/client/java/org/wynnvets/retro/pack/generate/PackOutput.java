@@ -45,6 +45,9 @@ final class PackOutput {
     /** The models among {@link #modelIds} that a stub replaced. */
     final Set<String> stubbed = new HashSet<>();
 
+    /** The Avomod models among {@link #modelIds} whose part is on but that no stub replaced. */
+    final Set<String> unstubbedAvomod = new HashSet<>();
+
     /** The equipment assets the Wynncraft pack ships. */
     final List<String> equipmentIds = new ArrayList<>();
 
@@ -163,6 +166,6 @@ final class PackOutput {
      */
     RetroReport.Seen seen(Set<String> shipped) {
         return new RetroReport.Seen(
-                decisions, shipped, modelIds, stubbed, equipmentIds, tintFactors);
+                decisions, shipped, modelIds, stubbed, unstubbedAvomod, equipmentIds, tintFactors);
     }
 }

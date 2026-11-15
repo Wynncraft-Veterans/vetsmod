@@ -59,9 +59,6 @@ public record AssetSections(
     /** The namespace {@code wynntils_textures} writes into. */
     private static final String WYNNTILS_NAMESPACE = "wynntils";
 
-    /** The {@code wynntils_textures} value for a fully transparent texture. */
-    private static final String BLANK = "blank";
-
     /** A language code a file name can carry, such as {@code en_us}. */
     private static final Pattern LOCALE = Pattern.compile("[a-z0-9_.-]+");
 
@@ -253,7 +250,7 @@ public record AssetSections(
                 ManifestYaml.inFile(WYNNTILS_TEXTURES),
                 WYNNTILS_NAMESPACE,
                 (texture, value, rowWhere) -> {
-                    if (BLANK.equals(value)) return List.of();
+                    if (RetroManifest.BLANK.equals(value)) return List.of();
                     List<Frame> frames =
                             ManifestYaml.listRows(
                                     value,

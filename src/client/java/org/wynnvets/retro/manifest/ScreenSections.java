@@ -1,16 +1,21 @@
 package org.wynnvets.retro.manifest;
 
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.item.DyeColor;
 
 /**
  * The sections the game reads while it draws Wynncraft's screens.
  *
  * <p>Beyond the rules every section keeps, these fail the parse: a row or column a chest does not
- * have, a slot past a six-row chest's part below it (89), a {@code slot_fills} row that names both
+ * have, a slot past the part below a six-row chest (89), a {@code slot_fills} row that names both
  * a container and a title, neither, or no slots, or glass neither clear nor a dye's colour, a
  * {@code slot_values} lore pattern without a group, and a glyph outside the private use area.
  *
@@ -60,47 +65,33 @@ public record ScreenSections(
      * The glass a {@code slot_fills} row shows when it names none, and the glass of the player's
      * slots.
      */
-    public static final String DEFAULT_GLASS = "white";
+    public static final String DEFAULT_GLASS = DyeColor.WHITE.getSerializedName();
 
     /** The {@code slot_fills} {@code glass} value for the plain glass pane. */
     public static final String CLEAR_GLASS = "clear";
 
     /**
-     * The colours a {@code slot_fills} row's {@code glass} may name: {@link #CLEAR_GLASS}, and
-     * Minecraft's sixteen dyes as their stained glass panes' item ids spell them
+     * The colours a {@code slot_fills} row's {@code glass} may name: {@link #CLEAR_GLASS}, and each
+     * of Minecraft's dyes by the name its stained glass pane's item id spells
      * ({@code minecraft:<dye>_stained_glass_pane}).
      */
     public static final Set<String> GLASS_COLOURS =
-            Set.of(
-                    CLEAR_GLASS,
-                    "white",
-                    "orange",
-                    "magenta",
-                    "light_blue",
-                    "yellow",
-                    "lime",
-                    "pink",
-                    "gray",
-                    "light_gray",
-                    "cyan",
-                    "purple",
-                    "blue",
-                    "brown",
-                    "green",
-                    "red",
-                    "black");
+            Stream.concat(
+                            Stream.of(CLEAR_GLASS),
+                            Arrays.stream(DyeColor.values()).map(DyeColor::getSerializedName))
+                    .collect(Collectors.toUnmodifiableSet());
 
     /** The highest row of a chest; a chest is at most six rows. */
     private static final int LAST_ROW = 5;
 
+    /** How many slots the part below a chest has: the inventory's three rows and the hotbar. */
+    public static final int SLOTS_BELOW = Inventory.INVENTORY_SIZE;
+
     /**
      * The highest slot a row may name, counted across then down from 0: a six-row chest's last,
-     * 53, then the part below it on a full-screen view, the inventory's three rows and the hotbar.
+     * 53, then the part below it on a full-screen view.
      */
-    private static final int LAST_SLOT = 89;
-
-    /** How many slots the part below a chest has: the inventory's three rows and the hotbar. */
-    public static final int SLOTS_BELOW = 36;
+    private static final int LAST_SLOT = (LAST_ROW + 1) * (LAST_COLUMN + 1) + SLOTS_BELOW - 1;
 
     /** What a {@code glyph_titles} key looks like: a character in the private use area. */
     private static final Pattern GLYPH = Pattern.compile("[EF][0-9A-F]{3}");
@@ -154,10 +145,12 @@ public record ScreenSections(
          * A slot in {@code except} is never painted by this row, and a container {@code unless}
          * matches is not one it covers. A {@code fallback} row covers a container only when no row
          * before it did. Where two rows pick a slot, the first one's {@code glass} and
-         * {@code open} hold. On a Wynntils full-screen view, whose part below the chest holds
-         * Wynncraft's buttons, only a row naming its class applies, and its {@code slots} past the
-         * chest's own pick that part, counted on: the inventory's three rows, then the hotbar.
-         * Everywhere else a row picks the chest's slots alone, and a slot past it picks nothing.
+         * {@code open} hold.
+         *
+         * <p>On a Wynntils full-screen view, whose part below the chest holds Wynncraft's buttons,
+         * only a row naming its class applies, and its {@code slots} past the chest's own pick that
+         * part, counted on: the inventory's three rows, then the hotbar. Everywhere else a row
+         * picks the chest's slots alone, and a slot past it picks nothing.
          *
          * @param containers the simple names of the Wynntils container classes it covers, or
          *     {@code null}

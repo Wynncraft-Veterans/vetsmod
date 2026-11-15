@@ -5,8 +5,8 @@ import java.util.Set;
 import org.wynnvets.rendering.colors.ColorMath;
 
 /**
- * Drawing on {@link Pixels}: guarded fills, an art's edge and outline, nine-slice stretches and
- * stacks of frames.
+ * Drawing on {@link Pixels}: fills, guarded or not, an art's edge and outline, nine-slice stretches
+ * and stacks of frames.
  */
 public final class PixelDrawing {
 
@@ -38,12 +38,26 @@ public final class PixelDrawing {
                 }
             }
         }
-        for (int y = rect.y(); y < rect.y() + rect.height(); y++) {
-            for (int x = rect.x(); x < rect.x() + rect.width(); x++) {
+        paint(image, rect, argb);
+        return true;
+    }
+
+    /**
+     * Paints {@code rect} one colour, whatever it holds; the part of it outside the image is left
+     * out.
+     *
+     * @param image the image, changed in place
+     * @param rect the rectangle to paint
+     * @param argb the colour
+     */
+    public static void paint(Pixels image, Rect rect, int argb) {
+        int right = Math.min(image.width(), rect.x() + rect.width());
+        int bottom = Math.min(image.height(), rect.y() + rect.height());
+        for (int y = Math.max(0, rect.y()); y < bottom; y++) {
+            for (int x = Math.max(0, rect.x()); x < right; x++) {
                 image.set(x, y, argb);
             }
         }
-        return true;
     }
 
     /**

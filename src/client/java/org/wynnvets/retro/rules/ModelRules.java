@@ -9,7 +9,7 @@ import org.wynnvets.retro.manifest.RetroManifest;
  * The retro pack's decisions about models: which stub replaces an item or potion model, which
  * vanilla model an ingredient's stub parents, and which vanilla equipment asset replaces one of
  * Wynncraft's. Every answer comes from the {@link ModelSections} alone, so the class is pure. Ids
- * are written in full, {@code minecraft:item/stick}, as in the rule files.
+ * are written in full, {@code minecraft:item/stick}, as in {@code retro.yml}.
  */
 public final class ModelRules {
 

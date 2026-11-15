@@ -26,7 +26,9 @@ final class ZipDirectory {
     private static final int STORED = 0;
     private static final int DEFLATED = 8;
 
-    /** Bytes asked for past an entry's name, for a local extra field the directory does not give. */
+    /**
+     * Bytes asked for past an entry's name, for a local extra field the directory does not give.
+     */
     private static final int EXTRA_SLACK = 64;
 
     /** The largest entry read; a texture is far smaller. */

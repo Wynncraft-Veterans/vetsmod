@@ -1,6 +1,7 @@
 package org.wynnvets.retro.rules;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.wynnvets.retro.manifest.ManifestFixtures.oldClientRow;
 
 import java.util.List;
 import java.util.Set;
@@ -13,19 +14,16 @@ import org.wynnvets.retro.manifest.TextureSections.OldClientRow;
 /** Tests for {@link OldClientRules}: which texture an old client holds, and what is cleared. */
 class OldClientRulesTest {
 
-    private static OldClientRow row(String textures, String file) {
-        return new OldClientRow(Pattern.compile(textures), file);
-    }
-
     @Test
     void eachTextureTakesItsFirstMatchingRowInIdOrder() {
         List<OldClientRow> rows =
                 List.of(
-                        row(
+                        oldClientRow(
                                 "minecraft:block/light_gray_wool",
                                 "minecraft:blocks/wool_colored_silver"),
-                        row("minecraft:block/(\\w+)_wool", "minecraft:blocks/wool_colored_$1"),
-                        row("minecraft:entity/villager/type/\\w+", null));
+                        oldClientRow(
+                                "minecraft:block/(\\w+)_wool", "minecraft:blocks/wool_colored_$1"),
+                        oldClientRow("minecraft:entity/villager/type/\\w+", null));
 
         assertEquals(
                 List.of(
