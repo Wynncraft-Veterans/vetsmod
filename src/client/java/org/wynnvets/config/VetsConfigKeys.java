@@ -98,7 +98,7 @@ public final class VetsConfigKeys {
     // ── The panorama easter egg ──────────────────────────────────────────
 
     /** Whether {@code /wv extras panorama} is on: while retro is off, the main menu then shows
-     *  the Vetlas panorama vetsmod bundles
+     *  the Vetlas panorama, downloaded from i.wynnvets.org once it is wanted
      *  ({@link org.wynnvets.extras.panorama.ExtrasPanorama ExtrasPanorama}). Written only by that
      *  command, and read at every draw, so it needs no reload. Absent from
      *  {@link VetsConfigSchema#USER_CONFIG_KEYS}, so the egg stays unlisted. Internal. */

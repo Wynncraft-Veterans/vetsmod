@@ -4,7 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
@@ -55,7 +57,17 @@ class HostedPanoramaTest {
     void eachSetsFolderIsNamedByItsPins() {
         for (HostedPanorama panorama : HostedPanorama.values()) {
             assertTrue(panorama.hash().matches("[0-9a-f]{16}"), panorama.name());
-            assertEquals(panorama.hash(), panorama.hash(), "the same pins, the same name");
+            List<HostedPanorama.Face> faces = panorama.faces();
+            for (int changed = 0; changed < faces.size(); changed++) {
+                List<HostedPanorama.Face> repinned = new ArrayList<>(faces);
+                HostedPanorama.Face face = faces.get(changed);
+                repinned.set(
+                        changed, new HostedPanorama.Face(face.uri(), face.size(), "0".repeat(64)));
+                assertNotEquals(
+                        panorama.hash(),
+                        HostedPanorama.hash(repinned, panorama::path),
+                        panorama + ": a new pin on face " + changed + " makes a new folder");
+            }
         }
         assertNotEquals(HostedPanorama.OLD_DETLAS.hash(), HostedPanorama.VETLAS.hash());
         assertNotEquals(HostedPanorama.OLD_DETLAS.folderName(), HostedPanorama.VETLAS.folderName());

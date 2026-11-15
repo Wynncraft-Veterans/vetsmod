@@ -5,6 +5,7 @@ import java.net.URI;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -34,7 +35,8 @@ import org.wynnvets.util.HttpClients;
  * ({@link AtomicFolders}). It never throws: a set that fails is not tried again until the next
  * start-up, and whatever asked for it draws its fallback meanwhile. Reading a set back checks
  * every face again, since a file on disk can change: a folder that no longer matches its pins is
- * deleted, so the next request downloads it again.</p>
+ * deleted, so the next request downloads it again, and a folder that cannot be read, or deleted,
+ * counts as failed until the next start-up, so nothing reads it again and again.</p>
  */
 public final class PanoramaDownloads {
 
@@ -47,6 +49,14 @@ public final class PanoramaDownloads {
     private static final Set<HostedPanorama> FAILED = ConcurrentHashMap.newKeySet();
 
     private PanoramaDownloads() {}
+
+    /** A face that is not its pinned file: the wrong size or the wrong bytes. */
+    // Package-private for unit tests. See PanoramaDownloadsTest.
+    static final class NotPinnedException extends IOException {
+        NotPinnedException(String message) {
+            super(message);
+        }
+    }
 
     /** Where a set stands. */
     public enum State {
@@ -67,12 +77,29 @@ public final class PanoramaDownloads {
      * @return its state
      */
     public static State state(HostedPanorama panorama) {
+        return state(root(), panorama);
+    }
+
+    /**
+     * {@link #state(HostedPanorama)} under {@code root}.
+     *
+     * @param root the folder every set's folders are in, or {@code null} when there is none
+     * @param panorama the set
+     * @return its state
+     */
+    // Package-private for unit tests. See PanoramaDownloadsTest.
+    static State state(Path root, HostedPanorama panorama) {
         if (RUNNING.contains(panorama)) return State.DOWNLOADING;
         if (FAILED.contains(panorama)) return State.FAILED;
-        Path root = root();
         return root != null && Files.isDirectory(folder(root, panorama))
                 ? State.HERE
                 : State.MISSING;
+    }
+
+    /** Forgets every download running or failed this session. Tests only. */
+    static void clearForTesting() {
+        RUNNING.clear();
+        FAILED.clear();
     }
 
     /** Downloads one face. */
@@ -192,11 +219,12 @@ public final class PanoramaDownloads {
     /**
      * A face's bytes, if they are the pinned file.
      *
-     * @throws IOException when their size or SHA-256 is not the pin's
+     * @throws NotPinnedException when their size or SHA-256 is not the pin's
      */
-    private static byte[] checked(HostedPanorama.Face face, byte[] bytes) throws IOException {
+    private static byte[] checked(HostedPanorama.Face face, byte[] bytes)
+            throws NotPinnedException {
         if (bytes == null || bytes.length != face.size()) {
-            throw new IOException(
+            throw new NotPinnedException(
                     face.uri()
                             + " is "
                             + (bytes == null ? 0 : bytes.length)
@@ -204,7 +232,7 @@ public final class PanoramaDownloads {
                             + face.size());
         }
         if (!HostedPanorama.sha256(bytes).equals(face.sha256())) {
-            throw new IOException(face.uri() + " is not the pinned file");
+            throw new NotPinnedException(face.uri() + " is not the pinned file");
         }
         return bytes;
     }
@@ -215,7 +243,8 @@ public final class PanoramaDownloads {
      * headers arrive, so the whole exchange waits at most {@link #TIMEOUT}, after which it is
      * cancelled.
      */
-    private static byte[] get(HostedPanorama.Face face) throws IOException {
+    // Package-private for unit tests. See PanoramaDownloadsTest.
+    static byte[] get(HostedPanorama.Face face) throws IOException {
         URI uri = face.uri();
         HttpRequest request = HttpRequest.newBuilder(uri).timeout(TIMEOUT).GET().build();
         CompletableFuture<HttpResponse<byte[]>> exchange =
@@ -258,7 +287,8 @@ public final class PanoramaDownloads {
 
     /**
      * A set's faces as they are kept, each checked against its pin. A folder whose files are not
-     * the pinned ones is deleted, so the next {@link #start} downloads it again.
+     * the pinned ones is deleted, so the next {@link #start} downloads it again; one that cannot be
+     * read, or deleted, makes the set {@link State#FAILED} until the next start-up.
      *
      * @param panorama the set
      * @return its six faces, face 0 first; {@code null} when it is not here whole and unchanged
@@ -268,6 +298,7 @@ public final class PanoramaDownloads {
             Path root = root();
             return root == null ? null : read(root, panorama);
         } catch (Throwable t) {
+            FAILED.add(panorama);
             VetsLogger.warn("Could not read the {} panorama", panorama, t);
             return null;
         }
@@ -286,12 +317,20 @@ public final class PanoramaDownloads {
         if (!Files.isDirectory(folder)) return null;
         try {
             return readFolder(folder, panorama.faces(), panorama::path);
-        } catch (IOException | RuntimeException e) {
+        } catch (NotPinnedException | NoSuchFileException e) {
             VetsLogger.warn(
                     "The {} panorama's files are not the pinned ones; downloading it again",
                     panorama,
                     e);
             AtomicFolders.delete(folder);
+            if (Files.exists(folder)) FAILED.add(panorama);
+            return null;
+        } catch (IOException | RuntimeException e) {
+            FAILED.add(panorama);
+            VetsLogger.warn(
+                    "Could not read the {} panorama; its fallback shows until the next start-up",
+                    panorama,
+                    e);
             return null;
         }
     }

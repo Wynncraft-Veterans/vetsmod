@@ -6,6 +6,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.function.IntFunction;
 
 /**
  * vetsmod's own main-menu panoramas: screenshots, six cube faces each, about 5 MB a set, hosted on
@@ -137,9 +138,21 @@ public enum HostedPanorama {
      * @return 16 lower-case hex digits of a SHA-256
      */
     public String hash() {
+        return hash(faces, this::path);
+    }
+
+    /**
+     * {@link #hash()} of any faces.
+     *
+     * @param faces the faces, face 0 first
+     * @param path where each face is kept, by its number
+     * @return 16 lower-case hex digits of a SHA-256
+     */
+    // Package-private for unit tests. See HostedPanoramaTest.
+    static String hash(List<Face> faces, IntFunction<String> path) {
         StringBuilder text = new StringBuilder().append(FORMAT).append('\n');
         for (int i = 0; i < faces.size(); i++) {
-            text.append(path(i)).append('\t').append(faces.get(i).sha256()).append('\n');
+            text.append(path.apply(i)).append('\t').append(faces.get(i).sha256()).append('\n');
         }
         return sha256(text.toString().getBytes(StandardCharsets.UTF_8)).substring(0, 16);
     }

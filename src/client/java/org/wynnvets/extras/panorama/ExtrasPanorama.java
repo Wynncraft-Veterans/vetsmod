@@ -1,12 +1,14 @@
 package org.wynnvets.extras.panorama;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.LoadingOverlay;
 import net.minecraft.client.renderer.CubeMap;
 import net.minecraft.client.renderer.texture.TextureManager;
 import net.minecraft.resources.Identifier;
+import net.minecraft.util.Util;
 import org.wynnvets.Vetsmod;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.config.VetsConfigKeys;
@@ -30,17 +32,19 @@ import org.wynnvets.retro.RetroModeManager;
  *
  * <p>{@link org.wynnvets.mixin.client.extras.PanoramaRendererMixin PanoramaRendererMixin} hands
  * every panorama draw to {@link #draw}, on the render thread. The setting is read at each draw,
- * so turning it on or off needs no reload. The cube map is made, and its texture registered and
- * loaded from the downloaded faces held in memory ({@link HostedCubeMapTexture}), on the render
- * thread, the first time Vetlas is drawn once they are here, and both are let go the first
- * time the panorama is drawn without it, so the egg costs nothing while it is off. While
+ * so turning it on or off needs no reload. Once the faces are here, the first draw that would show
+ * Vetlas has them read and checked on Minecraft's I/O threads, so the render thread never waits on
+ * the disk; a later draw then makes the cube map, and registers and loads its texture from the
+ * faces held in memory ({@link HostedCubeMapTexture}), on the render thread. Both are let go the
+ * first time the panorama is drawn without Vetlas, so the egg costs nothing while it is off. While
  * registered, the texture reloads with every resource reload, on the reload's workers, as
  * Minecraft's own does. It is never let go while a reload runs (while the loading overlay is up):
  * that reload took the texture into its list as it started and would upload it again at its end,
  * into a texture nothing holds any more, which would keep its memory until the game exits.</p>
  *
  * <p>Nothing here throws into the draw: any failure to choose, load, let go or draw Vetlas logs
- * one warning, lets it go, and leaves the stock panorama until the game restarts. The faces are
+ * one warning, lets it go (after the reload, if one is running), and leaves the stock panorama
+ * until the game restarts. The faces are
  * checked against their pins before the texture is made, and a reload builds it again from the
  * same bytes in memory, never from the disk, so no reload can meet a face it cannot read, where a
  * cube map that fails to load fails the whole reload.</p>
@@ -57,6 +61,18 @@ public final class ExtrasPanorama {
 
     /** Whether Vetlas failed to load or draw, which leaves the stock panorama until restart. */
     private static boolean failed;
+
+    /**
+     * The downloaded faces being read and checked off the render thread, else {@code null}.
+     * Render thread only.
+     */
+    private static CompletableFuture<List<byte[]>> reading;
+
+    /**
+     * Whether a failure while a reload ran left Vetlas's texture registered, for the next draw
+     * after the reload to let go. Render thread only.
+     */
+    private static boolean releasePending;
 
     private ExtrasPanorama() {}
 
@@ -128,7 +144,9 @@ public final class ExtrasPanorama {
             if (shows(isOn(), RetroModeManager.isEnabled(), failed)) {
                 if (cubeMap == null) cubeMap = load(minecraft.getTextureManager());
                 vetlas = cubeMap;
-            } else if (cubeMap != null && !(minecraft.getOverlay() instanceof LoadingOverlay)) {
+            } else if ((cubeMap != null || releasePending)
+                    && !(minecraft.getOverlay() instanceof LoadingOverlay)) {
+                releasePending = false;
                 release(minecraft.getTextureManager());
             }
         } catch (Throwable t) {
@@ -147,23 +165,28 @@ public final class ExtrasPanorama {
     }
 
     /**
-     * Registers and loads Vetlas's texture from its downloaded faces, then makes its cube map. While
-     * the faces are not here it starts their download, if none is running or has failed, and
-     * gives {@code null}, so the stock panorama shows meanwhile.
+     * Registers and loads Vetlas's texture from its downloaded faces, then makes its cube map. The
+     * faces are read and checked on Minecraft's I/O threads, not here; while they are being read,
+     * or are not here, it gives {@code null}, so the stock panorama shows meanwhile, and when they
+     * are not here it starts their download, unless one is running or has failed.
      */
     private static CubeMap load(TextureManager textures) {
-        PanoramaDownloads.State state = PanoramaDownloads.state(HostedPanorama.VETLAS);
-        List<byte[]> faces =
-                state == PanoramaDownloads.State.HERE
-                        ? PanoramaDownloads.read(HostedPanorama.VETLAS)
-                        : null;
-        if (faces == null) {
-            if (state != PanoramaDownloads.State.DOWNLOADING
-                    && state != PanoramaDownloads.State.FAILED) {
+        if (reading == null) {
+            PanoramaDownloads.State state = PanoramaDownloads.state(HostedPanorama.VETLAS);
+            if (state == PanoramaDownloads.State.HERE) {
+                reading =
+                        CompletableFuture.supplyAsync(
+                                () -> PanoramaDownloads.read(HostedPanorama.VETLAS), Util.ioPool());
+            } else if (state == PanoramaDownloads.State.MISSING) {
                 PanoramaDownloads.start(HostedPanorama.VETLAS, wrote -> {});
             }
             return null;
         }
+        if (!reading.isDone()) return null;
+        // read never throws; a set it could not read is deleted or marked failed.
+        List<byte[]> faces = reading.join();
+        reading = null;
+        if (faces == null) return null;
         textures.registerAndLoad(LOCATION, new HostedCubeMapTexture(LOCATION, faces));
         return new CubeMap(LOCATION);
     }
@@ -184,7 +207,12 @@ public final class ExtrasPanorama {
                         + " game restarts",
                 t);
         try {
-            release(minecraft.getTextureManager());
+            if (minecraft.getOverlay() instanceof LoadingOverlay) {
+                // Never while a reload runs: the next draw after it lets the texture go.
+                releasePending = true;
+            } else {
+                release(minecraft.getTextureManager());
+            }
         } catch (Throwable u) {
             VetsLogger.debug("Panorama: could not let Vetlas go", u);
         }
