@@ -4,6 +4,7 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import org.wynnvets.commands.CommandUsage;
+import org.wynnvets.extras.panorama.PanoramaCommand;
 import org.wynnvets.extras.sudoku.SudokuCommand;
 
 /**
@@ -20,7 +21,8 @@ public final class ExtrasCommands {
      */
     public static LiteralArgumentBuilder<FabricClientCommandSource> buildCommandTree() {
         return ClientCommandManager.literal("extras")
-                .executes(CommandUsage.usage("/wv extras sudoku"))
-                .then(SudokuCommand.buildCommandTree());
+                .executes(CommandUsage.usage("/wv extras <sudoku|panorama>"))
+                .then(SudokuCommand.buildCommandTree())
+                .then(PanoramaCommand.buildCommandTree());
     }
 }

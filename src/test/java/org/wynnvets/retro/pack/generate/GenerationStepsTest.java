@@ -948,8 +948,10 @@ class GenerationStepsTest {
                         new ItemDefinitionStep(),
                         """
                         gear_box_icons:
-                          'HELMET': 'minecraft:iron_helmet'
-                          'BOOTS': 'minecraft:gone'
+                          - scale: 0.75
+                            items:
+                              'HELMET': 'minecraft:iron_helmet'
+                              'BOOTS': 'minecraft:gone'
                         """);
 
         assertArrayEquals(MCMETA, file(out, "vetsmod:items/retro/minecraft/iron_helmet.json"));

@@ -8,7 +8,13 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Stream;
 import javax.imageio.ImageIO;
 import org.wynnvets.retro.rules.ModelRules;
 import org.wynnvets.retro.rules.PackFacts;
@@ -67,19 +73,70 @@ final class ShippedFiles {
         return onClasspath(textureId, "textures", ".png");
     }
 
+    /** Each source whose art the jar bundles, and that art's folder on the classpath. */
+    static final Map<RetroSource, String> BUNDLES =
+            Map.of(RetroSource.VANILLA_TWEAKS, "/retro/vanilla_tweaks");
+
+    /**
+     * Whether a game downloads {@code source}'s art rather than having it: the old clients, and
+     * vetsmod's own panorama.
+     */
+    static boolean downloaded(RetroSource source) {
+        return source.oldClient() || source == RetroSource.VETSMOD;
+    }
+
+    /** The classpath file of {@code textureId} in a bundled source's art. */
+    static String bundledFile(RetroSource source, String textureId) {
+        return BUNDLES.get(source) + assetFile(textureId, "textures", ".png");
+    }
+
+    /** Whether {@code source} is bundled and its art has {@code textureId}. */
+    static boolean inBundle(RetroSource source, String textureId) {
+        return BUNDLES.containsKey(source)
+                && ShippedFiles.class.getResource(bundledFile(source, textureId)) != null;
+    }
+
     /** Whether the Vanilla Tweaks art the jar bundles has {@code textureId}. */
     static boolean inVanillaTweaks(String textureId) {
-        return ShippedFiles.class.getResource(vanillaTweaksFile(textureId)) != null;
+        return inBundle(RetroSource.VANILLA_TWEAKS, textureId);
+    }
+
+    /**
+     * Every texture a bundled source's art holds: {@code assets/<namespace>/textures/<path>.png}
+     * as {@code <namespace>:<path>}.
+     *
+     * @return the ids, sorted
+     */
+    static List<String> bundledTextureIds(RetroSource source) throws IOException {
+        Path assets;
+        try {
+            assets =
+                    Path.of(
+                            ShippedFiles.class
+                                    .getResource(BUNDLES.get(source) + "/assets")
+                                    .toURI());
+        } catch (URISyntaxException e) {
+            throw new IOException(e);
+        }
+        try (Stream<Path> files = Files.walk(assets)) {
+            return files.map(file -> assets.relativize(file).toString().replace('\\', '/'))
+                    .filter(file -> file.endsWith(".png"))
+                    .map(file -> file.split("/", 3))
+                    .filter(parts -> parts.length == 3 && parts[1].equals("textures"))
+                    .map(
+                            parts ->
+                                    parts[0]
+                                            + ":"
+                                            + parts[2].substring(
+                                                    0, parts[2].length() - ".png".length()))
+                    .sorted()
+                    .toList();
+        }
     }
 
     /** The source {@code CLIENT_JAR} reads {@code textureId} from, by the real {@code .*} row. */
     static RetroSource clientJarSource(String textureId) {
         return inVanillaTweaks(textureId) ? RetroSource.VANILLA_TWEAKS : RetroSource.VANILLA;
-    }
-
-    /** The classpath file of {@code textureId} in the Vanilla Tweaks art. */
-    static String vanillaTweaksFile(String textureId) {
-        return "/retro/vanilla_tweaks" + assetFile(textureId, "textures", ".png");
     }
 
     /** The texture {@code textureId} names, read from the test classpath. */
@@ -92,10 +149,10 @@ final class ShippedFiles {
     }
 
     /**
-     * The packs as the client jar has them: vanilla holds what the jar holds, Vanilla Tweaks what
-     * vetsmod bundles, the Programmer Art pack and the old clients nothing (a game that has not
-     * fetched them yet, or is offline), and Wynncraft ships every texture asked about, none of them
-     * blank.
+     * The packs as the client jar has them: vanilla holds what the jar holds, each bundled source
+     * what vetsmod bundles of it, the Programmer Art pack and the downloaded sources nothing (a game
+     * that has not fetched them yet, or is offline), and Wynncraft ships every texture asked about,
+     * none of them blank.
      */
     static final PackFacts CLIENT_JAR =
             new PackFacts() {
@@ -113,16 +170,21 @@ final class ShippedFiles {
                 public boolean has(RetroSource source, String textureId) {
                     return switch (source) {
                         case VANILLA -> textureInClientJar(textureId);
-                        case VANILLA_TWEAKS -> inVanillaTweaks(textureId);
-                        case PROGRAMMER_ART, MINECRAFT_1_7_10, MINECRAFT_1_8_9, MINECRAFT_1_9_4 ->
+                        case VANILLA_TWEAKS -> inBundle(source, textureId);
+                        case VETSMOD,
+                                PROGRAMMER_ART,
+                                MINECRAFT_1_7_10,
+                                MINECRAFT_1_8_9,
+                                MINECRAFT_1_9_4 ->
                                 false;
                     };
                 }
             };
 
     /**
-     * Every source has every texture, but for Vanilla Tweaks, which has what vetsmod bundles, and
-     * the old clients, which have nothing yet, and Wynncraft ships each one blank.
+     * Every source has every texture, but for the bundled sources, which have what vetsmod
+     * bundles of them, and the downloaded sources, which have nothing yet, and Wynncraft ships each
+     * one blank.
      */
     static final PackFacts EVERYTHING_BLANK =
             new PackFacts() {
@@ -138,8 +200,8 @@ final class ShippedFiles {
 
                 @Override
                 public boolean has(RetroSource source, String textureId) {
-                    return !source.oldClient()
-                            && (source != RetroSource.VANILLA_TWEAKS || inVanillaTweaks(textureId));
+                    return !downloaded(source)
+                            && (!BUNDLES.containsKey(source) || inBundle(source, textureId));
                 }
             };
 

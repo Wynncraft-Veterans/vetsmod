@@ -29,11 +29,15 @@
 # Texture pattern -> the packs it is read from, oldest art first; the first that has it supplies it,
 # with its .mcmeta. An alias or tint reads the row of the texture it copies.
 # - '1.7.10', '1.8.9', '1.9.4': what old_clients takes from those clients (nothing until fetched).
+# - vetsmod: vetsmod's own art, downloaded from i.wynnvets.org (nothing until fetched).
 # - vanilla_tweaks: the bundled Vanilla Tweaks art (credits.txt).
 # - programmer_art: the client's Programmer Art (1.13's art). vanilla: today's.
 sources:
   # Villagers are 1.7.10's whole or today's: a layered entity comes from one source (layer_groups).
   'minecraft:entity/(zombie_)?villager/.*': ['1.7.10', vanilla]
+  # The main menu shows Old Detlas, screenshots taken with retro on, over Wynncraft's Detlas. From
+  # vetsmod alone, so until it is downloaded Wynncraft's stays rather than vanilla's.
+  'minecraft:gui/title/background/panorama_[0-5]': [vetsmod]
   # The UI stays today's (Programmer Art's few GUI files would mix two looks), but for 1.7.10's
   # armour-slot silhouettes and the withered hearts, which Vanilla Tweaks makes readable.
   'minecraft:gui/sprites/hud/heart/withered_(half|full)(_blinking)?': [vanilla_tweaks, vanilla]
@@ -112,7 +116,6 @@ keep_wynncraft:
   - 'minecraft:entity/trident'                        # blank
   - 'minecraft:entity/iron_golem/iron_golem_crackiness_\w+'   # blank: golems never crack
   - 'minecraft:entity/equipment/\w+/copper'           # no 2013 copper armour (equipment)
-  - 'minecraft:painting/.*'                           # Wynncraft's own world art
   - 'minecraft:particle/.*'                           # Wynncraft builds spell effects from these
 
 # ---- Tints ----------------------------------------------------------------------------------
@@ -209,13 +212,15 @@ same_name:
   - 'minecraft:item/.*'
   - 'minecraft:entity/.*'
   - 'minecraft:mob_effect/.*'
+  - 'minecraft:painting/.*'                           # Wynncraft repaints them; vanilla's are 1.7.10's
   - 'minecraft:misc/enchanted_glint_armor'
   # The GUI Wynncraft repaints: container backgrounds, buttons, the tooltip, the armour slots'
-  # silhouettes (which it blanks).
+  # silhouettes (which it blanks), the main menu's panorama.
   - 'minecraft:gui/container/.*'
   - 'minecraft:gui/sprites/widget/.*'
   - 'minecraft:gui/sprites/tooltip/(background|frame)'
   - 'minecraft:gui/sprites/container/slot/(helmet|chestplate|leggings|boots)'
+  - 'minecraft:gui/title/background/panorama_[0-5]'
   # The HUD: what RetroHud draws over Wynncraft's blanks (hearts for health, food for mana, armour
   # for sprint and breath, air for the ultimate, the experience bar), and vanilla's jump bar and
   # hotbar.
@@ -728,18 +733,24 @@ lang:
 
 # ---- Gear box icons -------------------------------------------------------------------------
 
-# Wynntils gear or tome type -> the item id drawn over an unidentified gear box (every box is one
-# chest) or mastery tome of that type.
+# Groups of Wynntils gear or tome types whose icon is a vanilla item, drawn over an unidentified gear
+# box (every box is one chest) or mastery tome of that type. A group has:
+# - scale: the item's size, as a share of the slot.
+# - items: type -> item id.
 gear_box_icons:
-  'HELMET': 'minecraft:iron_helmet'
-  'CHESTPLATE': 'minecraft:iron_chestplate'
-  'LEGGINGS': 'minecraft:iron_leggings'
-  'BOOTS': 'minecraft:iron_boots'
-  # Vanilla has no accessories: a nugget for a ring, a looped lead, a clock worn on the wrist.
-  'RING': 'minecraft:gold_nugget'
-  'NECKLACE': 'minecraft:lead'
-  'BRACELET': 'minecraft:clock'
-  'GUILD_TOME': 'minecraft:shield'   # no flat art: a special renderer draws it
+  - scale: 0.75                                       # armour and accessories, over their box's chest
+    items:
+      'HELMET': 'minecraft:iron_helmet'
+      'CHESTPLATE': 'minecraft:iron_chestplate'
+      'LEGGINGS': 'minecraft:iron_leggings'
+      'BOOTS': 'minecraft:iron_boots'
+      # Vanilla has no accessories: a nugget for a ring, a looped lead, a clock worn on the wrist.
+      'RING': 'minecraft:gold_nugget'
+      'NECKLACE': 'minecraft:lead'
+      'BRACELET': 'minecraft:clock'
+  - scale: 0.6875                                     # the Allegiance tome, over its glinting book
+    items:
+      'GUILD_TOME': 'minecraft:shield'                # no flat art: a special renderer draws it
 
 # ---- Outlined icons -------------------------------------------------------------------------
 
@@ -757,8 +768,8 @@ outlined_icons:
       'DAGGER': 'minecraft:item/shears'
       'BOW': 'minecraft:item/bow'
       'RELIK': 'minecraft:item/iron_pickaxe'
-  - scale: 0.375                                      # a mastery tome, over its glinting book
-    outline: {pixels: 3, colour: '#191919'}
+  - scale: 0.6875                                     # a mastery tome, the Allegiance shield's size
+    outline: {pixels: 1, colour: '#191919'}
     art:
       'ARMOUR_TOME': 'minecraft:item/iron_helmet'
       'WEAPON_TOME': 'minecraft:item/iron_sword'
@@ -801,6 +812,8 @@ accessory_tiers:
 # - name: a pattern on its whole name.
 # - model: the item id drawn instead.
 # - part: the part it belongs to (items by default).
+# Besides the rows, an Avomod model with no stub of its own gives way to the plain item, so
+# Wynncraft's own definition draws the stack, as without Avomod.
 stack_models:
   - {item: 'minecraft:splash_potion', name: 'Active Blesses', model: 'minecraft:nether_star'}
   - {item: 'minecraft:tripwire_hook', name: '.+ \[Lv\. \d+\]', model: 'minecraft:totem_of_undying'}
@@ -837,6 +850,7 @@ container_titles:
   'CharacterInfoContainer': 'Character Info'          # the compass menu
   # Wynncraft's content book; Wynntils' own opens only with shift held (wynntils_config).
   'ContentBookContainer': 'Content Book'
+  'MasteryTomesContainer': 'Mastery Tomes'
   # Screens that are their art: the ability tree, its reset and aspects, and the store.
   'AbilityTree(Reset)?Container|AspectsContainer': keep
   'Store(Page)?Container': keep
@@ -854,6 +868,14 @@ glyph_titles:
   'E03E': 'Party Finder: Join'
   'E03F': 'Party Finder: Queue'
   'E040': 'Party Finder: Search'
+  'E028': 'Scavenger: Merchant'
+  'E029': 'Scavenger: Tinker'
+  'E05B': 'Item Upgrader'
+  'E05C': 'Item Upgrader: Ascension'
+  'E05D': 'Item Upgrader: Pouches'
+  'E05E': 'Item Upgrader: Powder Upgrade'
+  'E05F': 'Item Upgrader: Powder Remove'
+  'E061': 'Mount Settings'
   # The crafting stations, which share one Wynntils class.
   'F041': 'Alchemism'
   'F042': 'Armouring'
@@ -866,35 +888,114 @@ glyph_titles:
 
 # ---- Slot fills -----------------------------------------------------------------------------
 
-# Slots that are not the player's to fill: white glass under their item; empty or holding
-# Wynncraft's filler, they take no mouse. Rows apply on the inventory and on containers whose title
-# retro draws, never on Wynntils' full-screen views; every row that applies paints. A row is one of:
-# - {player: wynntils}: the player's slots Wynntils names (compass, content book, accessories under
-#   a white edge, pouch).
+# Slots that are not the player's to fill: glass under their item; empty or holding Wynncraft's
+# filler, they take no mouse. Rows apply on the inventory and on containers whose title retro draws;
+# every row that applies paints, and where two pick a slot the first one's glass shows. On a
+# Wynntils full-screen view only rows naming its class apply. A row is one of:
+# - {player: wynntils}: the player's slots Wynntils names (compass, content book and pouch on white
+#   glass, accessories under a white edge).
 # - {container: <class pattern>, ...} or {title: <title pattern, as retro draws it>, ...}, with:
 #   rows, cols (0 the top left); slots (a list counted across then down; outside_bounds, outside
 #   what Wynntils bounds as the container's items; or all); except (slots never painted); unless
 #   (a pattern on the class or title: containers skipped); fallback: true (only where no row above
-#   applied). Lists take numbers and ranges ('45-53').
+#   applied); glass (clear, or a dye's colour as its pane's id spells it: white by default); open:
+#   true (its slots still take the mouse while empty). Lists take numbers and ranges ('45-53'). On
+#   a full-screen view, slots past the chest's own pick the part below it, which holds Wynncraft's
+#   buttons: the inventory's three rows, then the hotbar.
+# White under a button, grey on the rest, lime under the item traded, clear (and open) under the
+# slot the player's item goes in; slots the player fills stay plain. The rows naming no glass are
+# white.
 slot_fills:
   - {player: wynntils}
+  - {container: '((Account|Character|PersonalBlock|IslandBlock)Bank|Bookshelf|MiscBucket)Container', slots: [45, 53], glass: gray}
   - {container: '((Account|Character|PersonalBlock|IslandBlock)Bank|Bookshelf|MiscBucket)Container', slots: outside_bounds}
-  - {container: 'TradeMarket(Buy|Sell)Container', slots: all, except: [22, 28, 31]}
-  - {container: 'TradeMarketTradesContainer', rows: [0, 4, 5], cols: [0, 8]}
+  # The item on sale (22), its price (28) and quantity (31), which the player sets, and the buttons.
+  - {container: 'TradeMarket(Buy|Sell)Container', slots: [22], glass: lime}
+  - {container: 'TradeMarket(Buy|Sell)Container', slots: [28, 30, 31, 32, 34, '46-52']}
+  - {container: 'TradeMarket(Buy|Sell)Container', slots: all, glass: gray}
+  - {container: 'TradeMarketOrderContainer', slots: [28], glass: lime}
+  - {container: 'TradeMarketOrderContainer', slots: ['46-52']}
+  - {container: 'TradeMarketOrderContainer', slots: all, except: ['21-25', '30-34'], glass: gray}
+  - {container: 'TradeMarketFiltersContainer', slots: [12, 21, 30, '46-52']}
+  - {container: 'TradeMarketFiltersContainer', slots: [3, 39, 45, 53], glass: gray}
+  - {container: 'TradeMarketTradesContainer', slots: ['46-52']}
+  - {container: 'TradeMarketTradesContainer', rows: [0, 4, 5], cols: [0, 8], glass: gray}
   - {container: 'TradeMarketContainer', rows: [5]}                  # the buttons under the listings
   - {container: 'TradeMarketRevealItemsContainer', slots: [8]}      # the checkmark
-  - {container: '(Blacksmith(Repair|Sell)|ItemIdentifier(Augments)?)Container', slots: outside_bounds}
+  - {container: '(BlacksmithSell|ItemIdentifier(Augments)?)Container', slots: [17, 18]}
+  - {container: 'BlacksmithRepairContainer', slots: [18]}
+  - {container: '(Blacksmith(Repair|Sell)|ItemIdentifier)Container', slots: outside_bounds, glass: gray}
+  # Wynntils bounds the augments view at 11 alone; 13-15 stay slots too.
+  - {container: 'ItemIdentifierAugmentsContainer', slots: outside_bounds, except: ['13-15'], glass: gray}
   - {container: 'GuildBankContainer', cols: [0, 1]}
   - {container: 'GuildManagementContainer', cols: [0, 1, 7, 8]}
-  - {container: 'MountFeederContainer', cols: [1]}                  # the divider
-  - {container: 'CharacterInfoContainer', slots: all, except: ['11-15']}   # but the skill books
-  - {title: 'Merchant', rows: [0], cols: [0, 8]}
-  - {title: 'Item Pedestal', slots: all, except: [3, 5]}
-  - {title: 'Housing Islands|Powder Master.*', rows: [0, 2], cols: [0, 8]}
-  - {title: 'Party Finder: .*', rows: [0, 4, 5], cols: [0, 8]}
-  - {container: 'CraftingStationContainer', slots: [13]}            # the checkmark
-  # A player trade, titled with the two names far apart: the centre column and both checkmarks.
-  - {title: '\S+ {4,}\S+', slots: [5, 21], cols: [4]}
+  - {container: 'MountFeederContainer', cols: [1], glass: gray}     # the divider
+  # Character Info: its buttons white, the rows above and below the skill books clear.
+  - {container: 'CharacterInfoContainer', slots: [7, 8, 9, 16, 17, 25, 26]}
+  - {container: 'CharacterInfoContainer', slots: ['2-6', '20-24'], glass: clear}
+  - {container: 'CharacterInfoContainer', slots: all, except: ['11-15'], glass: gray}   # but the skill books
+  # The content book, a Wynntils full-screen view: its entries stay slots, and Wynncraft's buttons
+  # fill the part below (54-80 the inventory's rows, 81-89 the hotbar).
+  - {container: 'ContentBookContainer', slots: [58, '65-69']}
+  - {container: 'ContentBookContainer', slots: ['54-89'], glass: gray}
+  # The mastery tomes: the back button white, the tomes' ring of slots plain.
+  - {container: 'MasteryTomesContainer', slots: [45]}
+  - {container: 'MasteryTomesContainer', slots: all, except: [4, 11, 15, 19, 22, 25, 28, '30-32', 34, 38, 42, 49], glass: gray}
+  - {title: 'Merchant', slots: [4]}
+  - {title: 'Merchant', rows: [0], cols: [0, 8], glass: gray}
+  # The item pedestal: its item a slot, its sign white.
+  - {title: 'Item Pedestal', slots: [5]}
+  - {title: 'Item Pedestal', slots: all, except: [3], glass: gray}
+  # The Powder Master: its buttons white, the item's slot clear and open for the item, the powders'
+  # slots plain.
+  - {title: 'Powder Master: (Infuse|Remove|Upgrade)', slots: [0, 9, 17, 18]}
+  - {title: 'Powder Master: Infuse', slots: [11], glass: clear, open: true}
+  - {title: 'Powder Master: Remove', slots: [13], glass: clear, open: true}
+  - {title: 'Powder Master: Upgrade', slots: [15], glass: clear, open: true}
+  - {title: 'Powder Master: Infuse', slots: all, except: ['12-15'], glass: gray}
+  - {title: 'Powder Master: Remove', slots: all, glass: gray}
+  - {title: 'Powder Master: Upgrade', slots: all, except: ['11-14'], glass: gray}
+  - {title: 'Powder Master.*', rows: [0, 2], cols: [0, 8]}
+  # Housing: the islands' own buttons white.
+  - {title: 'Housing Islands', slots: ['10-16']}
+  - {title: 'Housing Islands', rows: [0, 2], cols: [0, 8], glass: gray}
+  - {title: 'Available Islands', slots: [0, 10, 19, 27, 28, 36]}
+  - {title: 'Available Islands', cols: [0, 1], glass: gray}
+  - {title: 'Housing Master', slots: ['10-14', 16, 21]}
+  - {title: 'Housing Master', slots: all, glass: gray}
+  # The housing block lists ("Decoration Type Blocks" and the rest): the page arrows white.
+  - {title: '.+ Type Blocks', slots: [0, 8]}
+  - {title: '.+ Type Blocks', cols: [0, 8], glass: gray}
+  - {title: 'Scavenger: Merchant', rows: [5]}
+  - {title: 'Scavenger: Tinker', slots: [52], glass: clear, open: true}
+  - {title: 'Scavenger: Tinker', cols: [0, 8], slots: [51], glass: gray}
+  - {title: 'Scavenger: Tinker', rows: [0, 1, 2, 3, 4]}
+  # The item upgrader: white on the seven marks of its table.
+  - {title: 'Item Upgrader', slots: [10, 12, 14, 16, 20, 22, 24]}
+  - {title: 'Item Upgrader', slots: all, glass: gray}
+  # Its views: the item's slot clear and open, the others plain; Ascension's gem pink.
+  - {title: 'Item Upgrader: (Ascension|Pouches)', slots: [11], glass: clear, open: true}
+  - {title: 'Item Upgrader: Powder Upgrade', slots: [15], glass: clear, open: true}
+  - {title: 'Item Upgrader: Ascension', slots: [24], glass: pink}
+  - {title: 'Item Upgrader: Ascension', slots: ['2-6']}
+  - {title: 'Item Upgrader: .+', slots: [17, 18]}
+  - {title: 'Item Upgrader: Ascension', slots: all, except: ['12-15', '21-23'], glass: gray}
+  - {title: 'Item Upgrader: Pouches', slots: all, except: ['12-15', '21-24'], glass: gray}
+  - {title: 'Item Upgrader: Powder Upgrade', slots: all, except: ['11-14'], glass: gray}
+  - {title: 'Item Upgrader: Powder Remove', slots: all, except: [13], glass: gray}
+  # Mount settings: white on the three marks of its panel.
+  - {title: 'Mount Settings', slots: [11, 13, 15]}
+  - {title: 'Mount Settings', slots: all, glass: gray}
+  - {title: 'Party Finder: .*', rows: [5]}
+  - {title: 'Party Finder: .*', rows: [0, 4], cols: [0, 8], glass: gray}
+  # The crafting stations, three rows (Wynncraft's art reaches over the inventory below): 13 is the
+  # checkmark.
+  - {container: 'CraftingStationContainer', slots: [10, 13]}
+  - {container: 'CraftingStationContainer', slots: [1, 4, 18, 19, 22], glass: gray}
+  # A player trade, titled with the two names far apart: both checkmarks white, the centre column
+  # grey.
+  - {title: '\S+ {4,}\S+', slots: [5, 21]}
+  - {title: '\S+ {4,}\S+', cols: [4], glass: gray}
   # Every other titled screen, but those whose empty slots take the player's things.
   - {title: '.*', slots: all, fallback: true, unless: '(IngredientPouch|EmeraldPouch|ScrapMenu|LootChest|FlyingChest|DailyReward|ChallengeReward|ObjectiveReward|ItemBombReward|IngredientBombReward|Event)Container'}
 
@@ -947,9 +1048,10 @@ wynntils_config:
 parts:
   # Blocks drawn from entity/ textures too (a shulker box's folder is the shulker's).
   blocks:
-    about: 'Blocks in the world, signs, beds, banners and chests among them'
+    about: 'Blocks in the world, signs, beds, banners, chests and paintings among them'
     textures:
       - 'minecraft:block/.*'
+      - 'minecraft:painting/.*'
       - 'minecraft:entity/(banner|bed|bell|chest|conduit|decorated_pot|shulker|signs)/.*'
       - 'minecraft:entity/(banner_base|beacon_beam|enchanting_table_book|end_gateway_beam|end_portal)'
     models: ['minecraft:block/.*']
@@ -974,9 +1076,12 @@ parts:
   tools:
     about: 'Profession tools'
     models: ['minecraft:item/wynn/tool/.*']
+  # Also Avomod's models of crafted scrolls and food, which give way to Wynncraft's (stack_models).
   crafting:
     about: 'Ingredients, materials, meals and papers'
-    models: ['minecraft:item/wynn/(ingredient|economy)/.*']
+    models:
+      - 'minecraft:item/wynn/(ingredient|economy)/.*'
+      - 'avomod2:item/(scroll|food)_.*'
   potions:
     about: 'Potions, of Wynncraft and of Avomod'
     models:
@@ -994,11 +1099,12 @@ parts:
   # Also lang, titles and backgrounds, slot values and the inert slots image_edits leaves. Under
   # gui/, highlights has the tier layer and items the content book.
   screens:
-    about: "Container art, titles, buttons and menu names, and Wynntils' panels"
+    about: "Container art, titles, buttons and menu names, Wynntils' panels and the main menu's panorama"
     textures:
       - 'minecraft:gui/container/.*'
       - 'minecraft:gui/sprites/widget/.*'
       - 'minecraft:gui/sprites/container/slot/.*'
+      - 'minecraft:gui/title/background/.*'
       - 'minecraft:wynn/gui/slot/.*'
       - 'wynntils:.*'
     models: ['minecraft:item/wynn/gui/(?!layer/tier/|player/).*']

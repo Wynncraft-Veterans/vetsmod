@@ -13,6 +13,7 @@ import java.util.Set;
 import net.minecraft.resources.Identifier;
 import org.wynnvets.retro.manifest.RetroPart;
 import org.wynnvets.retro.manifest.RetroSource;
+import org.wynnvets.retro.manifest.StackSections.GearBoxIcon;
 import org.wynnvets.retro.manifest.StackSections.StackModel;
 import org.wynnvets.retro.pack.PackFiles;
 import org.wynnvets.retro.rules.ModelStub;
@@ -171,8 +172,8 @@ record DrawnArt(Set<String> on, Set<String> off) {
                     });
         }
         if (gen.parts.on(RetroPart.GEAR_BOXES)) {
-            for (String item : gen.manifest.stacks().gearBoxIcons().values()) {
-                on.addAll(walk.itemArt(item));
+            for (GearBoxIcon icon : gen.manifest.stacks().gearBoxIcons().values()) {
+                on.addAll(walk.itemArt(icon.item()));
             }
             on.addAll(walk.itemArt(RetroAssetIds.GLINTING_BOOK));
         }

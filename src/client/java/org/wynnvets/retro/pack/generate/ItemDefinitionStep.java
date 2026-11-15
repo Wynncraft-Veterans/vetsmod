@@ -1,5 +1,6 @@
 package org.wynnvets.retro.pack.generate;
 
+import java.util.Set;
 import java.util.TreeSet;
 import net.minecraft.resources.Identifier;
 import org.wynnvets.retro.RetroReport.Count;
@@ -18,7 +19,9 @@ final class ItemDefinitionStep implements GenerationStep {
     @Override
     public void run(GenerationContext gen) {
         PackOutput out = gen.out;
-        for (String item : new TreeSet<>(gen.manifest.stacks().gearBoxIcons().values())) {
+        Set<String> items = new TreeSet<>();
+        gen.manifest.stacks().gearBoxIcons().values().forEach(icon -> items.add(icon.item()));
+        for (String item : items) {
             Identifier id = Identifier.tryParse(item);
             String copy = RetroAssetIds.itemDefinitionCopy(item);
             Identifier copyId = copy == null ? null : Identifier.tryParse(copy);

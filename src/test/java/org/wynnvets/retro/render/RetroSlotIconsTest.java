@@ -4,9 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
-import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.wynnvets.retro.RetroModeManager;
+import org.wynnvets.retro.manifest.StackSections;
 import org.wynnvets.retro.manifest.StackSections.OutlinedIcon;
 
 /**
@@ -18,9 +18,9 @@ import org.wynnvets.retro.manifest.StackSections.OutlinedIcon;
 class RetroSlotIconsTest {
 
     @Test
-    void theIconIsThreeQuartersOfTheSlotCentredOnIt() {
+    void anIconIsCentredOnTheSlot() {
         // A 12-pixel icon leaves 2 pixels of the 16-pixel slot on each side.
-        assertEquals(2f, RetroSlotIcons.iconOffset(RetroSlotIcons.ICON_SCALE));
+        assertEquals(2f, RetroSlotIcons.iconOffset(0.75f));
     }
 
     @Test
@@ -34,18 +34,22 @@ class RetroSlotIconsTest {
     }
 
     @Test
-    void aTypeIsDrawnAtItsOutlinedRowsScaleOrElseTheIconScale() {
-        Map<String, OutlinedIcon> outlined = RetroModeManager.manifest().stacks().outlinedIcons();
+    void aTypeIsDrawnAtItsOutlinedRowsScaleOrElseItsGearBoxRowsScale() {
+        StackSections stacks = RetroModeManager.manifest().stacks();
 
-        // The shipped rows: 0.625 grown by 1 pixel each side, 0.375 by 3.
-        assertEquals(0.703125f, RetroSlotIcons.iconScale(outlined, "SPEAR"), "0.625 * 18 / 16");
+        // The shipped rows: 0.625 and 0.6875, each grown by 1 pixel each side.
+        assertEquals(0.703125f, RetroSlotIcons.iconScale(stacks, "SPEAR"), "0.625 * 18 / 16");
         assertEquals(
-                0.515625f, RetroSlotIcons.iconScale(outlined, "ARMOUR_TOME"), "0.375 * 22 / 16");
-        assertEquals(RetroSlotIcons.ICON_SCALE, RetroSlotIcons.iconScale(outlined, "HELMET"));
+                0.7734375f,
+                RetroSlotIcons.iconScale(stacks, "ARMOUR_TOME"),
+                "0.6875 * 18 / 16: the tomes' art the Allegiance shield's size");
+        assertEquals(0.75f, RetroSlotIcons.iconScale(stacks, "HELMET"));
         assertEquals(
-                RetroSlotIcons.ICON_SCALE,
-                RetroSlotIcons.iconScale(outlined, "GUILD_TOME"),
-                "the Allegiance tome's shield is a gear_box_icons item, not a smaller tome icon");
+                0.6875f,
+                RetroSlotIcons.iconScale(stacks, "GUILD_TOME"),
+                "the Allegiance tome's shield is a gear_box_icons item a little under an armour"
+                        + " piece's size");
+        assertEquals(0f, RetroSlotIcons.iconScale(stacks, "MASTERY_TOME"), "no row");
     }
 
     @Test

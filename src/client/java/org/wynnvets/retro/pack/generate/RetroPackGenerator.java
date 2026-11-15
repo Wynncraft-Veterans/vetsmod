@@ -74,7 +74,7 @@ public final class RetroPackGenerator {
     private final int wynncraftIndex;
     private final Pack programmerArt;
     private final PackResources vanilla;
-    private final Function<RetroManifest, Map<RetroSource, PackResources>> oldClients;
+    private final Function<RetroManifest, Map<RetroSource, PackResources>> downloaded;
 
     /**
      * A generator for one reload that reads no old client.
@@ -103,20 +103,20 @@ public final class RetroPackGenerator {
      * @param programmerArt the client's {@code programmer_art} pack, or {@code null} when it has
      *     none
      * @param vanilla Minecraft's vanilla pack
-     * @param oldClients opens the old clients' files that are here for the rule files read, for
-     *     the generation to close; it must not throw
+     * @param downloaded opens the downloaded art that is here for the rule files read (the old
+     *     clients' files and vetsmod's panorama), for the generation to close; it must not throw
      */
     public RetroPackGenerator(
             List<PackResources> stack,
             int wynncraftIndex,
             Pack programmerArt,
             PackResources vanilla,
-            Function<RetroManifest, Map<RetroSource, PackResources>> oldClients) {
+            Function<RetroManifest, Map<RetroSource, PackResources>> downloaded) {
         this.stack = List.copyOf(stack);
         this.wynncraftIndex = wynncraftIndex;
         this.programmerArt = programmerArt;
         this.vanilla = vanilla;
-        this.oldClients = oldClients;
+        this.downloaded = downloaded;
     }
 
     /**
@@ -139,10 +139,7 @@ public final class RetroPackGenerator {
         RetroReport.Seen seen;
         try (RetroSources sources =
                 RetroSources.open(
-                        programmerArt,
-                        VanillaTweaksPack.open(),
-                        oldClients.apply(manifest),
-                        vanilla)) {
+                        programmerArt, BundledArt.open(), downloaded.apply(manifest), vanilla)) {
             present = sources.present();
             GenerationContext gen =
                     new GenerationContext(manifest, stack, wynncraftIndex, sources, out, partsOn);

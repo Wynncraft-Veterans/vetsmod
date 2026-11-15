@@ -64,10 +64,30 @@ class RetroCommandsTest {
     }
 
     @Test
+    void aFirstOnSaysTheOldTexturesDownloadAndThenHowItWent() {
+        // The download takes a few seconds before the reload, which would otherwise look stuck.
+        assertEquals(
+                "Retro textures on. Downloading the old textures from Mojang first (this happens"
+                        + " once); they show in a few seconds… (Hover for credits)",
+                RetroCommands.toggleLine(true, RetroModeManager.Outcome.FETCHING).getString());
+        assertEquals(
+                "Retro: the old textures are downloaded. Reloading resources…",
+                RetroCommands.fetchedLine(true, true).getString());
+        assertEquals(
+                "Retro: could not download the old textures; today's stand in for them until the"
+                        + " next start-up tries again. Reloading resources…",
+                RetroCommands.fetchedLine(false, true).getString());
+        assertEquals(
+                "Retro: the old textures are downloaded.",
+                RetroCommands.fetchedLine(true, false).getString());
+    }
+
+    @Test
     void everyAnswerThatRetroIsOnHasTheCreditsAndOffHasNone() {
         for (RetroModeManager.Outcome on :
                 List.of(
                         RetroModeManager.Outcome.UNCHANGED,
+                        RetroModeManager.Outcome.FETCHING,
                         RetroModeManager.Outcome.NO_WYNNCRAFT_PACK)) {
             assertTrue(
                     RetroCommands.toggleLine(true, on).getString().endsWith(" (Hover for credits)"),

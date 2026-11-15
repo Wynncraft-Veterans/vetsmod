@@ -95,6 +95,15 @@ public final class VetsConfigKeys {
      *  and its time. Internal. */
     public static final String SUDOKU_PROGRESS = "sudokuProgress";
 
+    // ── The panorama easter egg ──────────────────────────────────────────
+
+    /** Whether {@code /wv extras panorama} is on: while retro is off, the main menu then shows
+     *  the Vetlas panorama vetsmod bundles
+     *  ({@link org.wynnvets.extras.panorama.ExtrasPanorama ExtrasPanorama}). Written only by that
+     *  command, and read at every draw, so it needs no reload. Absent from
+     *  {@link VetsConfigSchema#USER_CONFIG_KEYS}, so the egg stays unlisted. Internal. */
+    public static final String EXTRAS_PANORAMA = "extrasPanorama";
+
     // ── User-facing configuration keys (toggled via /wv config) ─────────────
     // Not every key declared below is user-facing: USER_CONFIG_KEYS is the
     // list /wv config reaches.

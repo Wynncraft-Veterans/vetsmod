@@ -103,6 +103,7 @@ class ShippedPartsTest {
                     entry("minecraft:gui/sprites/widget/button", RetroPart.SCREENS),
                     entry("minecraft:gui/sprites/container/slot/helmet", RetroPart.SCREENS),
                     entry("minecraft:wynn/gui/slot/helmet", RetroPart.SCREENS),
+                    entry("minecraft:gui/title/background/panorama_0", RetroPart.SCREENS),
                     entry("minecraft:gui/sprites/tooltip/background", RetroPart.TOOLTIPS),
                     entry("minecraft:gui/sprites/tooltip/unique_frame", RetroPart.TOOLTIPS),
                     entry("minecraft:gui/sprites/hud/heart/full", RetroPart.HUD),

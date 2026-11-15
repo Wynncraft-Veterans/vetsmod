@@ -1,11 +1,11 @@
 ---
 name: vetsmod Extras
-description: /wv extras, the unlisted easter eggs — the daily sudoku in a Wynntils book: its board and drawing, timer, stored board, reopen rules, and how a result is sent and answered
+description: /wv extras, the unlisted easter eggs — the daily sudoku in a Wynntils book (its board and drawing, timer, stored board, reopen rules, and how a result is sent and answered) and the Vetlas main-menu panorama (its gate, loading and failure rules, assets)
 type: project
 ---
 # vetsmod Extras
 
-`/wv extras` holds the easter eggs, each a subsystem of its own in a sub-package of [`org.wynnvets.extras`](../src/client/java/org/wynnvets/extras/). The tree is built by `ExtrasCommands`, nothing gates it, and like `/wv invite-force` it is never listed in `/wv help` ([vetsmod_commands.md](vetsmod_commands.md)).
+`/wv extras` holds the easter eggs, each a subsystem of its own in a sub-package of [`org.wynnvets.extras`](../src/client/java/org/wynnvets/extras/). The tree is built by `ExtrasCommands`, nothing gates it, and like `/wv invite-force` it is never listed in `/wv help` ([vetsmod_commands.md](vetsmod_commands.md)). There are two: the daily sudoku (`extras.sudoku`) and the Vetlas panorama behind the main menu (`extras.panorama`).
 
 ## The daily sudoku
 
@@ -101,3 +101,49 @@ The frame carries `day`, `grid` and `fills`; the server stamps the identity from
 | Error with `retry: true`, or a client-built error ack for a dead socket, a lost socket or no reply (`lostAck`, `timeoutAck`, none of which has `retry`) | Stays unsent | Time, then "Results send next time." |
 
 The reply rewrites the stored copy only while it is still that puzzle's, the same day with the same givens, so a slow reply cannot put back a board the player has moved on from. A reply to the board kept aside rewrites the board keeping it, which lets it go once it is finished.
+
+## The panorama
+
+`/wv extras panorama on` swaps the panorama drawn behind the main menu for Vetlas, six faces vetsmod bundles as its own assets, while retro is off. Anyone can use it, on or off Wynncraft. The panorama is the one the packs give otherwise: Wynncraft's Detlas with Wynntils' preloaded copy of its pack, else vanilla's. Retro draws its own panorama through its pack ([vetsmod_retro.md](vetsmod_retro.md) §6), so while retro is on the egg gives way. The gate is retro's setting, not its pack: with retro on and its `screens` part off, retro stopped for the session, or no Wynntils preload at the main menu, Old Detlas does not show either, and the packs' panorama does.
+
+| Piece | Where |
+|---|---|
+| Command | [`PanoramaCommand`](../src/client/java/org/wynnvets/extras/panorama/PanoramaCommand.java) |
+| Setting, gate, loading, releasing, failure | [`ExtrasPanorama`](../src/client/java/org/wynnvets/extras/panorama/ExtrasPanorama.java) |
+| The draw | [`PanoramaRendererMixin`](../src/client/java/org/wynnvets/mixin/client/extras/PanoramaRendererMixin.java) ([vetsmod_mixins.md](vetsmod_mixins.md)) |
+| Faces | `src/main/resources/assets/vetsmod/textures/gui/title/background/vetlas_0.png` to `vetlas_5.png` |
+
+### Command and setting
+
+`/wv extras panorama` is a literal with `on` and `off` under it. Every node runs when typed bare, so none goes to the server, and nothing gates them. Typed bare it only says the current state; `on` and `off` store it and say the same thing. The reply is one green line, `PanoramaCommand.text(on, retro, failed)`, the first row that applies:
+
+| State | Reply |
+|---|---|
+| Off | "The Vetlas panorama is off." |
+| On, Vetlas failed this session | "The Vetlas panorama is on, but could not be drawn: it returns after a restart." |
+| On, retro off | "The Vetlas panorama is on: it shows behind the main menu." |
+| On, retro on | "The Vetlas panorama is on, and shows once retro is off." |
+
+The setting is the internal boolean `extrasPanorama` (`VetsConfigKeys.EXTRAS_PANORAMA`), default `false` in `VetsConfigDefaults.seed`, written only by `ExtrasPanorama.setOn`, which only the command calls. It is not in `VetsConfigSchema.USER_CONFIG_KEYS`, so `/wv config` never lists it ([vetsmod_config.md](vetsmod_config.md) §1). It is read at every draw, so turning it on or off needs no reload, and a change shows from the next frame.
+
+### The draw
+
+`PanoramaRenderer.render(GuiGraphics, int, int, boolean)` turns the panorama, draws its `CubeMap`, then lays vanilla's overlay over it. `PanoramaRendererMixin` wraps that one `CubeMap.render(Minecraft, float, float)` call and hands it to `ExtrasPanorama.draw(minecraft, stock, render)`, where `stock` is the renderer's own cube map and `render` makes the original call on the cube map it is given, so the turn and the overlay stay vanilla's. Vanilla draws the panorama behind the main menu, behind every screen opened with no world, on `GenericMessageScreen` and on the level-loading screen (not through a portal), so Vetlas shows on all of them. Realms' empty world slots are not among them: they draw faces of the packs' panorama themselves, not through `PanoramaRenderer`. It is a draw-time swap, so it works without Wynntils' preload and over whichever panorama the packs give.
+
+Vetlas is drawn only when `ExtrasPanorama.shows(on, retro, failed)` holds: the setting is on, `RetroModeManager.isEnabled()` is false, and Vetlas has not failed this session. Otherwise `stock` is drawn.
+
+### Loading, releasing and failure
+
+The state is a `CubeMap` and a `failed` flag, both touched on the render thread only.
+
+- **Loading.** The first draw that shows Vetlas calls `TextureManager.registerAndLoad` with a `CubeMapTexture` at `LOCATION` (`vetsmod:textures/gui/title/background/vetlas`, whose faces Minecraft reads as `vetlas_0.png` to `vetlas_5.png` beside it), then makes a `CubeMap` of it. `registerAndLoad` loads and uploads on the calling thread, so the render thread stalls each time Vetlas is loaded: its first draw, and the first draw after each release. While registered the texture holds about 24 MB of GPU memory (six 1024×1024 RGBA faces) and reloads with every resource reload, on the reload's workers, as Minecraft's own panorama does.
+- **Releasing.** The first panorama draw that does not show Vetlas, because the setting went off or retro came on, closes the `CubeMap` and releases the texture, so the egg costs nothing while it is off. The next draw that shows it loads again. It is never released while a resource reload runs (while the loading overlay is up, whose fade-in still draws the screen beneath): that reload listed the texture as it started and uploads it again at its end, which into a released texture would keep about 24 MB that nothing holds until the game exits. The release waits for the first draw after the overlay has gone.
+- **Failure.** `draw` throws only what drawing `stock` throws. Any failure while choosing, loading, releasing or drawing Vetlas sets `failed`, logs one warning ("Panorama: could not draw Vetlas; the main menu keeps its own panorama until the game restarts"), releases whatever is held (a release that itself fails is logged at debug), and leaves `stock` drawn until the game restarts; the command's reply then says so. A draw that fails draws `stock` in the same frame. A failed load registers nothing: `registerAndLoad` replaces a face it cannot read with the 16-pixel missing image, a cube map cannot be made from that (its faces are not square), and the throw comes before the texture is registered, so no later reload tries it again. Bad shipped faces would therefore only make the egg fail on its first draw, with the one warning, and the faces are tested so that they do not. A cube map already registered whose faces later stop being squares of one size, such as a resource pack replacing one `vetlas_<n>.png`, would fail the whole reload, and Minecraft answers that by deselecting every resource pack.
+
+### Assets
+
+The faces are 1024×1024 RGB PNGs, lossless, about 5.1 MB (4.9 MiB) in all: screenshots of Vetlas in Wynncraft's own (modern) textures, taken in game. They sit in `src/main/resources/assets/vetsmod/` so Fabric loads them as mod resources whatever retro is, unlike retro's panorama, which sits outside `assets/` and shows only through retro's rules. Both panoramas are credited in `credits.txt` and the README.
+
+### Tests
+
+`ExtrasCommandsTest` pins the tree, `ExtrasPanoramaTest` the gate and the faces' shape (`CubeMapFaces.assertLoadable`: six faces on the classpath, square, of one size, with no alpha), and `PanoramaCommandTest` the reply text. The draw, the load and the release need a running client and are not tested, nor are the setting's read and write, the command's run or the mixin's wiring.

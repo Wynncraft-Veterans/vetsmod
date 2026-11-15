@@ -16,6 +16,8 @@ import org.wynnvets.retro.LivePack;
 import org.wynnvets.retro.RetroModeManager;
 import org.wynnvets.retro.RetroReport;
 import org.wynnvets.retro.manifest.RetroPart;
+import org.wynnvets.retro.manifest.StackSections;
+import org.wynnvets.retro.manifest.StackSections.GearBoxIcon;
 import org.wynnvets.retro.manifest.StackSections.OutlinedIcon;
 import org.wynnvets.retro.rules.RetroAssetIds;
 
@@ -26,7 +28,8 @@ import org.wynnvets.retro.rules.RetroAssetIds;
  *
  * <p>Every gear box is one chest in the retro pack, whatever its type, since Wynncraft gives every
  * box one model per tier ({@code item_models}). So the GUI draws the type's vanilla item over the
- * box, at {@link #ICON_SCALE} of the slot and centred on it, after the slot's item, as Wynntils'
+ * box, at the share of the slot its row's group gives and centred on it, after the slot's item, as
+ * Wynntils'
  * own {@code UnidentifiedItemIconFeature} draws its icon (which {@code wynntils_config} turns off
  * while retro is on). Every mastery tome is one enchanted book the same way, drawn again here for
  * its glint, which a model's stub cannot give, so that the glint lies on the book and under the
@@ -46,10 +49,6 @@ import org.wynnvets.retro.rules.RetroAssetIds;
  * and unit-tested; loading the class builds no Minecraft or Wynntils object.</p>
  */
 public final class RetroSlotIcons {
-
-    /** The icon's size, as a share of the slot's 16 pixels: three quarters. */
-    // Package-private for unit tests. See RetroSlotIconsTest.
-    static final float ICON_SCALE = 0.75f;
 
     private static final RetroGuard GUARD =
             RetroGuard.stopping(
@@ -139,7 +138,7 @@ public final class RetroSlotIcons {
 
     private static SlotOverlay icon(String type, boolean glint) {
         return new SlotOverlay.Icon(
-                type, iconScale(RetroModeManager.manifest().stacks().outlinedIcons(), type), glint);
+                type, iconScale(RetroModeManager.manifest().stacks(), type), glint);
     }
 
     /** Draws the overlay: nothing, the glinting book, or the icon, over the book if it glints. */
@@ -199,21 +198,24 @@ public final class RetroSlotIcons {
      */
     // Package-private for unit tests. See RetroSlotIconsTest.
     static String itemFor(String gearType) {
-        return RetroModeManager.manifest().stacks().gearBoxIcons().get(gearType);
+        GearBoxIcon row = RetroModeManager.manifest().stacks().gearBoxIcons().get(gearType);
+        return row == null ? null : row.item();
     }
 
     /**
      * The scale a type's icon stack is drawn at.
      *
-     * @param outlined the {@code outlined_icons} rows
+     * @param stacks the sections whose rows give it
      * @param type the name of Wynntils' gear or tome type
-     * @return its row's {@link #drawnScale}; {@link #ICON_SCALE} for a type with no such row, which
-     *     is the {@code gear_box_icons} items, the Allegiance tome's shield among them
+     * @return its {@code outlined_icons} row's {@link #drawnScale}, failing that its {@code
+     *     gear_box_icons} row's scale; 0 for a type with neither, which draws nothing
      */
     // Package-private for unit tests. See RetroSlotIconsTest.
-    static float iconScale(Map<String, OutlinedIcon> outlined, String type) {
-        OutlinedIcon row = outlined.get(type);
-        return row == null ? ICON_SCALE : drawnScale(row);
+    static float iconScale(StackSections stacks, String type) {
+        OutlinedIcon outlined = stacks.outlinedIcons().get(type);
+        if (outlined != null) return drawnScale(outlined);
+        GearBoxIcon item = stacks.gearBoxIcons().get(type);
+        return item == null ? 0f : (float) item.scale();
     }
 
     /**

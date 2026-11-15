@@ -137,6 +137,11 @@ public final class RetroCommands {
                             "Retro textures "
                                     + (enabled ? "on" : "off")
                                     + ". Reloading resources…");
+            case FETCHING ->
+                    line(
+                            ChatFormatting.GREEN,
+                            "Retro textures on. Downloading the old textures from Mojang first"
+                                    + " (this happens once); they show in a few seconds…");
             case UNCHANGED -> stateLine(enabled);
             case NO_WYNNCRAFT_PACK ->
                     line(
@@ -145,6 +150,25 @@ public final class RetroCommands {
                                     + " loaded.");
             case LATCHED -> latchedLine();
         };
+    }
+
+    /**
+     * The line a fetch of the old clients' textures ends with.
+     *
+     * @param wrote whether it downloaded them
+     * @param reloading whether a resource reload follows
+     * @return the line
+     */
+    // Package-private for unit tests. See RetroCommandsTest.
+    static Component fetchedLine(boolean wrote, boolean reloading) {
+        String text =
+                wrote
+                        ? "Retro: the old textures are downloaded."
+                        : "Retro: could not download the old textures; today's stand in for them"
+                                + " until the next start-up tries again.";
+        return line(
+                wrote ? ChatFormatting.GREEN : ChatFormatting.YELLOW,
+                reloading ? text + " Reloading resources…" : text);
     }
 
     private static Component stateLine(boolean enabled) {
@@ -271,7 +295,7 @@ public final class RetroCommands {
     static String partsText(String done, RetroModeManager.Outcome outcome, boolean enabled) {
         String text =
                 switch (outcome) {
-                    case RELOADING -> done + ". Reloading resources…";
+                    case RELOADING, FETCHING -> done + ". Reloading resources…";
                     case NO_WYNNCRAFT_PACK ->
                             done + ". It shows once Wynncraft's resource pack has loaded.";
                     case UNCHANGED, LATCHED -> done + ".";

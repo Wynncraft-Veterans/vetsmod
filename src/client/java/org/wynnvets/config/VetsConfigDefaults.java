@@ -49,6 +49,9 @@ public final class VetsConfigDefaults {
         // Daily sudoku: no board yet.
         stringConfig.put(VetsConfigKeys.SUDOKU_PROGRESS, "");
 
+        // The panorama easter egg: off until /wv extras panorama on.
+        config.put(VetsConfigKeys.EXTRAS_PANORAMA, false);
+
         // User-facing BOOLEAN defaults — all true except colorBlindMode.
         // (moreReliableGuildCheck is true, despite what this comment used to say.)
         // This block holds 21 of the 30 USER_CONFIG_KEYS. The other nine default

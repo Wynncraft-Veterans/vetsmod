@@ -723,14 +723,27 @@ class ShippedTexturesTest {
                         "entity/trident",
                         "entity/iron_golem/iron_golem_crackiness_low",
                         "entity/equipment/humanoid/copper",
-                        "entity/equipment/humanoid_leggings/copper",
-                        "painting/bust",
-                        "painting/back")) {
+                        "entity/equipment/humanoid_leggings/copper")) {
             assertEquals(
                     new TextureDecision.Keep(KeepReason.KEEP_WYNNCRAFT),
                     rules.decide("minecraft:" + texture, EVERYTHING_BLANK),
                     texture);
         }
+    }
+
+    @Test
+    void paintingsAreVanillasWithTheOldBack() throws IOException {
+        // Vanilla's classic paintings are 1.7.10's art, over Wynncraft's repaints; Programmer Art's
+        // back is 1.7.10's back, so it comes first.
+        TextureRules rules = realTextureRules();
+
+        assertEquals(
+                new TextureDecision.Copy("minecraft:painting/bust", RetroSource.VANILLA),
+                rules.decide("minecraft:painting/bust", CLIENT_JAR));
+        List<RetroSource> order = rules.sourceOrder("minecraft:painting/back");
+        assertTrue(
+                order.indexOf(RetroSource.PROGRAMMER_ART) < order.indexOf(RetroSource.VANILLA),
+                order.toString());
     }
 
     @Test
@@ -790,7 +803,8 @@ class ShippedTexturesTest {
                         return switch (source) {
                             case PROGRAMMER_ART -> programmerArt.contains(textureId);
                             case VANILLA -> textureInClientJar(textureId);
-                            case VANILLA_TWEAKS,
+                            case VETSMOD,
+                                    VANILLA_TWEAKS,
                                     MINECRAFT_1_7_10,
                                     MINECRAFT_1_8_9,
                                     MINECRAFT_1_9_4 ->

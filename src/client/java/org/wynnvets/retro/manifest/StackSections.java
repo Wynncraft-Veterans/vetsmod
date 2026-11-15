@@ -18,13 +18,14 @@ import java.util.regex.Pattern;
  *
  * @param stackModels {@code stack_models}: the single stacks drawn as another item
  * @param gearBoxIcons {@code gear_box_icons}: a Wynntils gear or tome type's name, such as
- *     {@code SPEAR}, to the vanilla item drawn over a gear box of that type, in file order
+ *     {@code HELMET}, to the vanilla item drawn over a gear box or tome of that type, in file
+ *     order
  * @param outlinedIcons {@code outlined_icons}: a gear or tome type to its outlined icon
  * @param accessoryTiers {@code accessory_tiers}: the accessories' art and tiers by level
  */
 public record StackSections(
         List<StackModel> stackModels,
-        Map<String, String> gearBoxIcons,
+        Map<String, GearBoxIcon> gearBoxIcons,
         Map<String, OutlinedIcon> outlinedIcons,
         AccessoryTiers accessoryTiers) {
 
@@ -55,6 +56,14 @@ public record StackSections(
      * @param part the part it belongs to, {@link RetroPart#ITEMS} when the row names none
      */
     public record StackModel(String item, Pattern name, String model, RetroPart part) {}
+
+    /**
+     * A {@code gear_box_icons} icon.
+     *
+     * @param item the vanilla item drawn
+     * @param scale its size, as a share of the slot
+     */
+    public record GearBoxIcon(String item, double scale) {}
 
     /**
      * An {@code outlined_icons} icon.
@@ -153,12 +162,27 @@ public record StackSections(
         return part;
     }
 
-    private static Map<String, String> gearBoxIcons(Object section) {
+    private static Map<String, GearBoxIcon> gearBoxIcons(Object section) {
+        Map<String, GearBoxIcon> rows = new LinkedHashMap<>();
+        ManifestYaml.listRows(
+                        section,
+                        ManifestYaml.inFile(GEAR_BOX_ICONS),
+                        List.of("scale", "items"),
+                        StackSections::gearBoxGroup)
+                .forEach(rows::putAll);
+        return rows;
+    }
+
+    /** A group of {@code gear_box_icons}: the types that share its scale. */
+    private static Map<String, GearBoxIcon> gearBoxGroup(Map<?, ?> group, String where) {
+        double scale = groupScale(group, where);
         return ManifestYaml.typeRows(
-                section,
-                ManifestYaml.inFile(GEAR_BOX_ICONS),
-                "SPEAR",
-                (gearType, value, rowWhere) -> ManifestYaml.requiredId(value, rowWhere, "no item"));
+                group.get("items"),
+                where + ": items",
+                "HELMET",
+                (type, value, rowWhere) ->
+                        new GearBoxIcon(
+                                ManifestYaml.requiredId(value, rowWhere, "no item"), scale));
     }
 
     private static Map<String, OutlinedIcon> outlinedIcons(Object section) {
@@ -179,11 +203,7 @@ public record StackSections(
         ManifestYaml.onlyKeys(outline, outlineWhere, "pixels", "colour");
         int pixels = ManifestYaml.boundedInt(outline.get("pixels"), 0, 8, outlineWhere);
         int colour = ManifestYaml.colour(outline.get("colour"), outlineWhere);
-        if (!(group.get("scale") instanceof Number scale)
-                || scale.doubleValue() <= 0
-                || scale.doubleValue() > 1) {
-            throw new IllegalArgumentException(where + ": scale is above 0, to 1");
-        }
+        double scale = groupScale(group, where);
         return ManifestYaml.typeRows(
                 group.get("art"),
                 where + ": art",
@@ -193,7 +213,17 @@ public record StackSections(
                                 ManifestYaml.requiredId(value, rowWhere, "no texture"),
                                 pixels,
                                 colour,
-                                scale.doubleValue()));
+                                scale));
+    }
+
+    /** An icon group's {@code scale}: above 0, to 1. */
+    private static double groupScale(Map<?, ?> group, String where) {
+        if (!(group.get("scale") instanceof Number scale)
+                || scale.doubleValue() <= 0
+                || scale.doubleValue() > 1) {
+            throw new IllegalArgumentException(where + ": scale is above 0, to 1");
+        }
+        return scale.doubleValue();
     }
 
     private static AccessoryTiers accessoryTiers(Object section) {

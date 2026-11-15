@@ -84,31 +84,42 @@ class StackSectionsTest {
     }
 
     @Test
-    void gearBoxIconsReadAGearTypeAndAnItemInFileOrder() {
+    void gearBoxIconsReadATypeAndAnItemAtTheirGroupsScaleInFileOrder() {
         RetroManifest manifest =
                 parse(
                         """
                         gear_box_icons:
-                          'SPEAR': 'minecraft:iron_shovel'
-                          'MASTERY_TOME': 'minecraft:book'
+                          - scale: 0.75
+                            items:
+                              'SPEAR': 'minecraft:iron_shovel'
+                          - scale: 0.5
+                            items:
+                              'MASTERY_TOME': 'minecraft:book'
                         """);
         assertEquals(
                 List.of(
-                        Map.entry("SPEAR", "minecraft:iron_shovel"),
-                        Map.entry("MASTERY_TOME", "minecraft:book")),
+                        Map.entry(
+                                "SPEAR",
+                                new StackSections.GearBoxIcon("minecraft:iron_shovel", 0.75)),
+                        Map.entry(
+                                "MASTERY_TOME",
+                                new StackSections.GearBoxIcon("minecraft:book", 0.5))),
                 List.copyOf(manifest.stacks().gearBoxIcons().entrySet()));
 
-        for (String row :
+        for (String group :
                 List.of(
-                        "'Spear': 'minecraft:iron_shovel'",
-                        "'SPEAR TYPE': 'minecraft:iron_shovel'",
-                        "'SPEAR': 'iron_shovel'",
-                        "'SPEAR': 'minecraft:iron_.*'",
-                        "'SPEAR': ''")) {
+                        "{scale: 0.5, items: {'Spear': 'minecraft:iron_shovel'}}",
+                        "{scale: 0.5, items: {'SPEAR TYPE': 'minecraft:iron_shovel'}}",
+                        "{scale: 0.5, items: {'SPEAR': 'iron_shovel'}}",
+                        "{scale: 0.5, items: {'SPEAR': 'minecraft:iron_.*'}}",
+                        "{scale: 0.5, items: {'SPEAR': ''}}",
+                        "{items: {'SPEAR': 'minecraft:iron_shovel'}}",
+                        "{scale: 0, items: {'SPEAR': 'minecraft:iron_shovel'}}",
+                        "{scale: 1.5, items: {'SPEAR': 'minecraft:iron_shovel'}}")) {
             assertThrows(
                     IllegalArgumentException.class,
-                    () -> parse("gear_box_icons:\n  " + row + "\n"),
-                    row);
+                    () -> parse("gear_box_icons:\n  - " + group + "\n"),
+                    group);
         }
     }
 

@@ -75,4 +75,4 @@ The wreath frames in the laurels sheet (`laurels.png`) are adapted from [Wynntil
 
 Vanilla Tweaks: https://vanillatweaks.net/
 
-`/wv retro` bundles textures from Vanilla Tweaks, reads others from the player's own Minecraft, Wynncraft and Wynntils files while the game runs, and downloads the few textures of Minecraft 1.7.10, 1.8.9 and 1.9.4 it draws from Mojang's own servers. See [credits.txt](credits.txt) for who owns what and the terms of each: the MPL-2.0 covers vetsmod's code, not this art. Not an official Minecraft product. Not approved by or associated with Mojang or Microsoft.
+vetsmod bundles screenshots of Old Detlas and Vetlas for the main menu. `/wv retro` bundles textures from Vanilla Tweaks, reads others from the player's own Minecraft, Wynncraft and Wynntils files while the game runs, and downloads the few textures of Minecraft 1.7.10, 1.8.9 and 1.9.4 it draws from Mojang's own servers. See [credits.txt](credits.txt) for who owns what and the terms of each: the MPL-2.0 covers vetsmod's code, not this art. Not an official Minecraft product. Not approved by or associated with Mojang or Microsoft.

@@ -17,9 +17,9 @@ import org.wynnvets.retro.pack.PackFiles;
 /**
  * The packs the retro pack copies art from, one per {@link RetroSource}: the files the player's
  * game took from Mojang's old clients ({@link org.wynnvets.retro.pack.OldClients OldClients}), the
- * Vanilla Tweaks art the jar bundles ({@link VanillaTweaksPack}), and from the player's own game
- * files the client's built-in {@code programmer_art} pack, which the generator opens, and the
- * client's own textures, Minecraft's shared vanilla pack, which it never closes.
+ * art the jar bundles, vetsmod's own and Vanilla Tweaks' ({@link BundledArt}), and from the
+ * player's own game files the client's built-in {@code programmer_art} pack, which the generator
+ * opens, and the client's own textures, Minecraft's shared vanilla pack, which it never closes.
  *
  * <p>A missing source simply has no textures: an old client not fetched yet, or the
  * {@code programmer_art} pack absent from the client's pack list or failing to open, and
@@ -41,42 +41,51 @@ public final class RetroSources implements AutoCloseable {
     private RetroSources() {}
 
     /**
-     * Opens the sources and lists their textures. A source other than vanilla that cannot be
-     * opened or listed is closed again and left out.
+     * Opens the sources and lists their textures, with no downloaded art and no bundled art but
+     * Vanilla Tweaks'. A source other than vanilla that cannot be opened or listed is closed again
+     * and left out.
      *
      * @param programmerArt the client's {@code programmer_art} pack, or {@code null} when its
      *     pack list has none
-     * @param vanillaTweaks the art the jar bundles, which this now closes, or {@code null} when
-     *     it could not be found
+     * @param vanillaTweaks the Vanilla Tweaks art, which this now closes, or {@code null} when it
+     *     could not be found
      * @param vanilla Minecraft's vanilla pack, which stays open
      * @return the sources
      */
     static RetroSources open(
             Pack programmerArt, PackResources vanillaTweaks, PackResources vanilla) {
-        return open(programmerArt, vanillaTweaks, Map.of(), vanilla);
+        return open(
+                programmerArt,
+                vanillaTweaks == null
+                        ? Map.of()
+                        : Map.of(RetroSource.VANILLA_TWEAKS, vanillaTweaks),
+                Map.of(),
+                vanilla);
     }
 
     /**
-     * Opens the sources and lists their textures, the old clients' among them. A source other
-     * than vanilla that cannot be opened or listed is closed again and left out.
+     * Opens the sources and lists their textures, the bundled and the downloaded art's among
+     * them. A source other than vanilla that cannot be opened or listed is closed again and left
+     * out.
      *
      * @param programmerArt the client's {@code programmer_art} pack, or {@code null} when its
      *     pack list has none
-     * @param vanillaTweaks the art the jar bundles, which this now closes, or {@code null} when
-     *     it could not be found
-     * @param oldClients the old clients' files that are here, each of which this now closes
+     * @param bundled the art the jar bundles that could be found ({@link BundledArt}), each of
+     *     which this now closes
+     * @param downloaded the downloaded art that is here (the old clients' files and vetsmod's
+     *     panorama), each of which this now closes
      * @param vanilla Minecraft's vanilla pack, which stays open
      * @return the sources
      */
     static RetroSources open(
             Pack programmerArt,
-            PackResources vanillaTweaks,
-            Map<RetroSource, PackResources> oldClients,
+            Map<RetroSource, PackResources> bundled,
+            Map<RetroSource, PackResources> downloaded,
             PackResources vanilla) {
         RetroSources sources = new RetroSources();
         sources.add(RetroSource.VANILLA, vanilla);
-        oldClients.forEach(sources::addOwned);
-        if (vanillaTweaks != null) sources.addOwned(RetroSource.VANILLA_TWEAKS, vanillaTweaks);
+        downloaded.forEach(sources::addOwned);
+        bundled.forEach(sources::addOwned);
         if (programmerArt != null) {
             try {
                 sources.addOwned(RetroSource.PROGRAMMER_ART, programmerArt.open());

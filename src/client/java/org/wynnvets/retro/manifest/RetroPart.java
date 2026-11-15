@@ -34,7 +34,7 @@ public enum RetroPart {
     GEAR_BOXES("gear_boxes"),
     /** Tooltip frames. */
     TOOLTIPS("tooltips"),
-    /** Container art, titles and what goes with them. */
+    /** Container art, titles and what goes with them, and the main menu's panorama. */
     SCREENS("screens"),
     /** The glass on slots that are not the player's to fill. */
     GLASS("glass"),

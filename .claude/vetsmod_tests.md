@@ -26,6 +26,7 @@ When you add, rename or delete a test, or change what it asserts, update its ent
 - [`org.wynnvets.distribute.distributor`](#orgwynnvetsdistributedistributor) — [`GraidsDistributorTest`](#graidsdistributortest), [`MemberSlotPresserTest`](#memberslotpressertest), [`ObjectivesDistributorTest`](#objectivesdistributortest), [`RandomDistributorTest`](#randomdistributortest), [`SplitDistributorTest`](#splitdistributortest)
 - [`org.wynnvets.distribute.recipients`](#orgwynnvetsdistributerecipients) — [`NameResolverTest`](#nameresolvertest), [`NoAspectsFilterTest`](#noaspectsfiltertest)
 - [`org.wynnvets.extras`](#orgwynnvetsextras) — [`ExtrasCommandsTest`](#extrascommandstest)
+- [`org.wynnvets.extras.panorama`](#orgwynnvetsextraspanorama) — [`ExtrasPanoramaTest`](#extraspanoramatest), [`PanoramaCommandTest`](#panoramacommandtest)
 - [`org.wynnvets.extras.sudoku`](#orgwynnvetsextrassudoku) — [`SudokuBoardTest`](#sudokuboardtest), [`SudokuClientTest`](#sudokuclienttest)
 - [`org.wynnvets.fetcher.lookup`](#orgwynnvetsfetcherlookup) — [`MojangCooldownTest`](#mojangcooldowntest), [`PlayerLookupTest`](#playerlookuptest)
 - [`org.wynnvets.fetcher.lookup.providers`](#orgwynnvetsfetcherlookupproviders) — [`PlayerDbProviderTest`](#playerdbprovidertest), [`VetsSnapshotProviderTest`](#vetssnapshotprovidertest)
@@ -48,9 +49,9 @@ When you add, rename or delete a test, or change what it asserts, update its ent
 - [`org.wynnvets.rendering.colors`](#orgwynnvetsrenderingcolors) — [`ColorMathTest`](#colormathtest), [`RecoloursTest`](#recolourstest), [`VanillaGuiColorsTest`](#vanillaguicolorstest)
 - [`org.wynnvets.rendering.image`](#orgwynnvetsrenderingimage) — [`PixelDrawingTest`](#pixeldrawingtest), [`PixelsTest`](#pixelstest), [`PngCodecTest`](#pngcodectest)
 - [`org.wynnvets.retro`](#orgwynnvetsretro) — [`LivePackTest`](#livepacktest), [`RetroCommandsTest`](#retrocommandstest), [`RetroModeManagerTest`](#retromodemanagertest), [`WynntilsConfigOverridesTest`](#wynntilsconfigoverridestest)
-- [`org.wynnvets.retro.manifest`](#orgwynnvetsretromanifest) — [`AssetSectionsTest`](#assetsectionstest), [`ManifestParserTest`](#manifestparsertest), [`ModelSectionsTest`](#modelsectionstest), [`PartSectionsTest`](#partsectionstest), [`RetroPartTest`](#retroparttest), [`ScreenSectionsTest`](#screensectionstest), [`ShippedAssetsTest`](#shippedassetstest), [`ShippedEquipmentTest`](#shippedequipmenttest), [`ShippedItemModelsTest`](#shippeditemmodelstest), [`ShippedManifestTest`](#shippedmanifesttest), [`ShippedOldClientsTest`](#shippedoldclientstest), [`ShippedPartsTest`](#shippedpartstest), [`ShippedPotionsTest`](#shippedpotionstest), [`ShippedScreensTest`](#shippedscreenstest), [`ShippedStacksTest`](#shippedstackstest), [`ShippedTexturesTest`](#shippedtexturestest), [`ShippedVanillaTweaksTest`](#shippedvanillatweakstest), [`StackSectionsTest`](#stacksectionstest), [`TextureSectionsTest`](#texturesectionstest)
+- [`org.wynnvets.retro.manifest`](#orgwynnvetsretromanifest) — [`AssetSectionsTest`](#assetsectionstest), [`ManifestParserTest`](#manifestparsertest), [`ModelSectionsTest`](#modelsectionstest), [`PartSectionsTest`](#partsectionstest), [`RetroPartTest`](#retroparttest), [`ScreenSectionsTest`](#screensectionstest), [`ShippedAssetsTest`](#shippedassetstest), [`ShippedBundledArtTest`](#shippedbundledarttest), [`ShippedEquipmentTest`](#shippedequipmenttest), [`ShippedItemModelsTest`](#shippeditemmodelstest), [`ShippedManifestTest`](#shippedmanifesttest), [`ShippedOldClientsTest`](#shippedoldclientstest), [`ShippedPartsTest`](#shippedpartstest), [`ShippedPotionsTest`](#shippedpotionstest), [`ShippedScreensTest`](#shippedscreenstest), [`ShippedStacksTest`](#shippedstackstest), [`ShippedTexturesTest`](#shippedtexturestest), [`ShippedVanillaTweaksTest`](#shippedvanillatweakstest), [`StackSectionsTest`](#stacksectionstest), [`TextureSectionsTest`](#texturesectionstest)
 - [`org.wynnvets.retro.pack`](#orgwynnvetsretropack) — [`OldClientFetchTest`](#oldclientfetchtest), [`OldClientsTest`](#oldclientstest), [`PackFilesTest`](#packfilestest), [`RetroPackInjectorTest`](#retropackinjectortest), [`RetroPackResourcesTest`](#retropackresourcestest), [`ZipDirectoryTest`](#zipdirectorytest)
-- [`org.wynnvets.retro.pack.generate`](#orgwynnvetsretropackgenerate) — [`DrawnArtTest`](#drawnarttest), [`GenerationStepsTest`](#generationstepstest), [`ModelJsonTest`](#modeljsontest), [`PackOutputTest`](#packoutputtest), [`RetroPackGeneratorTest`](#retropackgeneratortest), [`RetroSourcesTest`](#retrosourcestest), [`TintFactorsTest`](#tintfactorstest), [`VanillaTweaksPackTest`](#vanillatweakspacktest)
+- [`org.wynnvets.retro.pack.generate`](#orgwynnvetsretropackgenerate) — [`BundledArtTest`](#bundledarttest), [`DrawnArtTest`](#drawnarttest), [`GenerationStepsTest`](#generationstepstest), [`ModelJsonTest`](#modeljsontest), [`PackOutputTest`](#packoutputtest), [`RetroPackGeneratorTest`](#retropackgeneratortest), [`RetroSourcesTest`](#retrosourcestest), [`TintFactorsTest`](#tintfactorstest)
 - [`org.wynnvets.retro.render`](#orgwynnvetsretrorender) — [`IdentityMemoTest`](#identitymemotest), [`RetroAccessoriesTest`](#retroaccessoriestest), [`RetroContainerTitlesTest`](#retrocontainertitlestest), [`RetroGuardTest`](#retroguardtest), [`RetroHeartFlashTest`](#retroheartflashtest), [`RetroHudGlyphsTest`](#retrohudglyphstest), [`RetroHudReadingsTest`](#retrohudreadingstest), [`RetroHudTest`](#retrohudtest), [`RetroInventoryEffectsTest`](#retroinventoryeffectstest), [`RetroSlotIconsTest`](#retrosloticonstest), [`RetroSlotValuesTest`](#retroslotvaluestest), [`RetroSlotsTest`](#retroslotstest), [`RetroStackModelsTest`](#retrostackmodelstest)
 - [`org.wynnvets.retro.rules`](#orgwynnvetsretrorules) — [`ModelRulesTest`](#modelrulestest), [`OldClientRulesTest`](#oldclientrulestest), [`PartFilterTest`](#partfiltertest), [`RetroAssetIdsTest`](#retroassetidstest), [`RuleUsageTest`](#ruleusagetest), [`TextureRulesTest`](#texturerulestest)
 - [`org.wynnvets.util`](#orgwynnvetsutil) — [`ConfigValueTextTest`](#configvaluetexttest), [`DurationsTest`](#durationstest), [`JsonTest`](#jsontest), [`TickDelaysTest`](#tickdelaystest), [`UuidsTest`](#uuidstest)
@@ -1220,7 +1221,7 @@ Test: [`ShippedConfigTest.java`](../src/test/java/org/wynnvets/config/ShippedCon
 
 Test: [`VetsConfigDefaultsTest.java`](../src/test/java/org/wynnvets/config/VetsConfigDefaultsTest.java) · Subject: [`VetsConfigDefaults`](../src/client/java/org/wynnvets/config/VetsConfigDefaults.java)
 
-`VetsConfigDefaults` holds the values `config.json` starts from; they also feed the shipped `config.yml` and `/wv config <key> default`. The suite pins every user-facing default against a frozen literal table in the test, and checks that each user key in `VetsConfigSchema.USER_CONFIG_KEYS` has a default of the right Java type, with the tri-state `handleSpoilers` left unset. Four internal defaults are pinned too: `retroTextures` starts off, and `retroWynntilsSnapshot`, `retroPartsOff` and `sudokuProgress` start empty. It needs no running client because `VetsConfigDefaults` has no static state and does not load `VetsConfig`.
+`VetsConfigDefaults` holds the values `config.json` starts from; they also feed the shipped `config.yml` and `/wv config <key> default`. The suite pins every user-facing default against a frozen literal table in the test, and checks that each user key in `VetsConfigSchema.USER_CONFIG_KEYS` has a default of the right Java type, with the tri-state `handleSpoilers` left unset. Five internal defaults are pinned too: `retroTextures` and `extrasPanorama` start off, and `retroWynntilsSnapshot`, `retroPartsOff` and `sudokuProgress` start empty. It needs no running client because `VetsConfigDefaults` has no static state and does not load `VetsConfig`.
 
 - **`userDefaults_areTheFirstRunValues`**: Each entry in the frozen user-default table (for example `printMOTD` true, `colorBlindMode` false, `legacyItemBackgroundGradientTopOpacity` 69) equals the value in `firstRunValues()`.
   - For each `(key, expected)` in the test's 29-entry `USER_DEFAULTS` table, from `legacyItemHighlighting` (true) to `moreReliableGuildCheck` (true): `VetsConfigDefaults.firstRunValues().get(key)` equals `expected`. Non-true entries: `colorBlindMode` false, `legacyItemBackgroundGradientTopOpacity` 69L, `legacyItemBackgroundGradientBottomOpacity` 100L, `vetsAnniRoleStyle` `"descriptive"`, `vetsAnniFlashIntensity` `"normal"`, `legacyItemBackgroundGradientTop` `"orange"`, `legacyItemBackgroundGradientBottom` `"crimson"`, `legacyItemForegroundSprite` `"box_gradient_2"`, `legacyItemForegroundColor` `"orange"`.
@@ -1238,6 +1239,8 @@ Test: [`VetsConfigDefaultsTest.java`](../src/test/java/org/wynnvets/config/VetsC
   - `firstRunValues().get("retroPartsOff")` equals `""`.
 - **`sudokuProgress_isEmptyOnAFirstRun`**: There is no sudoku board on a first run.
   - `firstRunValues().get("sudokuProgress")` equals `""`.
+- **`extrasPanorama_isOffOnAFirstRun`**: The main menu keeps its own panorama until `/wv extras panorama on`.
+  - `firstRunValues().get("extrasPanorama")` equals `false`.
 - **`firstRunValues_includeTheDebugKeys`**: `firstRunValues()` contains the debug key `itemDump` with value `false`.
   - `firstRunValues().get("itemDump")` equals `Boolean.FALSE`.
 
@@ -1248,7 +1251,7 @@ Test: [`VetsConfigKeysTest.java`](../src/test/java/org/wynnvets/config/VetsConfi
 `VetsConfigKeys` is the list of string constants naming each setting as stored in `config.json`. Those names are the file format: renaming one makes existing values unreadable and they are dropped at the next save. The suite compares the constants against a frozen constant-to-name table, read by reflection over all public static final `String` fields, so an added, removed or renamed key fails, and it checks the on-disk names are distinct. The table, `EXPECTED`, is package-private: `VetsConfigSchemaTest` takes its key names from it.
 
 - **`everyKeyConstant_hasItsOnDiskName`**: The reflected map of constant name to string value equals the frozen expected table, in both content and key set.
-  - `keyConstants()`, the sorted map of every public static final `String` field of `VetsConfigKeys` (constant name to value), equals `new TreeMap<>(EXPECTED)`: the 48 frozen pairs from `VETS_AUTOMESSAGE` to `vetsAutomessage` through `LEGACY_ITEM_FOREGROUND_COLOR` to `legacyItemForegroundColor`.
+  - `keyConstants()`, the sorted map of every public static final `String` field of `VetsConfigKeys` (constant name to value), equals `new TreeMap<>(EXPECTED)`: the 49 frozen pairs from `VETS_AUTOMESSAGE` to `vetsAutomessage` through `LEGACY_ITEM_FOREGROUND_COLOR` to `legacyItemForegroundColor`.
 - **`onDiskNames_areDistinct`**: No two constants share the same on-disk name.
   - For each `name` in the values of `keyConstants()`: `seen.add(name)` is true, meaning no earlier constant has the same on-disk name.
 
@@ -1670,16 +1673,54 @@ Test: [`NoAspectsFilterTest.java`](../src/test/java/org/wynnvets/distribute/reci
 
 Test: [`ExtrasCommandsTest.java`](../src/test/java/org/wynnvets/extras/ExtrasCommandsTest.java) · Subject: [`ExtrasCommands`](../src/client/java/org/wynnvets/extras/ExtrasCommands.java)
 
-`ExtrasCommands` builds `/wv extras`. The suite pins that both `extras` and `sudoku` run when typed bare, and that no `requires` gates either. A node with no command of its own makes Brigadier report an unknown command, and Fabric forwards such a client command to the server, so a bare `/wv extras` would leave the client instead of printing its usage line. Several `/wv` subtrees are gated on the player's guild standing; this one is open to everyone. The tree is built with an `extras()` helper (`ExtrasCommands.buildCommandTree().build()`). The commands themselves are not run, since an answer goes through Wynntils' chat.
+`ExtrasCommands` builds `/wv extras`. The suite pins that every node, `extras`, `sudoku`, `panorama` and its `on` and `off`, runs when typed bare, and that no `requires` gates any of them. A node with no command of its own makes Brigadier report an unknown command, and Fabric forwards such a client command to the server, so a bare `/wv extras` would leave the client instead of printing its usage line. Several `/wv` subtrees are gated on the player's guild standing; this one is open to everyone. The tree is built with an `extras()` helper (`ExtrasCommands.buildCommandTree().build()`), and `names(node)` lists a node's child names in order. The commands themselves are not run, since an answer goes through Wynntils' chat.
 
 - **`bothNodesRunWhenTypedBare`**: `extras` and its `sudoku` child each have a command of their own.
   - `extras.getName()` equals `"extras"`.
   - `extras.getCommand()` is not null: a bare `extras` prints its usage line.
   - `sudoku` (`extras.getChild("sudoku")`) is not null.
   - `sudoku.getCommand()` is not null: `sudoku` opens the board.
-- **`everyoneCanPlay_soNothingGatesTheTree`**: Neither node has a requirement that can fail.
+- **`thePanoramaAndItsOnAndOffRunWhenTypedBare`**: `panorama` and its `on` and `off` each have a command of their own, and the two have no children.
+  - `panorama` (`extras().getChild("panorama")`) is not null.
+  - `panorama.getCommand()` is not null: a bare `panorama` says whether it is on.
+  - `names(panorama)` equals `List.of("on", "off")`.
+  - For each `leaf` in `on` and `off`: `panorama.getChild(leaf).getCommand()` is not null.
+  - For each `leaf` in `on` and `off`: `names(panorama.getChild(leaf))` equals `List.of()`.
+- **`everyoneCanPlay_soNothingGatesTheTree`**: No node has a requirement that can fail.
   - `extras.getRequirement().test(null)` is true.
   - `sudoku`'s `getRequirement().test(null)` is true.
+  - `panorama`'s `getRequirement().test(null)` is true.
+  - For each `leaf` in `on` and `off`: `panorama.getChild(leaf).getRequirement().test(null)` is true.
+
+## `org.wynnvets.extras.panorama`
+
+### `ExtrasPanoramaTest`
+
+Test: [`ExtrasPanoramaTest.java`](../src/test/java/org/wynnvets/extras/panorama/ExtrasPanoramaTest.java) · Subject: [`ExtrasPanorama`](../src/client/java/org/wynnvets/extras/panorama/ExtrasPanorama.java)
+
+`ExtrasPanorama` swaps the panorama behind the main menu for Vetlas while `/wv extras panorama` is on and retro is off. The suite pins the two parts that need no running client: the gate, `shows(on, retro, failed)`, and the shape of the six faces beside the cube map. Reading the setting, loading and releasing the texture, and drawing need a client and are not tested. The faces are checked with `CubeMapFaces.assertLoadable(base)`, a helper shared with `ShippedBundledArtTest`: for each of `<base>_0.png` to `<base>_5.png`, the file is on the test classpath, is square, is as wide as the first face, and has no alpha channel. Minecraft's `CubeMapTexture` needs squares of one size. Shipped faces that are not would make the egg fail on its first draw, with one warning and the stock panorama until restart; a failed first load registers nothing, so it cannot fail a later reload.
+
+- **`vetlasShowsOnlyWhileTheEggIsOnRetroIsOffAndNothingHasFailed`**: `shows(on, retro, failed)` is true only for on, retro off, not failed.
+  - `shows(true, false, false)` is true.
+  - `shows(false, false, false)` is false: the egg is off.
+  - `shows(true, true, false)` is false: retro is on, and the egg gives way.
+  - `shows(true, false, true)` is false: Vetlas failed this session.
+- **`theFacesBesideTheCubeMapAreLoadable`**: The six faces `ExtrasPanorama.LOCATION` names are on the classpath and Minecraft can load them.
+  - `CubeMapFaces.assertLoadable("/assets/" + LOCATION.getNamespace() + "/" + LOCATION.getPath())`, that is `/assets/vetsmod/textures/gui/title/background/vetlas`, passes for all six faces.
+
+### `PanoramaCommandTest`
+
+Test: [`PanoramaCommandTest.java`](../src/test/java/org/wynnvets/extras/panorama/PanoramaCommandTest.java) · Subject: [`PanoramaCommand`](../src/client/java/org/wynnvets/extras/panorama/PanoramaCommand.java)
+
+`PanoramaCommand` builds `/wv extras panorama`, with `on` and `off`. The suite pins the text of the green reply, `text(on, retro, failed)`. The tree is `ExtrasCommandsTest`'s, and the command itself is not run: it reads the stored setting and answers through Wynntils' chat.
+
+- **`eachAnswerSaysWhetherItIsOnAndWhatKeepsItFromShowing`**: The reply says whether Vetlas is on and, when it is, whether a failure this session or retro keeps it from showing.
+  - `text(true, false, false)` equals "The Vetlas panorama is on: it shows behind the main menu."
+  - `text(true, true, false)` equals "The Vetlas panorama is on, and shows once retro is off."
+  - `text(true, false, true)` equals "The Vetlas panorama is on, but could not be drawn: it returns after a restart."
+  - `text(true, true, true)` equals the same: a failure outranks retro.
+  - `text(false, false, false)` equals "The Vetlas panorama is off."
+  - `text(false, true, true)` equals "The Vetlas panorama is off.": off says nothing of retro or a failure.
 
 ## `org.wynnvets.extras.sudoku`
 
@@ -3580,7 +3621,10 @@ Test: [`RetroCommandsTest.java`](../src/test/java/org/wynnvets/retro/RetroComman
   - Its children are `on`, `off`, `parts` and `only`.
   - For each of `on` and `off`: it has a command and no children.
 - **`turningRetroOnEndsWithItsCreditsOnHoverAndAClickToTheReadme`**: `toggleLine(true, RELOADING)` reads `Retro textures on. Reloading resources… (Hover for credits)`; its last sibling's hover names `wynntils.net`, `wynncraft.com`, `mojang.com`, `vanillatweaks.net` and the README's `Credits section`, and its click opens that section on GitHub.
-- **`everyAnswerThatRetroIsOnHasTheCreditsAndOffHasNone`**: `UNCHANGED` and `NO_WYNNCRAFT_PACK` when on end with ` (Hover for credits)`; `RELOADING` and `UNCHANGED` when off do not mention credits.
+- **`aFirstOnSaysTheOldTexturesDownloadAndThenHowItWent`**: The fetch of the old clients' textures takes a few seconds before the reload, which would otherwise look stuck.
+  - `toggleLine(true, FETCHING)` reads `Retro textures on. Downloading the old textures from Mojang first (this happens once); they show in a few seconds… (Hover for credits)`.
+  - `fetchedLine(true, true)` reads `Retro: the old textures are downloaded. Reloading resources…`; `fetchedLine(false, true)` says they could not be downloaded, that today's stand in until the next start-up tries again, and that resources reload; `fetchedLine(true, false)` adds no reload.
+- **`everyAnswerThatRetroIsOnHasTheCreditsAndOffHasNone`**: `UNCHANGED`, `FETCHING` and `NO_WYNNCRAFT_PACK` when on end with ` (Hover for credits)`; `RELOADING` and `UNCHANGED` when off do not mention credits.
 - **`partsListsAndTakesAPartOnOrOff`**: The `parts` child.
   - It has a command: a bare `parts` lists them.
   - Its one child is the `part` argument, which has no command.
@@ -3805,7 +3849,7 @@ Test: [`ManifestParserTest.java`](../src/test/java/org/wynnvets/retro/manifest/M
   - `manifest.models().ingredients().put("a", "b")` throws `UnsupportedOperationException`.
   - `manifest.assets().imageEdits().put("a", List.of())` throws `UnsupportedOperationException`.
   - `manifest.assets().sourceCopies().put("a", SourceCopy.of("b"))` throws `UnsupportedOperationException`.
-  - `manifest.gearBoxIcons().put("a", "b")` throws `UnsupportedOperationException`.
+  - `manifest.gearBoxIcons().put("a", new GearBoxIcon("b", 1))` throws `UnsupportedOperationException`.
   - `manifest.lang().strings().put("a", "b")` throws `UnsupportedOperationException`.
   - `manifest.slotFills().add(new SlotFill.PlayerSlots())` throws `UnsupportedOperationException`.
   - `manifest.wynntilsConfig().add(new WynntilsSetting("a", "b", "c"))` throws `UnsupportedOperationException`.
@@ -3913,7 +3957,7 @@ Test: [`RetroPartTest.java`](../src/test/java/org/wynnvets/retro/manifest/RetroP
 
 Test: [`ScreenSectionsTest.java`](../src/test/java/org/wynnvets/retro/manifest/ScreenSectionsTest.java) · Subject: [`ScreenSections`](../src/client/java/org/wynnvets/retro/manifest/ScreenSections.java)
 
-The parser's reading of `ScreenSections`: the container and glyph titles, the slot fills and values and the hidden inventory effects, on small fixtures.
+The parser's reading of `ScreenSections`: the container and glyph titles, the slot fills (their slots, `glass` and `open`) and values and the hidden inventory effects, on small fixtures.
 
 - **`aSlotFillFallbackIsTrueOrFalse`**: `fallback` takes a boolean, not a string.
   - `{title: 'a', slots: all, fallback: 'yes'}` throws `IllegalArgumentException`.
@@ -3926,13 +3970,14 @@ The parser's reading of `ScreenSections`: the container and glyph titles, the sl
   - Its title is `Account Bank`.
   - The second row's title is `RetroManifest.KEEP`.
   - `'X': ''` throws `IllegalArgumentException`: an empty title.
-- **`slotFillsReadPlayerAndContainerRows`**: `{player: wynntils}`, a Trade Market row, an `outside_bounds` row, a title row with columns, a slot and a range, `{container: 'Sell', slots: all, except: [22, '28-29']}` and `{title: '.*', slots: all, unless: 'Chest|.+Bank'}`.
-  - `slotFills()` with `ManifestFixtures.withoutPatterns` applied equals `[PlayerSlots(), ContainerSlots(rows {5}), ContainerSlots(outsideBounds true), ContainerSlots(cols {0, 8}, slots {3, 45, 46, 47}), ContainerSlots(all true, except {22, 28, 29}), ContainerSlots(all true)]`, every other set empty, `unless` null and `fallback` false: the range `'45-47'` is inclusive, and so is `except`'s `'28-29'`.
+- **`slotFillsReadPlayerAndContainerRows`**: `{player: wynntils}`, `{container: 'TradeMarketContainer', rows: [5], glass: gray}`, `{container: 'BankContainer', slots: outside_bounds}`, a title row with columns, a slot and a range, `{container: 'Sell', slots: all, except: [22, '28-29'], glass: clear, open: true}` and `{title: '.*', slots: all, unless: 'Chest|.+Bank'}`.
+  - `slotFills()` with `ManifestFixtures.withoutPatterns` applied equals `[PlayerSlots(), ContainerSlots(rows {5}, glass gray), ContainerSlots(outsideBounds true), ContainerSlots(cols {0, 8}, slots {3, 45, 46, 47}), ContainerSlots(all true, except {22, 28, 29}, glass clear, open true), ContainerSlots(all true)]`, every other set empty, `unless` null and `fallback` false: the range `'45-47'` is inclusive, and so is `except`'s `'28-29'`.
+  - A row that names no `glass` has `"white"` and one that names no `open` has `open` false: only the Trade Market row (`gray`) and the `Sell` row (`clear`, open) name them.
   - The Trade Market row's `containers()` pattern is `TradeMarketContainer`, its `titles()` and `unless()` are null.
   - The title row's `containers()` is null and its `titles()` pattern is `.+ Rewards`.
   - The last row's `unless()` pattern is `Chest|.+Bank`.
-- **`aMalformedSlotFillFailsTheParse`**: Seventeen malformed rows each fail the parse with `IllegalArgumentException`.
-  - For each of `{player: everyone}`, `{player: wynntils, rows: [1]}`, `{rows: [1]}` (neither a container nor a title), `{container: 'A', title: 'B', rows: [1]}` (both), `{container: 'A'}` (no slots), `{container: 'A', rows: [6]}`, `{container: 'A', cols: [9]}`, `{container: 'A', slots: [54]}` (past a chest), `{container: 'A', slots: ['53-45']}` (a backward range), `{container: 'A', slots: empty}` (no longer a value), `{container: 'A', slots: all, unless: '('}` (a bad pattern), `{container: 'A', slots: ['4 5']}`, `{container: 'A', slots: everything}`, `{container: 'A', row: [1]}` (an unknown key), `{container: 'A(', rows: [1]}` (a bad pattern), `{container: 'A', except: [1]}` (an exception but no slots), `{container: 'A', slots: empty, except: [54]}` (an exception past a chest), `{container: 'A', slots: empty, except: everything}` and `{player: wynntils, except: [1]}` (a player row takes no other key): parsing `slot_fills` with it throws `IllegalArgumentException`.
+- **`aMalformedSlotFillFailsTheParse`**: Twenty-four malformed rows each fail the parse with `IllegalArgumentException`.
+  - For each of `{player: everyone}`, `{player: wynntils, rows: [1]}`, `{rows: [1]}` (neither a container nor a title), `{container: 'A', title: 'B', rows: [1]}` (both), `{container: 'A'}` (no slots), `{container: 'A', rows: [6]}`, `{container: 'A', cols: [9]}`, `{container: 'A', slots: [90]}`, `{container: 'A', slots: ['53-45']}` (a backward range), `{container: 'A', slots: some}`, `{container: 'A', slots: all, unless: '('}` (a bad pattern), `{container: 'A', slots: ['4 5']}`, `{container: 'A', slots: everything}`, `{container: 'A', row: [1]}` (an unknown key), `{container: 'A(', rows: [1]}` (a bad pattern), `{container: 'A', except: [1]}` (an exception but no slots), `{container: 'A', slots: all, except: [90]}`, `{container: 'A', slots: all, except: everything}`, `{player: wynntils, except: [1]}` (a player row takes no other key), `{player: wynntils, glass: gray}` (nor a glass), `{container: 'A', rows: [1], glass: grey}`, `{container: 'A', rows: [1], glass: tinted}` (neither is a glass colour), `{container: 'A', rows: [1], glass: [gray]}` (a list) and `{container: 'A', rows: [1], open: 'yes'}` (a string, not a boolean): parsing `slot_fills` with it throws `IllegalArgumentException`.
 - **`hiddenInventoryEffectsArePatterns`**: One pattern, kept as written.
   - The patterns of `hiddenInventoryEffects()` equal `["minecraft:(haste|speed)"]`.
 - **`aSlotValueRowNamesAContainerAnItemAndALoreGroup`**: `{container: 'A', name: 'B', lore: 'c (d)'}` parses to those three.
@@ -4001,6 +4046,26 @@ The shipped asset rows against the client jar: the source copies and recipes, th
   - The keys of `lang().strings()` equal `{container.inventory, menu.returnToGame, menu.game}`.
   - For each string: its value equals vanilla's value for its key.
   - `lang().strings()` has no `container.crafting`: the inventory has no crafting grid.
+
+### `ShippedBundledArtTest`
+
+Test: [`ShippedBundledArtTest.java`](../src/test/java/org/wynnvets/retro/manifest/ShippedBundledArtTest.java) · Subject: the art under [`retro/vetsmod`](../src/client/resources/retro/vetsmod) and [`retro/vanilla_tweaks`](../src/client/resources/retro/vanilla_tweaks), against [`retro.yml`](../src/client/resources/retro.yml)
+
+The jar bundles vetsmod's own art and Vanilla Tweaks', against the shipped rules: each texture is one this game has and one the retro pack draws from its bundle, so nothing ships unused, and vetsmod's own reads its bundle alone. The suite walks each bundle's textures on the classpath (`ShippedFiles.bundledTextureIds`, over `ShippedFiles.BUNDLES`, which maps `VETSMOD` to `/retro/vetsmod` and `VANILLA_TWEAKS` to `/retro/vanilla_tweaks`). vetsmod's own is the main menu's panorama, six faces Minecraft loads as one image, and `PANORAMA` lists their ids, `minecraft:gui/title/background/panorama_0` to `_5`. `WITHOUT_BUNDLES` is a `PackFacts` in which Wynncraft ships every texture, none is transparent, and every source but the bundled ones has it. The faces' shape is checked with `CubeMapFaces.assertLoadable`, which `ExtrasPanoramaTest` uses too (see there).
+
+- **`theBundlesAreEverySourceNeitherAnOldClientNorThePlayersOwn`**: The bundled sources are the `RetroSource` values that are not an old client's, not `PROGRAMMER_ART` and not `VANILLA`.
+  - `BUNDLES.keySet()` equals the set of `RetroSource.values()` whose `oldClient()` is false and which are neither `PROGRAMMER_ART` nor `VANILLA`.
+- **`everyBundleHoldsOnlyTexturesThisGameHas`**: For `VETSMOD` and `VANILLA_TWEAKS`, the bundle is not empty and each id is in the 1.21.11 client jar.
+  - For each `source` in `BUNDLES.keySet()`: `bundledTextureIds(source)` is not empty.
+  - For each `id` of it: `textureInClientJar(id)` is true.
+- **`everyBundledTextureIsCopiedFromItsBundle`**: Each id of each bundle decides `Copy(id, <its source>)` over `CLIENT_JAR`: no rule keeps or tints it away, and no other source stands in front of it.
+  - For each `source` in `BUNDLES.keySet()` and each `id` in `bundledTextureIds(source)`: `realTextureRules().decide(id, CLIENT_JAR)` equals `Copy(id, source)`.
+- **`vetsmodsOwnArtReadsItsBundleAloneSoNothingElseStandsIn`**: Each of vetsmod's textures has its bundle as its only source, so without the bundle Wynncraft's stays.
+  - For each `id` in `bundledTextureIds(VETSMOD)`: `sourceOrder(id)` equals `[VETSMOD]`.
+  - For each `id`: `decide(id, WITHOUT_BUNDLES)` equals `Keep(NO_RULE)`: without the bundle Wynncraft's texture stays, not vanilla's.
+- **`vetsmodsOwnArtHoldsTheMainMenusPanoramaAsMinecraftCanLoadIt`**: vetsmod's bundle holds the six panorama faces, and they are faces Minecraft can load.
+  - `bundledTextureIds(VETSMOD)` contains all of `PANORAMA`.
+  - `CubeMapFaces.assertLoadable("/retro/vetsmod/assets/minecraft/textures/gui/title/background/panorama")` passes: the six faces are on the classpath, square, of one size, with no alpha channel.
 
 ### `ShippedEquipmentTest`
 
@@ -4179,7 +4244,7 @@ The shipped `parts` rows: that every part has a row, and that the ids the rule f
   - For each of `MODELS`: `modelOwner` of `minecraft:item/wynn/<path>` equals its part: weapons and skins `WEAPONS`, armour `ARMOUR`, tools `TOOLS`, ingredients and the `economy/` models `CRAFTING`, potions `POTIONS`, loot and mastery tomes `GEAR_BOXES`, the tier layer `HIGHLIGHTS`, the rest of `gui/`, every empty slot's placeholder among it, `SCREENS`, and keys, scrolls, powders, runes, wards and both of the content book's models `ITEMS`.
   - `modelOwner` of `avomod2:item/potion_health` equals `POTIONS`.
 - **`theBlockModelsAreTheBlocksPart`**: For each `block_models` key: `modelOwner` equals `BLOCKS`.
-- **`theTextureSamplesLandInTheirParts`**: For each of `TEXTURES`: `textureOwner` equals its part: `block/` and the block entities' `entity/` textures (signs, beds, banners, chests, the conduit, decorated pots, the bell, shulker boxes, the enchanting table's book, the beacon's and end gateway's beams, the end portal) `BLOCKS`, the rest of `entity/`, the shield's art among it, `MOBS` but `entity/equipment/`, `ARMOUR`, whose `llama_body` is `MOBS`; `item/` `ITEMS`, `mob_effect/` `EFFECTS`, the containers, widgets, slot sprites and `wynn/gui/slot/` `SCREENS`, the tooltips `TOOLTIPS`, and the HUD's sprites `HUD`.
+- **`theTextureSamplesLandInTheirParts`**: For each of `TEXTURES`: `textureOwner` equals its part: `block/` and the block entities' `entity/` textures (signs, beds, banners, chests, the conduit, decorated pots, the bell, shulker boxes, the enchanting table's book, the beacon's and end gateway's beams, the end portal) `BLOCKS`, the rest of `entity/`, the shield's art among it, `MOBS` but `entity/equipment/`, `ARMOUR`, whose `llama_body` is `MOBS`; `item/` `ITEMS`, `mob_effect/` `EFFECTS`, the containers, widgets, slot sprites, `wynn/gui/slot/` and the main menu's panorama `SCREENS`, the tooltips `TOOLTIPS`, and the HUD's sprites `HUD`.
 - **`everyPinnedTintAndVariantIsTheBlocksPart`**:
   - For each of `PINNED_TINTS`: `textureOwner` equals `BLOCKS`.
   - For each of `PINNED_VARIANTS`: `textureOwner` of `minecraft:block/variants/<variant>` equals `BLOCKS`.
@@ -4221,8 +4286,12 @@ The shipped potion rows: that every potion model gets its family's liquid (`POTI
 
 Test: [`ShippedScreensTest.java`](../src/test/java/org/wynnvets/retro/manifest/ShippedScreensTest.java) · Subject: [`ScreenSections`](../src/client/java/org/wynnvets/retro/manifest/ScreenSections.java)
 
-The shipped screen rows: the titles, the slot fills and their labels, the hidden effects and the Wynntils settings.
+The shipped screen rows: the titles, the slot fills (their slots, glass and targets) and their labels, the hidden effects and the Wynntils settings.
 
+- **`realTitle`**: Helper: the title the real `container_titles` rows give a Wynntils container class (the first row whose pattern matches the whole name), or empty.
+- **`fill`**: Helper: a `ContainerSlots` row with no patterns, no `unless`, `fallback` false and `open` false, built from the given rows, columns, slots, `outsideBounds`, `all`, `except` and glass; compared against the real rows after `withoutPatterns`.
+- **`range`**: Helper: the set of slots from one to another, both included.
+- **`target`**: Helper: what a container row covers, as its pattern reads: its `containers()` pattern, or `title: ` and its `titles()` pattern.
 - **`theBanksAndTheTradeMarketGetPlainTitles`**: The Wynntils classes in `models/containers/containers/` (`personal/`, `trademarket/`) get their seeded titles; the Members screen and a class that only starts like a row get none.
   - For each of `AccountBankContainer` (`Account Bank`), `CharacterBankContainer` (`Character Bank`), `TradeMarketContainer` (`Trade Market`), `TradeMarketBuyContainer` (`Trade Market: Buy`), `TradeMarketSellContainer` (`Trade Market: Sell`), `TradeMarketOrderContainer` (`Trade Market: Order`), `TradeMarketFiltersContainer` (`Trade Market: Filters`) and `TradeMarketTradesContainer` (`Trade Market: Trades`): `realTitle(class)` equals `Optional.of(title)`.
   - The rest of Wynntils' `PersonalStorageContainer` family gets its titles: `MiscBucketContainer` (`Misc. Bucket`), `BookshelfContainer` (`Bookshelf`), `PersonalBlockBankContainer` (`Block Bank`), `IslandBlockBankContainer` (`Island Block Bank`).
@@ -4233,12 +4302,12 @@ The shipped screen rows: the titles, the slot fills and their labels, the hidden
   - `realTitle("ContentBookContainer")` equals `Optional.of("Content Book")`.
   - For each of `AbilityTreeContainer`, `AbilityTreeResetContainer` and `AspectsContainer`: `realTitle(class)` equals `Optional.of(RetroManifest.KEEP)`.
   - `realTitle("CharacterCreationContainer")` is empty: no row.
-- **`theSlotFillsAreThePlayersFixedSlotsEachScreensButtonsAndEveryOtherScreensSlots`**: The player row first, then the sixteen others.
+- **`theSlotFillsAreThePlayersFixedSlotsEachScreensButtonsAndEveryOtherScreensSlots`**: The player row first, then the seventy-two others, which are generated from `retro.yml`.
   - `slotFills().get(0)` equals `PlayerSlots()`.
-  - The other rows with `withoutPatterns` applied equal, in order: `outsideBounds`; `all` except 22, 28 and 31, the item on sale, its price and its quantity; rows {0, 4, 5} with cols {0, 8}; row 5; slot 8; `outsideBounds`; cols {0, 1}; cols {0, 1, 7, 8}; col 1; `all` except 11-15; row 0 with cols {0, 8}; `all` except 3 and 5; rows {0, 2} with cols {0, 8}; rows {0, 4, 5} with cols {0, 8}; slot 13; col 4 with slots {5, 21}; and `all`.
-  - The first ten's `containers()` patterns are the banks and storage, the market's buy and sell views, its trades, the market, its reveal screen, the blacksmith's and identifier's four screens, the guild bank, the guild's management screen, the Mount Feeder and Character Info; then `titles()` `Merchant`, `titles()` `Item Pedestal`, `titles()` `Housing Islands|Powder Master.*`, `titles()` `Party Finder: .*`, `containers()` `CraftingStationContainer`, `titles()` `\S+ {4,}\S+` and `titles()` `.*`.
-- **`everyContainerWithSlotFillsHasItsLabelDrawnByRetro`**: Slot fills apply only on a screen whose label retro draws, so a container row on a class whose title is `keep` would never paint. None of these is a Wynntils full-screen view, where fills never apply; the test cannot load Wynntils to check that.
-  - For each of `TradeMarketContainer`, `TradeMarketRevealItemsContainer`, the two `Blacksmith` and two `ItemIdentifier` screens, `GuildBankContainer`, `GuildManagementContainer`, `MountFeederContainer`, `CharacterInfoContainer`, `CraftingStationContainer`, `TradeMarketBuyContainer`, `TradeMarketSellContainer`, `TradeMarketTradesContainer`, `AccountBankContainer`, `CharacterBankContainer`, `MiscBucketContainer`, `BookshelfContainer`, `PersonalBlockBankContainer` and `IslandBlockBankContainer`: some `ContainerSlots` row's `containers()` pattern matches it.
+  - The other rows, with `withoutPatterns` applied, equal in order the rows of `retro.yml`'s `slot_fills`, each with its slots (`rows`, `cols`, `slots`, `outsideBounds` or `all`), its `except`, its `glass` and its `open`, written with `fill` (gray, white, lime or pink, never `open`) except for the six that are `clear` and `open`, which are written out whole: the item slots 11, 13 and 15 of the Powder Master's three views, slot 52 of the scavenger's tinker, slot 11 of the item upgrader's Ascension and Pouches views and slot 15 of its Powder Upgrade view. The last row is written out whole too: `all`, white, with `fallback` true, the row every other screen takes.
+  - `target` of those rows equals, in order, the same seventy-two patterns: the banks and storage, the Trade Market's buy and sell views, order, filters, trades, market and reveal screens, the blacksmith's and identifier's screens, the guild bank, the guild's management screen, the Mount Feeder, Character Info, the content book, the mastery tomes, then the titles `Merchant`, `Item Pedestal`, the three `Powder Master` views, `Powder Master.*`, `Housing Islands`, `Available Islands`, `Housing Master`, `.+ Type Blocks`, `Scavenger: Merchant`, `Scavenger: Tinker`, `Item Upgrader` and its four views (`Ascension`, `Pouches`, `Powder Upgrade`, `Powder Remove`, some rows naming two or all of them), `Mount Settings`, `Party Finder: .*`, then the crafting station's class, the player trade's title `\S+ {4,}\S+` and the catch-all `title: .*`. Several screens name more than one row, so a class or a title repeats: the banks, the buy and sell views and Character Info, for instance.
+- **`everyContainerWithSlotFillsHasItsLabelDrawnByRetro`**: Slot fills apply only on a screen whose label retro draws, so a container row on a class whose title is `keep` would never paint. The content book is a Wynntils full-screen view, where only rows naming its class apply.
+  - For each of `TradeMarketContainer`, `TradeMarketOrderContainer`, `TradeMarketFiltersContainer`, `ContentBookContainer`, `MasteryTomesContainer`, `TradeMarketRevealItemsContainer`, the two `Blacksmith` and two `ItemIdentifier` screens, `GuildBankContainer`, `GuildManagementContainer`, `MountFeederContainer`, `CharacterInfoContainer`, `CraftingStationContainer`, `TradeMarketBuyContainer`, `TradeMarketSellContainer`, `TradeMarketTradesContainer`, `AccountBankContainer`, `CharacterBankContainer`, `MiscBucketContainer`, `BookshelfContainer`, `PersonalBlockBankContainer` and `IslandBlockBankContainer`: some `ContainerSlots` row's `containers()` pattern matches it.
   - `realTitle(class)` is not `keep`.
 - **`theAttackSpeedEffectsAreHidden`**: Wynncraft's attack speed is an endless haste or mining fatigue.
   - The patterns of `hiddenInventoryEffects()` equal `["minecraft:(haste|mining_fatigue)"]`.
@@ -4253,7 +4322,7 @@ The shipped stack rows: that every outlined icon has art, and every gear box typ
 
 - **`everyOutlinedIconHasArtThatExists`**: The real file's keys are the five weapon types and the six tome types but `GUILD_TOME`, which is the real shield in `gear_box_icons`, and each texture is in the client jar.
 - **`everyGearTypeOfABoxShowsTheItemRetroShowsItsClassOrPieceAs`**: The gear types a box can be, as Wynntils' `UnidentifiedItemIconFeature` draws them (its icons also cover the tome and charm, which are not boxes).
-  - The keys of `gearBoxIcons()` equal `{HELMET, CHESTPLATE, LEGGINGS, BOOTS, RING, NECKLACE, BRACELET, GUILD_TOME}`.
+  - The keys of `gearBoxIcons()` equal `{HELMET, CHESTPLATE, LEGGINGS, BOOTS, RING, NECKLACE, BRACELET, GUILD_TOME}`; the checks below are on each row's `item()`.
   - For each weapon type and a pinned model of its class (`weapon/warrior/spear_air_a`, `weapon/mage/wand_basic_wood`, `weapon/assassin/dagger_fire_c`, `weapon/archer/bow_thunder_b`, `weapon/shaman/relik_basic_wooden`): `outlinedIcons().get(type).art()` equals the `art()` of that model's `itemStub`, so a weapon's icon is the art its class's stubs show.
   - For each piece: its icon equals `minecraft:iron_<piece>`.
   - `RING`'s icon equals `minecraft:gold_nugget`.
@@ -4309,7 +4378,7 @@ The shipped texture rows against the client jar: the sources, the aliases, the v
   - For each key of `PINNED_TINTS`: the real rules' `decide("minecraft:<texture>", CLIENT_JAR)` is a `TextureDecision.Tint`.
   - For that decision, and for the decision a like carries (`like()`), for its `from()` and its `match` or `relative_to` texture (a colour, `auto`, a like or no tint reads its source alone): `textureInClientJar` is true.
   - `Atlas.of` equals `Optional.of(Atlas.BLOCKS)`.
-- **`aTintBeatsTheSameNameCopy`**: Under `EVERYTHING_BLANK` every source but the old clients has every texture (they have nothing), so `same_name` would copy it; the tint comes first, and a block reads Programmer Art first.
+- **`aTintBeatsTheSameNameCopy`**: Under `EVERYTHING_BLANK` every source but the old clients (nothing) and the bundled art (what vetsmod bundles) has every texture, so `same_name` would copy it; the tint comes first, and a block reads Programmer Art first.
   - `decide("minecraft:block/note_block")` equals `Tint("minecraft:block/note_block", PROGRAMMER_ART, match(block/oak_log), 1, 1)`.
 - **`skyWoodIsThePlainOakLogOnEveryFace`**: Under `EVERYTHING_BLANK`, `decide` of `purpur_block`, `purpur_pillar` and `purpur_pillar_side` equals `Copy("minecraft:block/oak_log", PROGRAMMER_ART)`, and of `purpur_pillar_top` equals `Copy("minecraft:block/oak_log_top", PROGRAMMER_ART)`.
 - **`furnacesDispensersAndDroppersAreCalmedAndTheLitFurnaceStaysStill`**: The two plain faces (`furnace_side`, `furnace_top`) take the 2013 stone bricks' colour at contrast 0.45, and the dispenser's, dropper's and furnace's fronts exactly the change of the face beside them (`PINNED_TINTS`); like any block, a face, and the face a like names, reads Programmer Art first, ahead of `same_name`. Only Wynncraft's lit furnace is animated (16x32, frametime 28, in `a43ae4e6`); vanilla's, like Programmer Art's, is one still frame with no `.mcmeta`, so the tint writes a still texture and no `.mcmeta`, and Wynncraft's, in a pack below, is not read for it.
@@ -4321,8 +4390,11 @@ The shipped texture rows against the client jar: the sources, the aliases, the v
 - **`eachDispenserAndDropperFrontIsLikeTheFaceItsModelDrawsBesideIt`**: Wynncraft overrides none of these blockstates or models. A front facing sideways (`orientable`) sits between `furnace_side` faces, one facing up or down (`orientable_vertical`) among `furnace_top` faces, and each model names that face its `side`.
   - For each of the vanilla models `minecraft:block/dispenser`, `dropper`, `dispenser_vertical` and `dropper_vertical`, with `front` and `side` its `textures`' `front` and `side` in full: `decide(front, CLIENT_JAR)` is a `TextureDecision.Tint`.
   - Its `factor()` equals `Like(side)`.
-- **`deliberateBlanksAndRepurposedTexturesKeepWynncraftsTexture`**: Every source has these, and `same_name` matches most of them. The sponges are Wynncraft's rainbow strips; the two paintings stand for Wynncraft's repainted world art, which a source could only remove; the three particles for Wynncraft's sprite effects, which retro leaves alone; the two copper layers for worn copper armour, which has no 2013 art.
-  - For each of `block/tripwire`, `block/tripwire_hook`, `block/sponge`, `block/wet_sponge`, `block/daylight_detector_top`, `item/barrier`, `item/light_07`, `gui/sprites/container/slot/shield`, `particle/generic_0`, `particle/generic_1`, `particle/sga_k`, `mob_effect/haste`, `mob_effect/mining_fatigue`, `entity/trident`, `entity/iron_golem/iron_golem_crackiness_low`, `entity/equipment/humanoid/copper`, `entity/equipment/humanoid_leggings/copper`, `painting/bust` and `painting/back`, each prefixed `minecraft:`: `decide(id, EVERYTHING_BLANK)` equals `Keep(KEEP_WYNNCRAFT)`.
+- **`deliberateBlanksAndRepurposedTexturesKeepWynncraftsTexture`**: Every source has these, and `same_name` matches most of them. The sponges are Wynncraft's rainbow strips; the three particles for Wynncraft's sprite effects, which retro leaves alone; the two copper layers for worn copper armour, which has no 2013 art.
+  - For each of `block/tripwire`, `block/tripwire_hook`, `block/sponge`, `block/wet_sponge`, `block/daylight_detector_top`, `item/barrier`, `item/light_07`, `gui/sprites/container/slot/shield`, `particle/generic_0`, `particle/generic_1`, `particle/sga_k`, `mob_effect/haste`, `mob_effect/mining_fatigue`, `entity/trident`, `entity/iron_golem/iron_golem_crackiness_low`, `entity/equipment/humanoid/copper` and `entity/equipment/humanoid_leggings/copper`, each prefixed `minecraft:`: `decide(id, EVERYTHING_BLANK)` equals `Keep(KEEP_WYNNCRAFT)`.
+- **`paintingsAreVanillasWithTheOldBack`**: Paintings are no longer kept: vanilla's classic paintings are 1.7.10's art.
+  - Under `CLIENT_JAR`, `painting/bust` decides `Copy(minecraft:painting/bust, VANILLA)`.
+  - `sourceOrder("minecraft:painting/back")` has `PROGRAMMER_ART` before `VANILLA`: Programmer Art's back is 1.7.10's.
 - **`theirNeighboursAreStillReplaced`**: The keep rows name exactly what they keep. Under `EVERYTHING_BLANK`, where Wynncraft ships everything blank, `same_name` still wins over the automatic keep; a HUD blank retro draws nothing with, which no rule covers, is an automatic keep.
   - `decide("minecraft:mob_effect/strength")` equals `Copy("minecraft:mob_effect/strength", PROGRAMMER_ART)`.
   - `decide("minecraft:entity/iron_golem/iron_golem")` equals `Copy("minecraft:entity/iron_golem/iron_golem", PROGRAMMER_ART)`.
@@ -4343,10 +4415,8 @@ The shipped texture rows against the client jar: the sources, the aliases, the v
 
 Test: [`ShippedVanillaTweaksTest.java`](../src/test/java/org/wynnvets/retro/manifest/ShippedVanillaTweaksTest.java) · Subject: the art under [`retro/vanilla_tweaks`](../src/client/resources/retro/vanilla_tweaks), against [`retro.yml`](../src/client/resources/retro.yml)
 
-The jar bundles Vanilla Tweaks art, so nothing should ship unused or uncredited. The suite walks the bundled textures on the classpath.
+The jar bundles Vanilla Tweaks art, so it must be credited; that nothing of it ships unused is `ShippedBundledArtTest`'s.
 
-- **`everyBundledTextureIsOneThisGameHas`**: The bundle is not empty and each id is in the 1.21.11 client jar.
-- **`everyBundledTextureIsCopiedFromTheBundle`**: Each id decides `Copy(id, VANILLA_TWEAKS)` over `CLIENT_JAR`: no rule keeps or tints it away.
 - **`witheredHeartsAreTheVisibleOnesAndNoOtherGuiIsTouched`**: Each of `withered_half`, `withered_full` and their `_blinking` forms decides `Copy(id, VANILLA_TWEAKS)` over `EVERYTHING_BLANK`, with bytes other than vanilla's; `hud/heart/full` still decides `VANILLA`.
 - **`creditsCarryTheWordingTheTermsRequire`**: `credits.txt` and `README.md` each contain `Vanilla Tweaks: https://vanillatweaks.net/`.
 
@@ -4366,9 +4436,9 @@ The parser's reading of `StackSections`: the stack models, the gear box icons, t
 - **`outlinedIconsTakeTheirGroupsOutlineAndScaleAndAMalformedOneFailsTheParse`**: A row takes its group's `outline` and `scale`; a malformed group fails the parse.
   - A group with `scale: 0.5` and `outline: {pixels: 3, colour: '#191919'}` over `WEAPON_TOME: 'minecraft:item/iron_sword'` gives `outlinedIcons()` equal to `{WEAPON_TOME: OutlinedIcon("minecraft:item/iron_sword", 3, 0x191919, 0.5)}`.
   - An `outline` of 9 pixels, one without a `colour`, one that is a number, no `outline`, no `scale`, a `scale` of 0 or of 1.5, and a type in lower case each throw `IllegalArgumentException`.
-- **`gearBoxIconsReadAGearTypeAndAnItemInFileOrder`**: `'SPEAR': 'minecraft:iron_shovel'` then `'MASTERY_TOME': 'minecraft:book'`.
-  - The entries of `gearBoxIcons()` equal `[SPEAR=minecraft:iron_shovel, MASTERY_TOME=minecraft:book]`, in file order.
-  - For each of the rows `'Spear'` and `'SPEAR TYPE'` (not a gear type's upper-case name), and `'SPEAR'` with `'iron_shovel'` (no namespace), `'minecraft:iron_.*'` (a pattern) or `''` (no item): parsing `gear_box_icons` with it throws `IllegalArgumentException` (5 assertions).
+- **`gearBoxIconsReadATypeAndAnItemAtTheirGroupsScaleInFileOrder`**: A group of scale 0.75 with `'SPEAR': 'minecraft:iron_shovel'`, then one of 0.5 with `'MASTERY_TOME': 'minecraft:book'`.
+  - The entries of `gearBoxIcons()` equal `[SPEAR=GearBoxIcon(minecraft:iron_shovel, 0.75), MASTERY_TOME=GearBoxIcon(minecraft:book, 0.5)]`, in file order.
+  - For each of the items `'Spear'` and `'SPEAR TYPE'` (not a gear type's upper-case name), and `'SPEAR'` with `'iron_shovel'` (no namespace), `'minecraft:iron_.*'` (a pattern) or `''` (no item), and for a group with no scale, scale 0 or scale 1.5: parsing `gear_box_icons` with it throws `IllegalArgumentException` (8 assertions).
 - **`accessoryArtNeedsTheColourOfItsEmptySlotsOutline`**: A `accessory_tiers` section with art names the colour of its empty slots' outline.
   - `emptyOutline()` equals `0x555555` for `empty_outline: '#555555'`.
   - Without the key, the parse throws `IllegalArgumentException`.
@@ -4633,6 +4703,16 @@ Test: [`ZipDirectoryTest.java`](../src/test/java/org/wynnvets/retro/pack/ZipDire
   - `parse` of 60 zero bytes.
 
 ## `org.wynnvets.retro.pack.generate`
+
+### `BundledArtTest`
+
+Test: [`BundledArtTest.java`](../src/test/java/org/wynnvets/retro/pack/generate/BundledArtTest.java) · Subject: [`BundledArt`](../src/client/java/org/wynnvets/retro/pack/generate/BundledArt.java)
+
+`BundledArt` opens the art the jar bundles, one pack per bundled source. The suite reads a real texture of each bundle through `RetroSources`: the main menu's `panorama_0` for `VETSMOD`, the withered heart for `VANILLA_TWEAKS`.
+
+- **`eachBundleIsReadFromItsFolder`**: `SAMPLES` has a texture for every source of `BundledArt.FOLDERS`. Over each classpath folder, as in a development run, `has(<source>, sample)` is true, `has(VANILLA, sample)` false, `read` returns its bytes, and a file it lacks reads `null`.
+- **`eachBundleIsReadFromInsideAZip`**: The same over a temporary zip's file system per bundle, the sample at the bundle's folder, as in the mod's jar.
+- **`outsideARunningGameThereIsNoArtToFindAndNothingThrows`**: `open()` is empty with no vetsmod mod container under JUnit.
 
 ### `DrawnArtTest`
 
@@ -4933,7 +5013,7 @@ Test: [`RetroSourcesTest.java`](../src/test/java/org/wynnvets/retro/pack/generat
 - **`closingClosesEveryPackButVanilla`**: `close()` closes the `programmer_art` pack and the bundled art, not Minecraft's vanilla pack.
   - After `close()`, the art and tweaks packs' `closed()` are true and the vanilla pack's is false.
 - **`theBundledArtAnswersAsASourceOfItsOwn`**: With a tweaks pack, `present()` equals `[VANILLA_TWEAKS, VANILLA]`, and `has` and `read` answer for its texture.
-- **`theOldClientsAnswerFirstAndAreClosedWithTheRest`**: `open(null, tweaks, Map.of(MINECRAFT_1_7_10, old), vanilla)`, where `old` holds `minecraft:block/white_wool`.
+- **`theOldClientsAnswerFirstAndAreClosedWithTheRest`**: `open(null, Map.of(VANILLA_TWEAKS, tweaks), Map.of(MINECRAFT_1_7_10, old), vanilla)`, where `old` holds `minecraft:block/white_wool`.
   - `present()` equals `[MINECRAFT_1_7_10, VANILLA_TWEAKS, VANILLA]`: the old client comes first.
   - `has(MINECRAFT_1_7_10, "minecraft:block/white_wool")` is true and `has(MINECRAFT_1_8_9, ...)` of it false: a client with no folder has nothing.
   - After `close()`, `old.closed()` is true and `vanilla.closed()` false.
@@ -4993,16 +5073,6 @@ Test: [`TintFactorsTest.java`](../src/test/java/org/wynnvets/retro/pack/generate
   - The named texture's `argb()` equals `[0xFFB07D7D, 0xFFE5AFAF]`, as in `aTintChangesTheContrastAfterTheColourAroundTheTintedMean`.
   - The like's `argb()` equals `[0xFFB07D7D, 0xFFE5AFAF, 0xFF654B4B]`: the shared pixels come out as the named texture's, and the mouth moves halfway to the pivot, 101.25 and 75 rounded.
   - The same three pixels tinted around their own mean, `tint(own, [1.5, 1, 1], 0.5)`, give `[0xFF8F6464, 0xFFC39696, 0xFF443232]`: the mouth pulls that mean to (135, 100, 100), so the shared pixels come out otherwise, which the like avoids.
-
-### `VanillaTweaksPackTest`
-
-Test: [`VanillaTweaksPackTest.java`](../src/test/java/org/wynnvets/retro/pack/generate/VanillaTweaksPackTest.java) · Subject: [`VanillaTweaksPack`](../src/client/java/org/wynnvets/retro/pack/generate/VanillaTweaksPack.java)
-
-`VanillaTweaksPack` opens the art the jar bundles. The suite reads the real withered heart through `RetroSources`.
-
-- **`readsTheArtFromAFolder`**: Over the classpath folder, as in a development run, `has(VANILLA_TWEAKS, heart)` is true, `has(VANILLA, heart)` false, `read` returns its bytes, and a file it lacks reads `null`.
-- **`readsTheArtFromInsideAZip`**: The same over a temporary zip's file system, as in the mod's jar.
-- **`outsideARunningGameThereIsNoArtToFindAndNothingThrows`**: `open()` returns `null` with no vetsmod mod container under JUnit.
 
 ## `org.wynnvets.retro.render`
 
@@ -5238,16 +5308,17 @@ Test: [`RetroSlotIconsTest.java`](../src/test/java/org/wynnvets/retro/render/Ret
 
 `RetroSlotIcons` draws a gear box's or a tome's type, and the Ability Tree's glint, over a slot's item. The suite pins its pure parts: where the icon sits on a slot, how big it is drawn, which item the shipped `gear_box_icons` rows draw for a gear type, and on which screen the Ability Tree button glints. Drawing needs Wynntils' item model and a running client and is not tested.
 
-- **`theIconIsThreeQuartersOfTheSlotCentredOnIt`**: A 12-pixel icon leaves 2 pixels of the 16-pixel slot on each side.
-  - `iconOffset(ICON_SCALE)` equals `2f`.
+- **`anIconIsCentredOnTheSlot`**: A 12-pixel icon leaves 2 pixels of the 16-pixel slot on each side.
+  - `iconOffset(0.75f)` equals `2f`.
 - **`anOutlinedIconsTextureIsGrownSoItsArtStaysItsRowsSize`**:
   - `drawnScale` of a row of outline 3 and scale 0.375 equals `0.515625f`, three pixels of outline each side growing the texture from 16 to 22, and its offset equals `3.875f`.
   - `drawnScale` with no outline equals the row's scale.
-- **`aTypeIsDrawnAtItsOutlinedRowsScaleOrElseTheIconScale`**: A type with a shipped `outlined_icons` row is drawn at that row's scale, grown by its outline; any other, at `ICON_SCALE`.
-  - `iconScale(outlined, "SPEAR")` equals `0.703125f`: 0.625 * 18 / 16, one pixel of outline each side.
-  - `iconScale(outlined, "ARMOUR_TOME")` equals `0.515625f`: 0.375 * 22 / 16, three pixels each side.
-  - `iconScale(outlined, "HELMET")` equals `ICON_SCALE`.
-  - So does `GUILD_TOME`: the Allegiance tome's shield is a `gear_box_icons` item, not a smaller tome icon.
+- **`aTypeIsDrawnAtItsOutlinedRowsScaleOrElseItsGearBoxRowsScale`**: A type with a shipped `outlined_icons` row is drawn at that row's scale, grown by its outline; failing that, at its `gear_box_icons` group's scale.
+  - `iconScale(stacks, "SPEAR")` equals `0.703125f`: 0.625 * 18 / 16, one pixel of outline each side.
+  - `iconScale(stacks, "ARMOUR_TOME")` equals `0.7734375f`: 0.6875 * 18 / 16, one pixel each side; the tomes' art is the Allegiance shield's size.
+  - `iconScale(stacks, "HELMET")` equals `0.75f`.
+  - `iconScale(stacks, "GUILD_TOME")` equals `0.6875f`: the Allegiance tome's shield is a `gear_box_icons` item a little under an armour piece's size.
+  - `iconScale(stacks, "MASTERY_TOME")` equals `0f`: a type with no row draws nothing.
 - **`theAbilityTreesGlintIsOnlyOnAScreenRetroRelabelled`**: The Ability Tree button glints on a relabelled screen, and not on the tree screen's Ability Points button, which is the same Wynntils item.
   - `abilityTreeOverlay(true)` is `SlotOverlay.GLINT`.
   - `abilityTreeOverlay(false)` is `SlotOverlay.NONE`.
@@ -5274,8 +5345,13 @@ Test: [`RetroSlotValuesTest.java`](../src/test/java/org/wynnvets/retro/render/Re
 
 Test: [`RetroSlotsTest.java`](../src/test/java/org/wynnvets/retro/render/RetroSlotsTest.java) · Subject: [`RetroSlots`](../src/client/java/org/wynnvets/retro/render/RetroSlots.java)
 
-`RetroSlots` marks the slots `slot_fills` picks, glazes them with white glass and makes some inert. The suite pins its row logic on plain numbers: which container rows apply to a container (`applies`), which slots of a chest (nine columns, counted across then down) they pick (`covers`, `containerSlots`), whatever those hold, and which they leave out; what the shipped rows pick on the Trade Market's views and Character Info; which inventory slots the shipped `image_edits` paint over (`paintedOver`); and how a screen's picked slots divide into glass, accessories and inert slots (`panelsOf`). Reading the screen, the player's slots (which come from Wynntils), whether a slot holds an item and the painting need a running client and are not tested.
+`RetroSlots` marks the slots `slot_fills` picks, glazes them with glass of the colour of the row that picked them (`clear`, or white or another of Minecraft's 16 dye colours) and makes some inert. A row marked `open` leaves its slots answering the mouse while they are empty. The suite pins its row logic on plain numbers: which container rows apply to a container (`applies`), which slots of a chest (nine columns, counted across then down) they pick (`covers`, `containerSlots`), whatever those hold or only while empty, which they leave out and in which glass; how a Wynntils full-screen view takes only the rows naming its class, whose `slots` past the chest pick the part below; what the shipped rows pick, and in which glass, on the banks, the Trade Market's views, the blacksmith and identifier, Character Info, the content book, the Powder Master, the merchant, the Party Finder, the mastery tomes, the scavenger's merchant and tinker, the Mount Feeder and every other screen; which inventory slots the shipped `image_edits` paint over (`paintedOver`); and how a screen's picked slots divide into glass, accessories and inert slots (`panelsOf`). Reading the screen, the player's slots (which come from Wynntils), whether a slot holds an item and the painting need a running client and are not tested.
 
+- **`fills`**: Helper: the `slot_fills` rows of a manifest parsed from the given YAML.
+- **`row`**: Helper: the first row of `fills` for one YAML row, as a `ContainerSlots`.
+- **`slots`**: Helper: the keys of `containerSlots(fills, containerClass, title, size, bounds, false)`, the slots the rows glaze whatever their glass.
+- **`glazed`**: Helper: a map of the given slots, each to a `Pane` of one colour that is not `open`.
+- **`range`**: Helper: the slots from one to another, both included.
 - **`aRowPicksItsRowsColumnsAndSlots`**: `{container: 'A', rows: [5], cols: [0], slots: [12]}`, with no bounds.
   - `covers(row, 45, null)` is true: row 5 starts at 45.
   - `covers(row, 53, null)` is true: and ends at 53.
@@ -5312,39 +5388,94 @@ Test: [`RetroSlotsTest.java`](../src/test/java/org/wynnvets/retro/render/RetroSl
   - `OtherContainer` gets `{8}`: the player row does not count as applying.
   - `ChestContainer` gets `{}`: the fallback's own `unless` still skips.
 - **`theFallbackRowLeavesEveryScreenWithARowOfItsOwnToThatRow`**: With the shipped rows, no screen with a row of its own, and none whose empty slots take the player's things, is glazed in every slot.
-  - For thirty container classes (the banks, pouches, identifier, blacksmith, crafting station, scrap menu, Mount Feeder, Trade Market views, Character Info and the reward and event containers), `containerSlots(..., 54, BANK_BOUNDS)` is not all of `0-53`.
-  - For the titles `Merchant`, `Item Pedestal`, `Housing Islands`, `Powder Master: Remove`, `Party Finder: Join` and a player trade's, it is not all of `0-53` either.
+  - For thirty container classes (the banks, the guild bank, bookshelf, misc bucket, pouches, identifier and its augments, blacksmith, crafting station, scrap menu, Mount Feeder, the Trade Market's market, order, filters, trades and reveal views, Character Info, and the loot chest, flying chest, reward and event containers), `slots(..., "Title", 54, BANK_BOUNDS)` is not all of `0-53`. The Trade Market's buy and sell views are left out: their own rows glaze every slot, so a fallback would not show there.
+  - For the titles `Merchant`, `Item Pedestal`, `Housing Islands`, `Available Islands`, `Powder Master: Infuse`, `Party Finder: Join` and a player trade's, `slots(..., 54, null)` is not all of `0-53` either.
 - **`aBlankNameIsAFillerAndAnyOtherIsAnItem`**:
   - `blankName` is true for an empty name, a space, formatting codes round a space, `À` (Wynncraft's space) and glyphs.
   - `blankName` is false for `Skill Crystal`, with or without a colour, and for `À` before `Page 2`.
-- **`containerSlotsJoinTheRowsThatApplyWithinTheContainer`**: The shipped rows plus a title row `{title: 'Account Bank', slots: [0]}`.
-  - `containerSlots(fills, "TradeMarketContainer", "Trade Market", 54, null)` equals slots 45-53.
-  - `containerSlots(fills, "AccountBankContainer", "Account Bank", 54, BANK_BOUNDS)` equals slots 45-53 and 0: the class row and the title row together.
-  - `containerSlots(fills, "GuildMemberListContainer", "Returners: Members", 45, null)` equals columns 0 and 1 of rows 0-4: a five-row chest has no slot 45.
-  - `containerSlots(fills, null, "Loot Chest", 27, null)` is empty.
-- **`theTradeMarketViewsNeverGreyTheOnesThePlayerSets`**: The shipped rows. By Wynntils' `TradeMarketModel`, the item on sale is at 22 (its sellable slot, an "Empty Item Slot" placeholder until one is picked), the price at 28 (`TM_SELL_PRICE_SLOT`) and, by `TradeMarketBulkSellFeature`'s `AMOUNT_ITEM_SLOT`, the quantity at 31; the buy view's art puts its item, price and quantity in the same places.
-  - For each of `TradeMarketSellContainer` and `TradeMarketBuyContainer`, with bounds `{22}`: `containerSlots` equals slots 0-53 but 22, 28 and 31.
-- **`everyOtherScreenClosesEveryEmptySlot`**: The shipped rows.
-  - `TradeMarketOrderContainer`, `Trade Market: Order`, 54 slots: slots 0-53.
+- **`containerSlotsJoinTheRowsThatApplyWithinTheContainer`**: Rows parsed in the test: the player row, `{container: 'TradeMarketContainer', rows: [5]}`, `{container: '(Account|Character)BankContainer', slots: outside_bounds}`, `{container: 'GuildMemberListContainer', cols: [0, 1]}` and `{title: 'Account Bank', slots: [0]}`.
+  - `slots(fills, "TradeMarketContainer", "Trade Market", 54, null)` equals slots 45-53.
+  - `slots(fills, "AccountBankContainer", "Account Bank", 54, BANK_BOUNDS)` equals slots 45-53 and 0: the class row and the title row together.
+  - `slots(fills, "GuildMemberListContainer", "Returners: Members", 45, null)` equals columns 0 and 1 of rows 0-4: a five-row chest has no slot 45.
+  - `slots(fills, null, "Loot Chest", 27, null)` is empty.
+- **`whereTwoRowsPickASlotTheFirstOnesGlassShows`**: Rows `{container: 'A', slots: [0], glass: lime}`, `{container: 'A', rows: [0], glass: gray}` and `{container: 'A', slots: all}`, over 18 slots with no bounds.
+  - `containerSlots(fills, "A", "Title", 18, null, false)` equals slot 0 as `Pane("lime", false)`, slots 1-8 as gray and slots 9-17 as white, the glass a row names nothing getting white.
+- **`theGlassColoursAreClearAndTheDyesEachAPane`**: The set of `ScreenSections.GLASS_COLOURS` equals the serialised names of Minecraft's 16 `DyeColor` values and `clear`.
+  - `RetroStacks.paneId("clear")` equals `glass_pane`.
+  - `paneId("gray")` equals `gray_stained_glass_pane`.
+  - `paneId("light_blue")` equals `light_blue_stained_glass_pane`.
+- **`theBanksButtonsAreWhiteBetweenTwoGreyEnds`**: The shipped rows. Wynntils' `PersonalStorageContainer` has the storage type at 47 and the pages at 51 and 52.
+  - For each of `AccountBankContainer`, `CharacterBankContainer`, `PersonalBlockBankContainer`, `IslandBlockBankContainer`, `BookshelfContainer` and `MiscBucketContainer`, 54 slots, `BANK_BOUNDS`: `containerSlots` equals slots 46-52 on white glass and slots 45 and 53 on gray.
+- **`theTradeMarketsViewsAreGreyWithWhiteButtonsAndTheItemTradedLime`**: The shipped rows. By Wynntils' `TradeMarketModel`, the item on sale is at 22 (its sellable slot, an "Empty Item Slot" placeholder until one is picked), the price at 28 (`TM_SELL_PRICE_SLOT`) and, by `TradeMarketBulkSellFeature`'s `AMOUNT_ITEM_SLOT`, the quantity at 31, each always holding a named item, so they answer the mouse on their glass; the buy view's art puts its item, price and quantity in the same places.
+  - For each of `TradeMarketSellContainer` and `TradeMarketBuyContainer`, 54 slots, bounds `{22}`: `containerSlots` equals slots 0-53 on gray, with slots 28, 30, 31, 32, 34 and 46-52 on white and slot 22 on lime.
+  - `TradeMarketOrderContainer`, `Trade Market: Order`, 54 slots, no bounds: slots 0-53 on gray but 21-25 and 30-34, which stay slots, with slots 46-52 on white and slot 28 on lime.
+  - `TradeMarketFiltersContainer`, `Trade Market: Filters`: slots 3, 39, 45 and 53 on gray, and slots 12, 21, 30 and 46-52 on white: a divider down the fourth column, the rest being slots.
+  - `TradeMarketTradesContainer`, `Trade Market: Trades`: slots 0-8, 36-45, 9, 17, 18, 26, 27, 35 and 53 on gray, a frame round the three shelves, and slots 46-52 on white.
+- **`theBlacksmithAndTheIdentifierAreGreyRoundTheBenchWithWhiteButtons`**: The shipped rows. Wynntils' bounds are rows 1 and 2, columns 2 to 6 (slots 11-15 and 20-24) for the sell screen and the identifier, row 1 alone (11-15) for Repair, and 11 alone for the augments view.
+  - For each of `BlacksmithSellContainer` and `ItemIdentifierContainer`, 27 slots, with the bench as bounds: `containerSlots` equals slots 0-26 but the bench on gray, with slots 17 and 18 on white.
+  - `BlacksmithRepairContainer`, bounds 11-15: slots 0-26 but 11-15 on gray, with slot 18 on white.
+  - `ItemIdentifierAugmentsContainer`, bounds `{11}`: slots 0-26 but 11, 13, 14 and 15 on gray, with slots 17 and 18 on white: 13 to 15 stay slots too.
+- **`characterInfosButtonsAreWhiteRoundClearAndGreyWithTheSkillBooksSlots`**: The shipped rows. `CharacterInfoContainer`, `Character Info`, 27 slots, no bounds.
+  - `containerSlots` equals slots 0, 1, 10, 18 and 19 on gray, 7, 8, 9, 16, 17, 25 and 26 on white, and 2-6 and 20-24 on clear glass that is not `open`; the skill books, 11-15, stay slots.
+- **`aFullScreenViewTakesOnlyRowsNamingItsClassAndTheirSlotsReachThePartBelow`**: Rows: the player row, `{title: 'Book', slots: [0]}`, `{container: 'BookContainer', slots: [1, 9, '30-31', 45], except: [31]}` and a fallback `{title: '.*', slots: all}`; the container has 9 slots.
+  - With `fullScreen` true, `containerSlots(fills, "BookContainer", "Book", 9, null, true)` equals slots 1, 9 and 30 on white: no title row and not the fallback; 9 and 30 are below its nine, `except` leaves out 31 and 45 is past the hotbar.
+  - With `fullScreen` false it equals slots 0 and 1 on white: elsewhere a row picks the chest's slots alone.
+- **`theContentBooksEntriesStaySlotsAndWynncraftsButtonsBelowThemAreGlass`**: The shipped rows. On a Wynntils full-screen view, Wynncraft fills the part below the chest with its buttons, the scroll buttons being menu slots 65 and 69.
+  - `containerSlots(fills, "ContentBookContainer", "Content Book", 54, range(0, 53), true)` equals menu slots 54-89 on gray, with slots 58, 65, 66, 67, 68 and 69 on white.
+- **`thePowderMastersItemSlotIsClearAndOpenItsPowdersPlainAndItsButtonsWhite`**: The shipped rows, for `Powder Master: Infuse`, `Remove` and `Upgrade`, 27 slots, no class.
+  - Each view equals slots 0-26 on gray less the slots left plain (`Infuse` 12-15, `Remove` none, `Upgrade` 11-14), with slots 0, 9, 17 and 18 on white.
+  - The item's slot is `Pane("clear", true)`: slot 11 on `Infuse`, 13 on `Remove` and 15 on `Upgrade`.
+- **`theMerchantsFrameIsGreyWithOneWhiteButtonAndTheWaresSlots`**: The shipped rows. `Merchant`, 54 slots, no class.
+  - `containerSlots` equals slots 0-8 and the columns 0 and 8 of rows 1-5 on gray, with slot 4 on white.
+- **`eachPartyFinderViewIsFramedInGreyOverARowOfWhiteButtons`**: The shipped rows. For each of `Party Finder: Create`, `Join`, `Queue` and `Search`, 54 slots, no class.
+  - `containerSlots` equals slots 0-8, 36-44, 9, 17, 18, 26, 27 and 35 on gray, with slots 45-53 on white.
+- **`theMasteryTomesAreGreyBarTheTomesRingOfSlotsAndTheBackButton`**: The shipped rows. `MasteryTomesContainer`, `Mastery Tomes`, 54 slots.
+  - `containerSlots` equals slots 0-53 but 4, 11, 15, 19, 22, 25, 28, 30, 31, 32, 34, 38, 42 and 49 on gray, with slot 45, the back button, on white.
+- **`theScavengersMerchantHasARowOfWhiteButtonsUnderItsWares`**: The shipped rows. `Scavenger: Merchant`, 54 slots, no class.
+  - `containerSlots` equals slots 45-53 on white.
+- **`theScavengersTinkerIsWhiteBetweenGreyEdgesOverAClearOpenItemSlot`**: The shipped rows. `Scavenger: Tinker`, 54 slots, no class.
+  - `containerSlots` equals slots 0-44 on white, columns 0 and 8 of rows 0-5 on gray, slot 51 on gray and slot 52 as `Pane("clear", true)`; slots 46-50 stay slots.
+- **`theItemUpgraderIsGreyWithItsTablesSevenMarksWhite`**: The shipped rows. `Item Upgrader`, 27 slots, no class.
+  - `containerSlots` equals slots 0-26 on gray but 10, 12, 14, 16, 20, 22 and 24 on white, the seven marks on the art's table.
+- **`ascensionsItemSlotIsClearAndOpenItsGemPinkAndItsButtonsWhite`**: The shipped rows. `Item Upgrader: Ascension`, 27 slots, no class.
+  - `containerSlots` equals slots 0-26 on gray but 12-15 and 21-23, which stay slots; 2-6, 17 and 18 on white; slot 11 as `Pane("clear", true)`; and slot 24 on pink.
+- **`pouchesItemSlotIsClearAndOpenAndItsButtonsWhite`**: The shipped rows. `Item Upgrader: Pouches`, 27 slots, no class.
+  - `containerSlots` equals slots 0-26 on gray but 12-15 and 21-24, which stay slots; 17 and 18 on white; and slot 11 as `Pane("clear", true)`.
+- **`thePowderViewsAreGreyWithTheirButtonsWhiteAndUpgradesItemSlotClearAndOpen`**: The shipped rows. `Item Upgrader: Powder Upgrade` and `Item Upgrader: Powder Remove`, 27 slots each, no class.
+  - Powder Upgrade: slots 0-26 on gray but 11-14, which stay slots; 17 and 18 on white; slot 15 as `Pane("clear", true)`.
+  - Powder Remove: slots 0-26 on gray but 13, which stays a slot; 17 and 18 on white.
+- **`theHousingMasterIsGreyWithItsSevenButtonsWhite`**: The shipped rows. `Housing Master`, a title in plain text, 27 slots, no class.
+  - `containerSlots` equals slots 0-26 on gray but 10-14, 16 and 21 on white; the fallback glazed it white before.
+- **`aHousingBlockListHasGreyEdgesWithWhiteArrowsAndItsBlocksOnSlots`**: The shipped rows. `Decoration Type Blocks` and `Wood Type Blocks`, titles in plain text, 54 slots, no class.
+  - For each, `containerSlots` equals columns 0 and 8 on gray but 0 and 8, the page arrows, on white; columns 1-7 stay slots.
+- **`mountSettingsIsGreyWithItsPanelsThreeMarksWhite`**: The shipped rows. `Mount Settings`, 27 slots, no class.
+  - `containerSlots` equals slots 0-26 on gray but 11, 13 and 15 on white, the three marks on the art's panel.
+- **`theMountFeedersDividerIsGrey`**: The shipped rows. `MountFeederContainer`, `Mount Feeder`, 54 slots.
+  - `containerSlots` equals slots 1, 10, 19, 28, 37 and 46 on gray.
+- **`everyOtherScreenClosesEveryEmptySlotInWhite`**: The shipped rows.
+  - `GuildMemberListContainer`, `Returners: Members`, 54 slots: `containerSlots` equals slots 0-53 on white.
 - **`eachScreenWithWaresOrAChoiceGlazesOnlyItsButtons`**: The shipped rows.
-  - `CharacterInfoContainer`, `Character Info`, 27 slots: all but the skill point books, 11-15.
-  - `TradeMarketContainer`: slots 45-53, the row under the listings.
+  - `slots(...)` of `CharacterInfoContainer`, `Character Info`, 27 slots: all but the skill point books, 11-15.
+  - `TradeMarketContainer`, 54 slots: slots 45-53, the row under the listings.
   - `TradeMarketRevealItemsContainer`, 9 slots: slot 8, the checkmark.
-  - Each of the two `Blacksmith` and two `ItemIdentifier` screens, 27 slots, with the sell screen's bounds: every slot outside them.
-  - `GuildBankContainer`, 45 slots: columns 0 and 1, its buttons.
-  - `GuildManagementContainer`, 27 slots: columns 0, 1, 7 and 8; the middle's buttons are on plain slots.
-  - `MountFeederContainer`, 45 slots: column 1, between the mount's slots and the food's.
-  - A nameless `Merchant`, 54 slots: the top row and the side columns, not the wares, which run down to the last row.
-  - A nameless `Item Pedestal`, 9 slots: all but its item (3) and sign (5).
-  - A nameless `Housing Islands` and `Powder Master: Remove`, 27 slots: the frame round the middle row's seven.
-  - A nameless `Party Finder: Join`, 54 slots: all but the seven listings on each of rows 1 to 3.
-  - `CraftingStationContainer`, 27 slots: slot 13, the checkmark.
-- **`aPlayerTradeIsGlassOnlyOnItsCentreColumnAndCheckmarks`**: The shipped rows, with the title through `readableTitle`, so its rule and the row's pattern cannot drift apart. `containerSlots` of a 27-slot container titled with two names 4 or 14 spaces apart equals `{4, 5, 13, 21, 22}`; 3 spaces apart it is every slot, through the fallback.
-- **`theScreensThatTakeThePlayersThingsKeepTheirEmptySlotsOpen`**: The shipped rows. `containerSlots` is empty for the ingredient pouch, loot chest and the other containers whose empty slots take the player's things.
-- **`aPlayersAccessorySlotIsPickedButMovableAndOtherPickedSlotsAreGlass`**: `panelsOf` picks the player's accessory slot but leaves it movable; another picked player slot is unmovable.
-  - Over player slots 9 (an accessory) and 7 (the compass) picked, and a third unpicked: `picked()` is `{30, 31}`, `unmovable()` is `{31}` and `inert()` is empty.
+  - Each of `BlacksmithSellContainer`, `BlacksmithRepairContainer`, `ItemIdentifierContainer` and `ItemIdentifierAugmentsContainer`, 27 slots, with the sell screen's bounds (11-15 and 20-24; Wynntils' rows 1 and 2, columns 2 to 6): every slot outside them.
+  - A nameless `Merchant`, 54 slots: slots 0-8 and the columns 0 and 8 of rows 1-5, not the wares, which run down to the last row.
+  - A nameless `Item Pedestal`, 9 slots: `containerSlots` gives 0, 1, 2, 4, 6, 7 and 8 on gray and its sign (5) on white; its item (3) stays a slot.
+  - A nameless `Housing Islands`, 27 slots: `containerSlots` gives the frame (0-8, 18-26, 9 and 17) on gray round the middle row's seven (10-16) on white. A nameless `Available Islands`, 45 slots: 1, 9, 18 and 37 on gray and 0, 10, 19, 27, 28 and 36 on white, the two left columns; the islands are slots.
+  - `GuildBankContainer`, 45 slots: columns 0 and 1 of rows 0-4, its buttons; the rest is storage.
+  - `GuildManagementContainer`, 27 slots: `{0, 1, 7, 8, 9, 10, 16, 17, 18, 19, 25, 26}`, the two columns each side; the middle's buttons are on plain slots.
+  - `MountFeederContainer`, 45 slots: `{1, 10, 19, 28, 37}`, the column between the mount's slots and the food's.
+  - A nameless `Party Finder: Join`, 54 slots: all but the seven listings on each of rows 1 to 3 (columns 1 to 7).
+  - `containerSlots` of `CraftingStationContainer`, `Jeweling`, 27 slots (three rows: Wynntils' bounds, rows 0 to 6, are its 27 and the inventory's 36): slots 1, 4, 18, 19 and 22 on gray, with slots 10 and 13 on white, 13 being the checkmark.
+- **`aPlayerTradeIsGlassOnlyOnItsCentreColumnAndCheckmarks`**: The shipped rows, with the title through `readableTitle`, so its rule and the row's pattern cannot drift apart. `containerSlots` of a 27-slot container titled with two names 4 or 14 spaces apart equals slots 4, 13 and 22 (the centre column) on gray and 5 and 21 (the checkmarks) on white; 3 spaces apart its `slots` are 0-26, through the fallback.
+- **`theScreensThatTakeThePlayersThingsKeepTheirEmptySlotsOpen`**: The shipped rows. `slots` is empty, over 54 slots and no bounds, for `IngredientPouchContainer`, `LootChestContainer`, `FlyingChestContainer`, `DailyRewardContainer`, `ChallengeRewardContainer`, `ObjectiveRewardContainer`, `ItemBombRewardContainer`, `IngredientBombRewardContainer` and `EventContainer`, the containers whose empty slots take the player's things.
+- **`bits`**: Helper: a `BitSet` of the given indices.
+- **`aPlayersAccessorySlotIsPickedButMovableAndOtherPickedSlotsAreGlass`**: `panelsOf` picks the player's accessory slot but gives it no glass; another picked player slot gets the players' glass.
+  - Over player slots 9 (an accessory) and 7 (the compass) picked, with 9 to 12 the accessories, a third slot, 20, unpicked, no container glass and no edits: `picked()` is `{30, 31}`, `glass()` equals `{31: Pane.PLAYERS}` (the compass is fixed, on white glass; the ring slot is not) and `inert()` is empty.
 - **`aChestSlotNumberedLikeAnAccessoryIsNoAccessory`**: An accessory is a slot of the player's own inventory; a chest slot with the same number is not one.
-  - With container slot 9 picked and the player's 9 not: `picked()` is `{9}` (the chest's), and so is `unmovable()`.
+  - With container slot 9 glazed gray and the player's 9 not picked: `picked()` is `{9}` (the chest's alone) and `glass()` equals `{9: Pane("gray", false)}`, its row's glass.
+- **`onAFullScreenViewThePlayersSlotsAreTheContainersByMenuIndex`**: The player's slot 9 is an accessory and the player row's elsewhere; with `fullScreen` true it is menu slot 54, a button of Wynncraft's.
+  - With the container glass `{54: gray, 65: white}`, slots at menu indices 54, 65 and 0, and the player's 9 picked: `picked()` is `{54, 65}` and `glass()` equals `{54: Pane("gray", false), 65: Pane("white", false)}`.
 - **`aSlotWhollyUnderAnEditIsInertWhetherPickedOrNot`**: A slot whose square lies wholly inside a painted rectangle is inert; one outside it is not.
   - With the rectangle `[97, 17, 74, 36]` and no slot picked: the slot at (98, 18) is inert, the one at (8, 8) is not, and `picked()` is empty.
 - **`theShippedInventoryEditsPaintOverTheCraftingGridResultAndOffhandAlone`**: The rectangles of `RetroModeManager.manifest().assets().imageEdits().get(INVENTORY_TEXTURE)`, and `InventoryMenu`'s slot positions.
@@ -5365,6 +5496,7 @@ Test: [`RetroStackModelsTest.java`](../src/test/java/org/wynnvets/retro/render/R
 - **`theTwoShieldIngredientsAreTheRealShieldWhateverWrapsTheirNames`**: Against the `minecraft:potion` rows, `Butterfly Buckler` in Wynncraft's spacing and `Router Shield` give `minecraft:shield`, and `Mega Fern` `null`.
 - **`modelFor`**: Helper: the lookup with `RetroPart.all()`.
 - **`aRowMatchesTheWholeName`**: `Active Blesses Extra` gives `null`.
+- **`avomodsModelsWithNoStubAreTheOnesThatGiveWay`**: `unstubbedAvomod` over a `Seen` listing `avomod2:item/scroll_sd`, `avomod2:item/potion_sp_strength` (stubbed) and `minecraft:item/wynn/scroll/scroll_teleport` is just `avomod2:item/scroll_sd`: the crafted scroll's Avomod art gives way to Wynncraft's own definition, a potion family's Avomod model keeps retro's stub, and Wynncraft's own models are not Avomod's.
 - **`aRowOfAPartThatIsOffIsPassedOver`**: The shields' row is `crafting`'s and a row with no part `items`'.
   - With `crafting` off, `Router Shield` gives `null`.
   - With `crafting` off, `Active Blesses` still gives `minecraft:nether_star`.

@@ -93,7 +93,9 @@ public final class ManifestFixtures {
                         row.all(),
                         row.except(),
                         null,
-                        row.fallback())
+                        row.fallback(),
+                        row.glass(),
+                        row.open())
                 : fill;
     }
 }

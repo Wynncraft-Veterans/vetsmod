@@ -3,30 +3,22 @@ package org.wynnvets.retro.pack;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.DirectoryStream;
-import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.nio.file.attribute.FileTime;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
-import java.util.stream.Stream;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.server.packs.PackResources;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.retro.manifest.RetroManifest;
 import org.wynnvets.retro.manifest.RetroSource;
 import org.wynnvets.retro.manifest.TextureSections;
+import org.wynnvets.util.AtomicFolders;
 
 /**
  * The old Minecraft clients retro takes art from ({@link RetroSource#oldClient()}): each jar as
@@ -43,14 +35,6 @@ public final class OldClients {
 
     /** Changes the hash when what a folder holds for the same rows changes. */
     private static final int FORMAT = 1;
-
-    /** A temporary folder this old is a fetch that never finished, and is deleted. */
-    private static final Duration ABANDONED = Duration.ofDays(1);
-
-    private static final String TEMPORARY = ".tmp-";
-
-    /** How often a rename refused for a moment is tried: 50 ms, then doubling, up to 0.8 s. */
-    private static final int RENAME_ATTEMPTS = 5;
 
     /**
      * One client's jar, as Mojang serves it. The jars never change, so each is pinned.
@@ -221,9 +205,8 @@ public final class OldClients {
     }
 
     /**
-     * Writes a client's files under a temporary name, then gives the folder its name, then deletes
-     * the client's other folders: those of older rows, and temporary ones a day old. A folder that
-     * already has the name, which another game sharing the folder can have written, is kept.
+     * Writes a client's files as its folder, whole or not at all ({@link AtomicFolders#install}),
+     * then deletes the client's other folders: those of older rows, and temporary ones a day old.
      *
      * @param root the folder every client's folders are in
      * @param client the client
@@ -234,84 +217,6 @@ public final class OldClients {
      */
     static void install(Path root, RetroSource client, String hash, Map<String, byte[]> files)
             throws IOException {
-        Path target = folder(root, client, hash);
-        Path temporary = target.resolveSibling(hash + TEMPORARY + UUID.randomUUID());
-        try {
-            Files.createDirectories(temporary);
-            for (Map.Entry<String, byte[]> file : files.entrySet()) {
-                Path path = temporary.resolve(file.getKey()).normalize();
-                if (!path.startsWith(temporary)) throw new IOException("outside: " + file.getKey());
-                Files.createDirectories(path.getParent());
-                Files.write(path, file.getValue());
-            }
-        } catch (IOException | RuntimeException e) {
-            delete(temporary);
-            throw e;
-        }
-        rename(temporary, target);
-        deleteStale(target.getParent(), hash);
-    }
-
-    /**
-     * Gives the written folder its name. A folder that already has the name is kept and the written
-     * one deleted. On Windows a scanner can hold a just-written file open and refuse the rename for
-     * a moment, so it is tried again a few times first.
-     */
-    private static void rename(Path temporary, Path target) throws IOException {
-        for (int attempt = 0; ; attempt++) {
-            try {
-                Files.move(temporary, target, StandardCopyOption.ATOMIC_MOVE);
-                return;
-            } catch (IOException e) {
-                if (Files.isDirectory(target)) {
-                    delete(temporary);
-                    return;
-                }
-                if (e instanceof FileAlreadyExistsException || attempt == RENAME_ATTEMPTS - 1) {
-                    delete(temporary);
-                    throw e;
-                }
-                try {
-                    Thread.sleep(50L << attempt);
-                } catch (InterruptedException interrupted) {
-                    Thread.currentThread().interrupt();
-                    delete(temporary);
-                    throw new IOException("interrupted renaming " + temporary, interrupted);
-                }
-            }
-        }
-    }
-
-    /** Deletes each folder beside the current one but those still being written. */
-    private static void deleteStale(Path clientFolder, String hash) {
-        Instant abandoned = Instant.now().minus(ABANDONED);
-        try (DirectoryStream<Path> folders = Files.newDirectoryStream(clientFolder)) {
-            for (Path folder : folders) {
-                String name = folder.getFileName().toString();
-                if (name.equals(hash)) continue;
-                if (name.contains(TEMPORARY)) {
-                    FileTime modified = Files.getLastModifiedTime(folder);
-                    if (modified.toInstant().isAfter(abandoned)) continue;
-                }
-                delete(folder);
-            }
-        } catch (IOException | RuntimeException e) {
-            VetsLogger.debug("Retro: left some stale old-client folders", e);
-        }
-    }
-
-    /** Deletes a folder and everything in it; what cannot be deleted stays. */
-    private static void delete(Path folder) {
-        try (Stream<Path> paths = Files.walk(folder)) {
-            for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
-                try {
-                    Files.deleteIfExists(path);
-                } catch (IOException e) {
-                    VetsLogger.debug("Retro: could not delete {}", path, e);
-                }
-            }
-        } catch (IOException | RuntimeException e) {
-            VetsLogger.debug("Retro: could not delete {}", folder, e);
-        }
+        AtomicFolders.install(folder(root, client, hash), files);
     }
 }

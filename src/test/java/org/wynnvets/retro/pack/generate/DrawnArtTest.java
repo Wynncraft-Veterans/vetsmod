@@ -267,7 +267,8 @@ class DrawnArtTest {
     void whatGearBoxesDrawByCodeIsTheirsWhileTheyAreOn() {
         vanillaItem("iron_helmet");
         vanillaItem("enchanted_book");
-        String icons = "gear_box_icons:\n  'HELMET': 'minecraft:iron_helmet'\n";
+        String icons =
+                "gear_box_icons:\n  - {scale: 0.75, items: {'HELMET': 'minecraft:iron_helmet'}}\n";
 
         assertEquals(
                 Set.of("minecraft:item/iron_helmet", "minecraft:item/enchanted_book"),
@@ -336,7 +337,8 @@ class DrawnArtTest {
         vanilla.overClasspath();
         RetroManifest manifest = RetroManifest.load();
         GenerationContext gen = gen(manifest, RetroPart.all());
-        Set<String> items = new TreeSet<>(manifest.stacks().gearBoxIcons().values());
+        Set<String> items = new TreeSet<>();
+        manifest.stacks().gearBoxIcons().values().forEach(icon -> items.add(icon.item()));
         manifest.stacks().stackModels().forEach(row -> items.add(row.model()));
         items.add(RetroAssetIds.GLINTING_BOOK);
 

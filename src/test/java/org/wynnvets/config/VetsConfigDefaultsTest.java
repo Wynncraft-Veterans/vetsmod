@@ -16,8 +16,9 @@ import org.junit.jupiter.api.Test;
  * shipped {@code config.yml} and {@code /wv config <key> default} restore. The user-facing
  * defaults are a frozen literal, not read from the class. The per-kind guard reads
  * {@code VetsConfigSchema.USER_CONFIG_KEYS}, so a new user key without a default fails here.
- * Four internal defaults are pinned too: {@code retroTextures} starts off, and
- * {@code retroWynntilsSnapshot}, {@code retroPartsOff} and {@code sudokuProgress} start empty.
+ * Five internal defaults are pinned too: {@code retroTextures} and {@code extrasPanorama} start
+ * off, and {@code retroWynntilsSnapshot}, {@code retroPartsOff} and {@code sudokuProgress} start
+ * empty.
  *
  * <p>NOTE: {@link VetsConfigDefaults} has no static state, and the one other class it loads,
  * {@code DebugConfigManager}, holds only strings and an immutable map, so nothing here needs a
@@ -107,6 +108,12 @@ class VetsConfigDefaultsTest {
     void sudokuProgress_isEmptyOnAFirstRun() {
         // Empty means there is no board yet.
         assertEquals("", VetsConfigDefaults.firstRunValues().get("sudokuProgress"));
+    }
+
+    @Test
+    void extrasPanorama_isOffOnAFirstRun() {
+        // An easter egg: the main menu keeps its own panorama until /wv extras panorama on.
+        assertEquals(false, VetsConfigDefaults.firstRunValues().get("extrasPanorama"));
     }
 
     @Test

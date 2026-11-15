@@ -289,7 +289,10 @@ class ManifestParserTest {
                 () -> manifest.assets().sourceCopies().put("a", SourceCopy.of("b")));
         assertThrows(
                 UnsupportedOperationException.class,
-                () -> manifest.stacks().gearBoxIcons().put("a", "b"));
+                () ->
+                        manifest.stacks()
+                                .gearBoxIcons()
+                                .put("a", new StackSections.GearBoxIcon("b", 1)));
         assertThrows(
                 UnsupportedOperationException.class,
                 () -> manifest.assets().lang().strings().put("a", "b"));

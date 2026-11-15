@@ -67,10 +67,10 @@ class ScreenSectionsTest {
                         """
                         slot_fills:
                           - {player: wynntils}
-                          - {container: 'TradeMarketContainer', rows: [5]}
+                          - {container: 'TradeMarketContainer', rows: [5], glass: gray}
                           - {container: 'BankContainer', slots: outside_bounds}
                           - {title: '.+ Rewards', cols: [0, 8], slots: [3, '45-47']}
-                          - {container: 'Sell', slots: all, except: [22, '28-29']}
+                          - {container: 'Sell', slots: all, except: [22, '28-29'], glass: clear, open: true}
                           - {title: '.*', slots: all, unless: 'Chest|.+Bank'}
                         """);
 
@@ -79,10 +79,10 @@ class ScreenSectionsTest {
                         new SlotFill.PlayerSlots(),
                         new SlotFill.ContainerSlots(
                                 null, null, Set.of(5), Set.of(), Set.of(), false, false, Set.of(),
-                                null, false),
+                                null, false, "gray", false),
                         new SlotFill.ContainerSlots(
                                 null, null, Set.of(), Set.of(), Set.of(), true, false, Set.of(),
-                                null, false),
+                                null, false, "white", false),
                         new SlotFill.ContainerSlots(
                                 null,
                                 null,
@@ -93,6 +93,8 @@ class ScreenSectionsTest {
                                 false,
                                 Set.of(),
                                 null,
+                                false,
+                                "white",
                                 false),
                         new SlotFill.ContainerSlots(
                                 null,
@@ -104,10 +106,12 @@ class ScreenSectionsTest {
                                 true,
                                 Set.of(22, 28, 29),
                                 null,
-                                false),
+                                false,
+                                "clear",
+                                true),
                         new SlotFill.ContainerSlots(
                                 null, null, Set.of(), Set.of(), Set.of(), false, true, Set.of(),
-                                null, false)),
+                                null, false, "white", false)),
                 manifest.screens().slotFills().stream()
                         .map(ManifestFixtures::withoutPatterns)
                         .toList());
@@ -136,7 +140,7 @@ class ScreenSectionsTest {
                         "{container: 'A'}",
                         "{container: 'A', rows: [6]}",
                         "{container: 'A', cols: [9]}",
-                        "{container: 'A', slots: [54]}",
+                        "{container: 'A', slots: [90]}",
                         "{container: 'A', slots: ['53-45']}",
                         "{container: 'A', slots: some}",
                         "{container: 'A', slots: all, unless: '('}",
@@ -145,9 +149,14 @@ class ScreenSectionsTest {
                         "{container: 'A', row: [1]}",
                         "{container: 'A(', rows: [1]}",
                         "{container: 'A', except: [1]}",
-                        "{container: 'A', slots: all, except: [54]}",
+                        "{container: 'A', slots: all, except: [90]}",
                         "{container: 'A', slots: all, except: everything}",
-                        "{player: wynntils, except: [1]}")) {
+                        "{player: wynntils, except: [1]}",
+                        "{player: wynntils, glass: gray}",
+                        "{container: 'A', rows: [1], glass: grey}",
+                        "{container: 'A', rows: [1], glass: tinted}",
+                        "{container: 'A', rows: [1], glass: [gray]}",
+                        "{container: 'A', rows: [1], open: 'yes'}")) {
             assertThrows(
                     IllegalArgumentException.class,
                     () -> parse("slot_fills:\n  - " + row + "\n"),

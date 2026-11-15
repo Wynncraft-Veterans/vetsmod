@@ -7,9 +7,12 @@ import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.TreeSet;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
@@ -37,24 +40,27 @@ import org.wynnvets.retro.manifest.ScreenSections.SlotFill;
  *
  * <p>Slot fills apply on the inventory screen and on the containers whose label
  * {@link RetroContainerTitles} draws, since those show the vanilla container; never on a container
- * that keeps Wynncraft's label and art, never on Wynntils' full-screen views (whose player
- * inventory part Wynncraft fills with its own buttons, so the player's slots there are not the
- * player's: the content book's scroll buttons are menu slots 65 and 69), and only while the retro
- * pack is live. A {@code player} row picks the player's slots that Wynntils names, matched by the
- * slot's own inventory and its index there, never by the menu index (in the inventory's menu, 7
- * and 8 are armour). A container row picks slots of a chest by row, column and number, every slot
- * outside Wynntils' bounds, or every slot ({@code slots: all}); never a slot in its
- * {@code except}, nor any slot of a container its {@code unless} matches. A picked slot shows white
- * glass, under its item if it has one, since its item cannot be moved; an accessory slot, which the
- * player fills, stays a slot under a white edge. With the {@code glass} part off no row picks a
- * slot; the inventory's slots the live pack painted over stay inert, and it paints them only with
- * {@code screens} on.</p>
+ * that keeps Wynncraft's label and art, and only while the retro pack is live. A {@code player} row
+ * picks the player's slots that Wynntils names, matched by the slot's own inventory and its index
+ * there, never by the menu index (in the inventory's menu, 7 and 8 are armour). A container row
+ * picks slots of a chest by row, column and number, every slot outside Wynntils' bounds, or every
+ * slot ({@code slots: all}); never a slot in its {@code except}, nor any slot of a container its
+ * {@code unless} matches. On a Wynntils full-screen view, Wynncraft fills the part below the chest
+ * with its own buttons, so the player's slots there are not the player's (the content book's
+ * scroll buttons are menu slots 65 and 69): only the container rows naming its class apply, and
+ * their {@code slots} past the chest pick that part by menu index. A picked slot shows glass under
+ * its item if it has one, since its item cannot be moved: the player's white, a container's in its
+ * row's {@code glass}, the first row's where two rows pick it; a slot of an {@code open} row, which
+ * the player fills, shows its glass too but still answers the mouse while empty. An accessory
+ * slot, which the player fills, stays a slot under a white edge. With the {@code glass} part off no
+ * row picks a slot; the inventory's slots the live pack painted over stay inert, and it paints them
+ * only with {@code screens} on.</p>
  *
  * <ul>
  *   <li>{@link #paintIfPanel}, for
- *       {@link org.wynnvets.listeners.RetroSlotListener RetroSlotListener}: the white glass,
- *       before the slot's item is drawn over it, the slot's frame left showing, and the accessory
- *       slots' white edge.</li>
+ *       {@link org.wynnvets.listeners.RetroSlotListener RetroSlotListener}: the glass, before the
+ *       slot's item is drawn over it, the slot's frame left showing, and the accessory slots'
+ *       white edge.</li>
  *   <li>{@link #hovered}, for
  *       {@link org.wynnvets.mixin.client.retro.RetroHoveredSlotMixin RetroHoveredSlotMixin}: no
  *       hovered slot over an inventory slot the live pack's {@code image_edits} painted over (the
@@ -116,16 +122,29 @@ public final class RetroSlots {
     private RetroSlots() {}
 
     /**
+     * The glass a picked slot shows.
+     *
+     * @param colour one of {@link ScreenSections#GLASS_COLOURS}
+     * @param open whether the slot answers the mouse while empty, as one the player puts things
+     *     in; otherwise it answers only while it holds an item
+     */
+    // Package-private for unit tests. See RetroSlotsTest.
+    record Pane(String colour, boolean open) {
+        /** The player's slots' glass. */
+        static final Pane PLAYERS = new Pane(ScreenSections.DEFAULT_GLASS, false);
+    }
+
+    /**
      * A screen's panel slots, by menu index.
      *
      * @param picked the slots a {@code slot_fills} row picks
-     * @param unmovable those whose item is fixed, which show white glass and with no item answer no
-     *     mouse. The others, the accessories, are the player's to fill
+     * @param glass those that show glass, by its pane. The others, the accessories, are the
+     *     player's to fill
      * @param inert the slots that never answer the mouse
      */
     // Package-private for unit tests. See RetroSlotsTest.
-    record Panels(BitSet picked, BitSet unmovable, BitSet inert) {
-        static final Panels NONE = new Panels(new BitSet(), new BitSet(), new BitSet());
+    record Panels(BitSet picked, Map<Integer, Pane> glass, BitSet inert) {
+        static final Panels NONE = new Panels(new BitSet(), Map.of(), new BitSet());
     }
 
     /**
@@ -141,8 +160,8 @@ public final class RetroSlots {
     record SlotKey(int index, int containerSlot, boolean own, int x, int y) {}
 
     /**
-     * Marks {@code slot} when a {@code slot_fills} row picks it on {@code screen}: white glass,
-     * under its item if it has one, where the item cannot be moved; and for an accessory slot,
+     * Marks {@code slot} when a {@code slot_fills} row picks it on {@code screen}: its glass,
+     * under its item if it has one; and for an accessory slot,
      * which stays a plain slot, a thick white edge along its bottom, and for the last along its
      * right, which sets the four apart from the inventory they sit in.
      *
@@ -162,8 +181,9 @@ public final class RetroSlots {
             GuiGraphics graphics, AbstractContainerScreen<?> container, Slot slot) {
         Panels found = panels(container);
         if (!found.picked().get(slot.index)) return;
-        if (found.unmovable().get(slot.index)) {
-            graphics.renderFakeItem(RetroStacks.whiteGlass(), slot.x, slot.y);
+        Pane pane = found.glass().get(slot.index);
+        if (pane != null) {
+            graphics.renderFakeItem(RetroStacks.glass(pane.colour()), slot.x, slot.y);
             return;
         }
         int right = slot.x + RetroStacks.SLOT_SIZE;
@@ -197,7 +217,8 @@ public final class RetroSlots {
     private static Slot answering(AbstractContainerScreen<?> screen, Slot slot) {
         Panels found = panels(screen);
         if (found.inert().get(slot.index)) return null;
-        if (found.unmovable().get(slot.index) && holdsNothing(slot)) return null;
+        Pane pane = found.glass().get(slot.index);
+        if (pane != null && !pane.open() && holdsNothing(slot)) return null;
         return slot;
     }
 
@@ -232,8 +253,8 @@ public final class RetroSlots {
     }
 
     /**
-     * Which of the screen's slots are glazed, unmovable and inert: none on a screen retro has not
-     * relabelled or on a full-screen view.
+     * Which of the screen's slots are picked, glazed and inert: none on a screen retro has not
+     * relabelled.
      */
     private static Panels workOut(
             AbstractContainerScreen<?> screen, RetroContainerTitles.Relabelled title) {
@@ -243,21 +264,25 @@ public final class RetroSlots {
     private static Panels panelsOn(
             AbstractContainerScreen<?> screen, RetroContainerTitles.Relabelled title) {
         boolean inventory = screen instanceof InventoryScreen;
-        if (!inventory && (title == null || title.fullscreen())) return Panels.NONE;
+        if (!inventory && title == null) return Panels.NONE;
+        boolean fullScreen = !inventory && title.fullscreen();
         boolean glass = RetroModeManager.isPartOn(RetroPart.GLASS);
         List<SlotFill> fills = RetroModeManager.manifest().screens().slotFills();
         AbstractContainerMenu menu = screen.getMenu();
-        Set<Integer> containerPanels =
+        Map<Integer, Pane> containerPanels =
                 glass && title != null && menu instanceof ChestMenu chest
                         ? containerSlots(
                                 fills,
                                 title.containerClass(),
                                 title.title(),
                                 chest.getRowCount() * COLUMNS,
-                                title.bounds())
-                        : Set.of();
+                                title.bounds(),
+                                fullScreen)
+                        : Map.of();
         Set<Integer> playerPanels =
-                glass && fills.stream().anyMatch(SlotFill.PlayerSlots.class::isInstance)
+                glass
+                                && !fullScreen
+                                && fills.stream().anyMatch(SlotFill.PlayerSlots.class::isInstance)
                         ? wynntilsPlayerSlots()
                         : Set.of();
         LocalPlayer player = McUtils.player();
@@ -271,35 +296,45 @@ public final class RetroSlots {
                 containerPanels,
                 playerPanels,
                 accessorySlots(),
-                inventory ? LivePack.imageEdits(INVENTORY_TEXTURE) : List.of());
+                inventory ? LivePack.imageEdits(INVENTORY_TEXTURE) : List.of(),
+                fullScreen);
     }
 
     /**
      * A screen's panel slots, from what its rows pick.
      *
      * @param slots the screen's slots
-     * @param containerPanels the container slots the {@code slot_fills} rows pick
-     * @param playerPanels the player's slots they pick
+     * @param containerPanels the slots the {@code slot_fills} container rows pick, by menu index
+     *     (a chest's own slots' indices are their numbers), by their glass
+     * @param playerPanels the player's slots they pick, which show {@link Pane#PLAYERS}
      * @param accessories the player's accessory slots, which the player fills; a container slot of
      *     the same number is no accessory
      * @param painted the rectangles {@code image_edits} painted on the screen's texture: none but
      *     on the inventory screen
+     * @param fullScreen whether it is a Wynntils full-screen view, whose slots below the chest
+     *     are the container's, not the player's
      * @return its panel slots, by menu index
      */
     // Package-private for unit tests. See RetroSlotsTest.
     static Panels panelsOf(
             List<SlotKey> slots,
-            Set<Integer> containerPanels,
+            Map<Integer, Pane> containerPanels,
             Set<Integer> playerPanels,
             Set<Integer> accessories,
-            List<Rect> painted) {
-        Panels found = new Panels(new BitSet(), new BitSet(), new BitSet());
+            List<Rect> painted,
+            boolean fullScreen) {
+        Panels found = new Panels(new BitSet(), new HashMap<>(), new BitSet());
         for (SlotKey slot : slots) {
+            boolean containers = !slot.own() || fullScreen;
             int index = slot.containerSlot();
-            if (slot.own() ? playerPanels.contains(index) : containerPanels.contains(index)) {
+            Pane pane =
+                    containers
+                            ? containerPanels.get(slot.index())
+                            : (playerPanels.contains(index) ? Pane.PLAYERS : null);
+            if (pane != null) {
                 found.picked().set(slot.index());
-                if (!slot.own() || !accessories.contains(index)) {
-                    found.unmovable().set(slot.index());
+                if (containers || !accessories.contains(index)) {
+                    found.glass().put(slot.index(), pane);
                 }
             }
             if (paintedOver(painted, slot.x(), slot.y())) found.inert().set(slot.index());
@@ -327,34 +362,50 @@ public final class RetroSlots {
     }
 
     /**
-     * The container slots the {@code slot_fills} container rows glaze on one container,
-     * whatever they hold. A {@code fallback} row counts only when no row before it applied.
+     * The slots the {@code slot_fills} container rows glaze on one container, whatever they hold,
+     * with each one's glass: the first row's that picks it. A {@code fallback} row counts only
+     * when no row before it applied. On a full-screen view only a row naming the
+     * container's class applies, and its {@code slots} past the chest pick the part below it.
      *
      * @param fills the {@code slot_fills} rows; {@code player} rows are skipped
      * @param containerClass the simple name of its Wynntils container class, or {@code null}
      * @param title its title as retro draws it
      * @param size how many container slots it has
      * @param bounds the slots Wynntils says hold its items, or {@code null} for none
-     * @return the container slots to paint, each below {@code size}
+     * @param fullScreen whether it is a Wynntils full-screen view
+     * @return the slots to paint, by menu index, with their glass: each below {@code size}, or on
+     *     a full-screen view below {@code size} and the part below's {@link
+     *     ScreenSections#SLOTS_BELOW}
      */
     // Package-private for unit tests. See RetroSlotsTest.
-    static Set<Integer> containerSlots(
+    static Map<Integer, Pane> containerSlots(
             List<SlotFill> fills,
             String containerClass,
             String title,
             int size,
-            Collection<Integer> bounds) {
-        Set<Integer> found = new TreeSet<>();
+            Collection<Integer> bounds,
+            boolean fullScreen) {
+        Map<Integer, Pane> found = new TreeMap<>();
         boolean applied = false;
         for (SlotFill fill : fills) {
             if (!(fill instanceof SlotFill.ContainerSlots row)
+                    || (fullScreen && row.containers() == null)
                     || (row.fallback() && applied)
                     || !applies(row, containerClass, title)) {
                 continue;
             }
             applied = true;
+            Pane pane = new Pane(row.glass(), row.open());
             for (int slot = 0; slot < size; slot++) {
-                if (covers(row, slot, bounds)) found.add(slot);
+                if (covers(row, slot, bounds)) found.putIfAbsent(slot, pane);
+            }
+            if (!fullScreen) continue;
+            for (int slot : row.slots()) {
+                if (slot >= size
+                        && slot < size + ScreenSections.SLOTS_BELOW
+                        && !row.except().contains(slot)) {
+                    found.putIfAbsent(slot, pane);
+                }
             }
         }
         return found;

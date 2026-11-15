@@ -9,15 +9,16 @@ import java.util.regex.Pattern;
 /**
  * The sections the game reads while it draws Wynncraft's screens.
  *
- * <p>Beyond the rules every section keeps, these fail the parse: a slot, row or column a chest does
- * not have, a {@code slot_fills} row that names both a container and a title, neither, or no slots,
- * a {@code slot_values} lore pattern without a group, and a glyph outside the private use area.
+ * <p>Beyond the rules every section keeps, these fail the parse: a row or column a chest does not
+ * have, a slot past a six-row chest's part below it (89), a {@code slot_fills} row that names both
+ * a container and a title, neither, or no slots, or glass neither clear nor a dye's colour, a
+ * {@code slot_values} lore pattern without a group, and a glyph outside the private use area.
  *
  * @param containerTitles {@code container_titles}: the titles drawn on Wynncraft's containers; the
  *     first matching row decides
  * @param glyphTitles {@code glyph_titles}: a glyph's code point to the title drawn on a screen
  *     whose title of glyphs has it
- * @param slotFills {@code slot_fills}: the slots drawn as white glass
+ * @param slotFills {@code slot_fills}: the slots drawn as stained glass
  * @param slotValues {@code slot_values}: values drawn in a button's slot, in file order
  * @param hiddenInventoryEffects {@code hidden_inventory_effects}: effect ids left out of the
  *     inventory's effect list while they last forever
@@ -55,11 +56,51 @@ public record ScreenSections(
     /** The {@code slot_fills} {@code slots} value for every slot. */
     private static final String ALL_SLOTS = "all";
 
+    /**
+     * The glass a {@code slot_fills} row shows when it names none, and the glass of the player's
+     * slots.
+     */
+    public static final String DEFAULT_GLASS = "white";
+
+    /** The {@code slot_fills} {@code glass} value for the plain glass pane. */
+    public static final String CLEAR_GLASS = "clear";
+
+    /**
+     * The colours a {@code slot_fills} row's {@code glass} may name: {@link #CLEAR_GLASS}, and
+     * Minecraft's sixteen dyes as their stained glass panes' item ids spell them
+     * ({@code minecraft:<dye>_stained_glass_pane}).
+     */
+    public static final Set<String> GLASS_COLOURS =
+            Set.of(
+                    CLEAR_GLASS,
+                    "white",
+                    "orange",
+                    "magenta",
+                    "light_blue",
+                    "yellow",
+                    "lime",
+                    "pink",
+                    "gray",
+                    "light_gray",
+                    "cyan",
+                    "purple",
+                    "blue",
+                    "brown",
+                    "green",
+                    "red",
+                    "black");
+
     /** The highest row of a chest; a chest is at most six rows. */
     private static final int LAST_ROW = 5;
 
-    /** The highest slot of a chest, counted across then down from 0. */
-    private static final int LAST_SLOT = 53;
+    /**
+     * The highest slot a row may name, counted across then down from 0: a six-row chest's last,
+     * 53, then the part below it on a full-screen view, the inventory's three rows and the hotbar.
+     */
+    private static final int LAST_SLOT = 89;
+
+    /** How many slots the part below a chest has: the inventory's three rows and the hotbar. */
+    public static final int SLOTS_BELOW = 36;
 
     /** What a {@code glyph_titles} key looks like: a character in the private use area. */
     private static final Pattern GLYPH = Pattern.compile("[EF][0-9A-F]{3}");
@@ -92,12 +133,15 @@ public record ScreenSections(
      */
     public record SlotValue(Pattern containers, String name, Pattern lore) {}
 
-    /** A {@code slot_fills} row: slots that show white glass, under their item if they have one. */
+    /**
+     * A {@code slot_fills} row: slots that show stained glass, under their item if they have one.
+     */
     public sealed interface SlotFill {
 
         /**
          * {@code {player: wynntils}}: the player's own slots that Wynntils names (the compass, the
-         * content book, the accessories and the ingredient pouch), wherever slot fills apply.
+         * content book, the accessories and the ingredient pouch), wherever slot fills apply. They
+         * show {@link #DEFAULT_GLASS}.
          */
         record PlayerSlots() implements SlotFill {}
 
@@ -109,7 +153,11 @@ public record ScreenSections(
          * outside Wynntils' bounds; with {@code all}, every slot. At least one of them picks some.
          * A slot in {@code except} is never painted by this row, and a container {@code unless}
          * matches is not one it covers. A {@code fallback} row covers a container only when no row
-         * before it did.
+         * before it did. Where two rows pick a slot, the first one's {@code glass} and
+         * {@code open} hold. On a Wynntils full-screen view, whose part below the chest holds
+         * Wynncraft's buttons, only a row naming its class applies, and its {@code slots} past the
+         * chest's own pick that part, counted on: the inventory's three rows, then the hotbar.
+         * Everywhere else a row picks the chest's slots alone, and a slot past it picks nothing.
          *
          * @param containers the simple names of the Wynntils container classes it covers, or
          *     {@code null}
@@ -117,7 +165,7 @@ public record ScreenSections(
          *     {@code null}
          * @param rows whole rows, 0 the top
          * @param cols whole columns, 0 the left
-         * @param slots single slots
+         * @param slots single slots, past the chest's own only on a full-screen view
          * @param outsideBounds every slot outside the area Wynntils says holds the container's
          *     items
          * @param all every slot
@@ -126,6 +174,9 @@ public record ScreenSections(
          * @param unless the containers it skips, by the simple name of their Wynntils class or by
          *     their title as retro draws it, or {@code null}
          * @param fallback whether it applies only where no earlier row applied
+         * @param glass the colour of the glass its slots show, one of {@link #GLASS_COLOURS}
+         * @param open whether its slots answer the mouse while empty, as slots the player puts
+         *     things in; a glazed slot otherwise answers only while it holds an item
          */
         record ContainerSlots(
                 Pattern containers,
@@ -137,7 +188,9 @@ public record ScreenSections(
                 boolean all,
                 Set<Integer> except,
                 Pattern unless,
-                boolean fallback)
+                boolean fallback,
+                String glass,
+                boolean open)
                 implements SlotFill {
             /** Copies the sets. */
             public ContainerSlots {
@@ -209,7 +262,9 @@ public record ScreenSections(
                         "slots",
                         "except",
                         "unless",
-                        "fallback"),
+                        "fallback",
+                        "glass",
+                        "open"),
                 ScreenSections::slotFill);
     }
 
@@ -244,7 +299,9 @@ public record ScreenSections(
                         ManifestYaml.numbers(
                                 fields.get("except"), LAST_SLOT, rowWhere + ": except"),
                         optionalPattern(fields.get("unless"), rowWhere + ": unless"),
-                        ManifestYaml.flag(fields.get("fallback"), rowWhere + ": fallback"));
+                        ManifestYaml.flag(fields.get("fallback"), rowWhere + ": fallback"),
+                        glass(fields.get("glass"), rowWhere + ": glass"),
+                        ManifestYaml.flag(fields.get("open"), rowWhere + ": open"));
         if (row.rows().isEmpty()
                 && row.cols().isEmpty()
                 && row.slots().isEmpty()
@@ -253,6 +310,20 @@ public record ScreenSections(
             throw new IllegalArgumentException(rowWhere + ": picks no slots");
         }
         return row;
+    }
+
+    /**
+     * A row's {@code glass}: clear or a dye's colour, {@link #DEFAULT_GLASS} when the row names
+     * none.
+     */
+    private static String glass(Object value, String where) {
+        String colour = ManifestYaml.text(value, where);
+        if (colour == null) return DEFAULT_GLASS;
+        if (!GLASS_COLOURS.contains(colour)) {
+            throw new IllegalArgumentException(
+                    where + ": expected clear or a dye's colour such as 'gray', not " + colour);
+        }
+        return colour;
     }
 
     private static Pattern optionalPattern(Object value, String where) {

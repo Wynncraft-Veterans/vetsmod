@@ -18,6 +18,7 @@
 		"EntityGlowingMixin",
 		"EntityOutlineColorMixin",
 		"command.UnlockCommandMixin",
+		"extras.PanoramaRendererMixin",
 		"retro.RetroResourceReloadMixin",
 		"retro.RetroHoveredSlotMixin",
 		"retro.RetroEffectsInInventoryMixin",

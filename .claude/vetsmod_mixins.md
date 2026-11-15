@@ -1,12 +1,12 @@
 ---
 name: vetsmod Mixins Reference
-description: All 21 registered entries (19 mixins + 2 accessors) across two configs — target, inject point, purpose, rationale. Organized by subpackage (chat, command, legacy, retro, accessors) and the top-level mixins.
+description: All 22 registered entries (20 mixins + 2 accessors) across two configs — target, inject point, purpose, rationale. Organized by subpackage (chat, command, extras, legacy, retro, accessors) and the top-level mixins.
 type: project
 originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 ---
 # vetsmod Mixins Reference
 
-21 registered entries — 19 mixins plus two accessor interfaces — all client-side (under `src/client/java/org/wynnvets/mixin/client/`), in two configs: 20 in [vetsmod.client.mixins.json](../src/client/resources/vetsmod.client.mixins.json) and `LaurelBarMixin` alone in the non-required [vetsmod.laurels.mixins.json](../src/client/resources/vetsmod.laurels.mixins.json). Grouped by subpackage below.
+22 registered entries — 20 mixins plus two accessor interfaces — all client-side (under `src/client/java/org/wynnvets/mixin/client/`), in two configs: 21 in [vetsmod.client.mixins.json](../src/client/resources/vetsmod.client.mixins.json) and `LaurelBarMixin` alone in the non-required [vetsmod.laurels.mixins.json](../src/client/resources/vetsmod.laurels.mixins.json). Grouped by subpackage below.
 
 ## Chat (3)
 
@@ -40,6 +40,15 @@ originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 - **Method:** `sendCommand(String command)` at `@At("HEAD")`, `cancellable=true`
 - **Purpose:** Intercepts `/unlock` and `/unlock <key>` before the server. It matches a command that starts with `unlock` in any letter case (so `/Unlock <key>` too), followed by a space or the end. It cancels the send and hands the key to `GuildStateManager.tryUnlock`; checking the key's shape, storing it in `vetsAuthKey` and sending the `auth` frame are `UnlockManager`'s.
 - **Why:** The key is a bearer token issued by dazebot's `/vetsmod` Discord command, and is meant never to reach the Wynncraft server. Server-side validation happens asynchronously via dazebot HTTP introspection — see [vetsmod_guild_system.md §4](vetsmod_guild_system.md) and [vetsmod_networking.md §8](vetsmod_networking.md).
+
+## Extras (1)
+
+### PanoramaRendererMixin
+[PanoramaRendererMixin](../src/client/java/org/wynnvets/mixin/client/extras/PanoramaRendererMixin.java)
+- **Target:** `@Mixin(PanoramaRenderer.class)`
+- **Method:** `render(GuiGraphics, int, int, boolean)`, with MixinExtras' `@WrapOperation` on its `CubeMap.render(Minecraft, float, float)` call (`Lnet/minecraft/client/renderer/CubeMap;render(Lnet/minecraft/client/Minecraft;FF)V`): one call to `ExtrasPanorama.draw`, which gets the renderer's own cube map, the client, and a lambda that makes the original call on whichever cube map it picks.
+- **Purpose:** While `/wv extras panorama` is on, retro is off and Vetlas has not failed this session, draws the Vetlas cube map that vetsmod bundles in place of the one the renderer holds; otherwise the renderer's own. The body is one call into code that throws only what the renderer's own draw throws.
+- **Why:** `render` turns the panorama, draws the cube map, then lays vanilla's overlay over it, so wrapping only the cube map's draw leaves the turn and the overlay vanilla's. Vanilla calls it behind the main menu, every screen opened with no world, `GenericMessageScreen` and the level-loading screen, so one hook covers them all, and it works with whichever panorama the packs give, Wynntils' preloaded copy of Wynncraft's included. The choice is made at each draw, so the setting needs no reload. [vetsmod_extras.md](vetsmod_extras.md) owns the rest.
 
 ## Legacy item (3)
 
@@ -216,6 +225,6 @@ Common gotchas:
 - Check the Mojang mappings (`loom.officialMojangMappings()` in `build.gradle`; the `yarn_mappings` property in `gradle.properties` is read by nothing) — several intrinsic names changed in 1.21.11 (e.g. `submitNameTag`)
 - For hot paths keep logic tight — `renderSlot` runs per slot every frame, and `addMessage` once per chat message
 - **A mixin into another mod's class goes in a non-required config with `require = 0`.** `vetsmod.client.mixins.json` is `required: true` with `defaultRequire: 1`, so a Wynntils refactor of a target there crashes the game at load, and users update Wynntils on their own. `vetsmod.laurels.mixins.json` is `required: false` with `defaultRequire: 0` instead: a handler that does not match is a WARN and the class loads untransformed, which also drops any other mod's mixins into that class. Its price is that mistakes become log lines, so check `latest.log` for `LaurelBarMixin` and "orphaned mixins" on the production jar (see [vetsmod_laurels.md](vetsmod_laurels.md)).
-- **Mixin disallows non-private statics on a mixin class** — both methods and fields. `vetsmod$resetLoggedNametags` crashed mod load with `InvalidMixinException` ("contains non-private static method"); `MixinPreProcessorStandard.validateField` throws the same exception class for a non-private, non-`@Shadow`, non-synthetic static *field*. If you need a public static helper, put it in a sibling helper class. This is plain SpongePowered Mixin, not MixinSquared — vetsmod's only mixin-helper dependency is MixinExtras (`@WrapOperation` in `NametagMixin` and `LaurelBarMixin`, `@ModifyReturnValue` in `RetroHoveredSlotMixin`, `@ModifyExpressionValue` in `RetroEffectsInInventoryMixin`); MixinSquared appears only in archived runtime mod-list dumps, shipped by some other installed mod.
+- **Mixin disallows non-private statics on a mixin class** — both methods and fields. `vetsmod$resetLoggedNametags` crashed mod load with `InvalidMixinException` ("contains non-private static method"); `MixinPreProcessorStandard.validateField` throws the same exception class for a non-private, non-`@Shadow`, non-synthetic static *field*. If you need a public static helper, put it in a sibling helper class. This is plain SpongePowered Mixin, not MixinSquared — vetsmod's only mixin-helper dependency is MixinExtras (`@WrapOperation` in `NametagMixin`, `LaurelBarMixin` and `PanoramaRendererMixin`, `@ModifyReturnValue` in `RetroHoveredSlotMixin`, `@ModifyExpressionValue` in `RetroEffectsInInventoryMixin` and `RetroItemModelResolverMixin`); MixinSquared appears only in archived runtime mod-list dumps, shipped by some other installed mod.
 - **Prefer render-side / read-side filtering to packet-side / write-side mutation.** Five working precedents in this file: `BossHealthOverlayMixin` (`@Redirect` on `events.values()`), `RetroEffectsInInventoryMixin` (`@ModifyExpressionValue` on `getActiveEffects()`), `RetroHoveredSlotMixin` (`@ModifyReturnValue` on `getHoveredSlot`), `EntityOutlineColorMixin` and `NametagMixin` (both TAIL on `extractRenderState`). A sixth, `EntityGlowingMixin` (HEAD-cancellable on `isCurrentlyGlowing`), is read-side in shape, but whether it is still load-bearing in 1.21.11 is unconfirmed — see its entry above. Cancelling has burned us twice, in two directions — cancelling vanilla's `BossHealthOverlay#update` crashed the client, and *being* cancelled by Wynntils short-circuited the nametag override. Keep vanilla bookkeeping intact; intercept what comes out, not what goes in.
 - **Don't trust `state.<field>` to mean what you think** — vanilla often wraps or coerces right before assignment. `state.outlineColor = ARGB.opaque(getTeamColor())` turns a `0` from the getter into opaque black, not transparent (see `EntityOutlineColorMixin` above). Check the assignment site, not just the source value.

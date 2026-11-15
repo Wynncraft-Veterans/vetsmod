@@ -15,6 +15,11 @@ public enum RetroSource {
     MINECRAFT_1_8_9("1.8.9", true),
     /** Minecraft 1.9.4's art, as the {@code old_clients} rows take it from that client. */
     MINECRAFT_1_9_4("1.9.4", true),
+    /**
+     * vetsmod's own art, downloaded from i.wynnvets.org while retro is on: the main menu's
+     * panorama. Nothing until it is downloaded.
+     */
+    VETSMOD("vetsmod", false),
     /** The Vanilla Tweaks art the jar bundles, credited in {@code credits.txt}. */
     VANILLA_TWEAKS("vanilla_tweaks", false),
     /** The {@code programmer_art} pack built into the running client. */

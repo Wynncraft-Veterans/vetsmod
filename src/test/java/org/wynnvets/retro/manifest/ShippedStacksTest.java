@@ -6,6 +6,7 @@ import static org.wynnvets.retro.manifest.ShippedFiles.onClasspath;
 import static org.wynnvets.retro.manifest.ShippedFiles.textureInClientJar;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -49,7 +50,8 @@ class ShippedStacksTest {
         // icons cover these and the tome and charm, which are not boxes.
         RetroManifest manifest = RetroManifest.load();
         ModelRules rules = new ModelRules(manifest.models());
-        Map<String, String> icons = manifest.stacks().gearBoxIcons();
+        Map<String, String> icons = new HashMap<>();
+        manifest.stacks().gearBoxIcons().forEach((type, icon) -> icons.put(type, icon.item()));
 
         assertEquals(
                 Set.of(

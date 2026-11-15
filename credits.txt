@@ -24,16 +24,30 @@ NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR 
 Minecraft and its art belong to Mojang AB and Microsoft. /wv retro reads the present and Programmer
 Art textures from the player's own copy of the game, while the game runs, and downloads the
 textures of Minecraft 1.7.10, 1.8.9 and 1.9.4 it draws, and no others, from Mojang's own servers
-into the player's game folder; none of them are in vetsmod's jar. Some Vanilla Tweaks textures above recreate or
-build on historical Minecraft art.
+into the player's game folder; none of those files are in vetsmod's jar, though the main-menu
+panoramas (below) show some of them as the game drew them. Some Vanilla Tweaks textures above
+recreate or build on historical Minecraft art.
 Terms: https://www.minecraft.net/eula
 
 
 Wynncraft: https://wynncraft.com/
 
 Wynncraft's art belongs to Wynncraft. /wv retro reads it from the resource pack the player's own
-game downloaded from the server, while the game runs; none of it is in vetsmod's jar. vetsmod is a
-community project, not made or endorsed by Wynncraft.
+game downloaded from the server, while the game runs; none of its files are in vetsmod's jar.
+vetsmod is a community project, not made or endorsed by Wynncraft.
+
+vetsmod bundles two main-menu panoramas, each six screenshots its authors took in game:
+
+- Old Detlas, a Wynncraft city, drawn in the textures /wv retro draws, Minecraft's and Vanilla
+  Tweaks' among them, under src/client/resources/retro/vetsmod (retro/vetsmod in the jar), which
+  /wv retro shows;
+- Vetlas, drawn in Wynncraft's own textures, under
+  src/main/resources/assets/vetsmod/textures/gui/title/background (the same path under assets/ in
+  the jar), which an easter egg shows.
+
+The screenshots are vetsmod's own. What they show stays its owners': Old Detlas and Wynncraft's
+textures are Wynncraft's, Minecraft's textures Mojang's and Microsoft's, and the Vanilla Tweaks
+textures stay under Vanilla Tweaks' terms.
 
 
 Wynntils: https://wynntils.net/ and https://github.com/Wynntils/Wynntils

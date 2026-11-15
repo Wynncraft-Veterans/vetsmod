@@ -3,6 +3,7 @@ package org.wynnvets.retro;
 import com.wynntils.utils.mc.McUtils;
 import java.io.IOException;
 import java.util.Set;
+import java.util.function.Consumer;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -11,6 +12,8 @@ import org.wynnvets.config.VetsConfig;
 import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.listeners.ServerConnectionListener;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.rendering.panorama.HostedPanorama;
+import org.wynnvets.rendering.panorama.PanoramaDownloads;
 import org.wynnvets.retro.manifest.RetroManifest;
 import org.wynnvets.retro.manifest.RetroPart;
 import org.wynnvets.retro.pack.OldClientFetch;
@@ -72,6 +75,11 @@ public final class RetroModeManager {
     public enum Outcome {
         /** The pack list changes, so a resource reload has been queued. */
         RELOADING,
+        /**
+         * On, and the old clients' textures are downloading first (once); the reload follows when
+         * they arrive, or fail to.
+         */
+        FETCHING,
         /** The loaded resources already match the setting. */
         UNCHANGED,
         /** On, but no Wynncraft pack is loaded for the retro pack to sit above yet. */
@@ -256,13 +264,14 @@ public final class RetroModeManager {
         }
         boolean wynncraft = RetroPackInjector.isWynncraftLoaded();
         boolean reload = (isActive() && wynncraft) != RetroPackInjector.isRetroLoaded();
-        // A fetch of the old clients' files reloads when it ends, so the reload waits for it.
-        boolean fetching = isActive() && fetchOldClients();
+        // A fetch of the art retro downloads reloads when it ends, so the reload waits for it.
+        boolean fetching = isActive() && fetchMissing();
         if (reload && !fetching) {
             Minecraft mc = McUtils.mc();
             mc.execute(mc::reloadResourcePacks);
         }
         if (enabled && latchReason != null) return Outcome.LATCHED;
+        if (fetching) return Outcome.FETCHING;
         if (reload) return Outcome.RELOADING;
         if (enabled && !wynncraft) return Outcome.NO_WYNNCRAFT_PACK;
         return Outcome.UNCHANGED;
@@ -301,49 +310,66 @@ public final class RetroModeManager {
     }
 
     /**
-     * At start-up, while retro is on, fetches the old clients' files that are missing
-     * ({@link OldClientFetch}): once per change to their rules, the first time only. A reload
-     * follows when it wrote any and the retro pack is loaded. Render thread only; it never throws.
+     * At start-up, while retro is on, fetches the art retro downloads that is missing: the old
+     * clients' files ({@link OldClientFetch}), once per change to their rules, and the main menu's
+     * panorama ({@link HostedPanorama#OLD_DETLAS}), once. Nothing is fetched while retro is off,
+     * so a player who never turns it on downloads nothing. A reload follows when it wrote any and
+     * the retro pack is loaded. Render thread only; it never throws.
      */
     public static void startUp() {
         try {
-            if (isActive()) fetchOldClients();
+            if (isActive()) fetchMissing();
         } catch (RuntimeException | LinkageError e) {
-            VetsLogger.warn("Retro: could not start fetching the old clients' textures", e);
+            VetsLogger.warn("Retro: could not start fetching the old textures", e);
         }
     }
 
     /**
-     * Starts fetching the old clients' files that are missing; when it ends, a reload is queued if
-     * {@link #reloadAfterFetch} says so. Render thread only.
+     * Starts fetching the art retro downloads that is missing: the old clients' files, then the
+     * main menu's panorama, one after the other on their own threads. When the last ends, a reload
+     * is queued if {@link #reloadAfterFetch} says so, and while retro is on a chat line says how
+     * the fetch went (dropped when there is no player yet, as at start-up). Render thread only.
      *
      * @return whether a fetch started, so a reload may follow it
      */
-    private static boolean fetchOldClients() {
+    private static boolean fetchMissing() {
         Minecraft mc = McUtils.mc();
-        return OldClientFetch.start(
-                manifest(),
-                mc.getVanillaPackResources(),
+        Consumer<Boolean> done =
                 wrote ->
                         mc.execute(
                                 () -> {
-                                    if (reloadAfterFetch(
-                                            wrote,
-                                            isActive(),
-                                            RetroPackInjector.isWynncraftLoaded(),
-                                            RetroPackInjector.isRetroLoaded())) {
-                                        mc.reloadResourcePacks();
+                                    boolean reload =
+                                            reloadAfterFetch(
+                                                    wrote,
+                                                    isActive(),
+                                                    RetroPackInjector.isWynncraftLoaded(),
+                                                    RetroPackInjector.isRetroLoaded());
+                                    if (reload) mc.reloadResourcePacks();
+                                    if (isActive()) {
+                                        ChatUtils.sendLocalMessage(
+                                                RetroCommands.fetchedLine(wrote, reload));
                                     }
-                                }));
+                                });
+        return OldClientFetch.start(
+                        manifest(),
+                        mc.getVanillaPackResources(),
+                        oldClients -> {
+                            if (!PanoramaDownloads.start(
+                                    HostedPanorama.OLD_DETLAS,
+                                    panorama -> done.accept(oldClients || panorama))) {
+                                done.accept(oldClients);
+                            }
+                        })
+                || PanoramaDownloads.start(HostedPanorama.OLD_DETLAS, done);
     }
 
     /**
-     * Whether a fetch of the old clients' files ending calls for a reload: while retro is on and
+     * Whether a fetch of the art retro downloads ending calls for a reload: while retro is on and
      * not stopped, with a Wynncraft pack loaded, when it wrote files the loaded retro pack lacks, or
      * when no retro pack is loaded yet ({@link #setEnabled} left the reload to it). It never
      * reloads a stopped retro.
      *
-     * @param wrote whether the fetch wrote any client's files
+     * @param wrote whether the fetch wrote any client's files or the panorama
      * @param active whether retro is on and not stopped
      * @param wynncraftLoaded whether a Wynncraft pack is loaded
      * @param retroLoaded whether a retro pack is loaded

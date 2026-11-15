@@ -93,7 +93,10 @@ class RetroSourcesTest {
 
         try (RetroSources sources =
                 RetroSources.open(
-                        null, tweaks, Map.of(RetroSource.MINECRAFT_1_7_10, old), vanilla)) {
+                        null,
+                        Map.of(RetroSource.VANILLA_TWEAKS, tweaks),
+                        Map.of(RetroSource.MINECRAFT_1_7_10, old),
+                        vanilla)) {
             assertEquals(
                     List.of(
                             RetroSource.MINECRAFT_1_7_10,

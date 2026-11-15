@@ -1,15 +1,22 @@
 package org.wynnvets.retro.pack;
 
 import com.wynntils.utils.mc.McUtils;
+import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.PackResources;
 import net.minecraft.server.packs.resources.ReloadInstance;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.rendering.panorama.HostedPanorama;
+import org.wynnvets.rendering.panorama.PanoramaDownloads;
 import org.wynnvets.retro.RetroModeManager;
+import org.wynnvets.retro.manifest.RetroManifest;
+import org.wynnvets.retro.manifest.RetroSource;
 import org.wynnvets.retro.pack.generate.RetroPackGenerator;
 import org.wynnvets.retro.pack.generate.RetroSources;
 
@@ -90,7 +97,7 @@ public final class RetroPackInjector {
                             mc.getResourcePackRepository()
                                     .getPack(RetroSources.PROGRAMMER_ART_PACK),
                             mc.getVanillaPackResources(),
-                            OldClients::open);
+                            RetroPackInjector::downloaded);
             RetroPackResources retro =
                     new RetroPackResources(generator::generate, RetroPackGenerator::staticFiles);
             List<PackResources> withRetro = new ArrayList<>(packs);
@@ -171,6 +178,33 @@ public final class RetroPackInjector {
      */
     public static boolean isRetroPack(PackResources pack) {
         return pack instanceof RetroPackResources;
+    }
+
+    /**
+     * The art retro downloaded that is here, for a generation to read and close: the old clients'
+     * files ({@link OldClients#open}) and, its files unchanged, the main menu's panorama
+     * ({@link HostedPanorama#OLD_DETLAS}) as the {@code vetsmod} source. It never throws.
+     *
+     * @param manifest the rule files the generation reads
+     * @return each source's pack; none for what is not here
+     */
+    private static Map<RetroSource, PackResources> downloaded(RetroManifest manifest) {
+        Map<RetroSource, PackResources> packs = new EnumMap<>(RetroSource.class);
+        packs.putAll(OldClients.open(manifest));
+        try {
+            Path panorama = PanoramaDownloads.verified(HostedPanorama.OLD_DETLAS);
+            if (panorama != null) {
+                packs.put(
+                        RetroSource.VETSMOD,
+                        PackFiles.folder(
+                                panorama,
+                                "vetsmod_retro_" + RetroSource.VETSMOD.yamlName(),
+                                "vetsmod"));
+            }
+        } catch (Throwable t) {
+            VetsLogger.warn("Retro pack: could not open the downloaded panorama", t);
+        }
+        return packs;
     }
 
     /** The index of the highest Wynncraft pack in {@code packs}, or {@code -1}. */

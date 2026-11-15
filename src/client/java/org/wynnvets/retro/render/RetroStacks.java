@@ -1,5 +1,6 @@
 package org.wynnvets.retro.render;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -11,6 +12,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import org.wynnvets.retro.LivePack;
+import org.wynnvets.retro.manifest.ScreenSections;
 
 /**
  * The stacks retro draws for itself, and the parsed ids its rows name. Each decorative stack is
@@ -24,7 +26,9 @@ final class RetroStacks {
     /** The parsed ids, by the text they parse. */
     private static final Map<String, Identifier> IDS = new ConcurrentHashMap<>();
 
-    private static ItemStack whiteGlass;
+    /** The glass panes drawn in panel slots, by dye colour. */
+    private static final Map<String, ItemStack> GLASS = new HashMap<>();
+
     private static ItemStack glintingBook;
 
     private RetroStacks() {}
@@ -40,13 +44,32 @@ final class RetroStacks {
     }
 
     /**
-     * The white glass drawn in a panel slot: vanilla's pane, which Wynncraft does not redefine.
+     * The glass drawn in a panel slot: vanilla's glass pane, or its stained glass pane of that
+     * dye, none of which Wynncraft redefines.
      *
+     * @param colour one of {@link ScreenSections#GLASS_COLOURS}
      * @return the shared stack
      */
-    static ItemStack whiteGlass() {
-        if (whiteGlass == null) whiteGlass = new ItemStack(Items.WHITE_STAINED_GLASS_PANE);
-        return whiteGlass;
+    static ItemStack glass(String colour) {
+        return GLASS.computeIfAbsent(
+                colour,
+                kind ->
+                        new ItemStack(
+                                BuiltInRegistries.ITEM.getValue(
+                                        Identifier.withDefaultNamespace(paneId(kind)))));
+    }
+
+    /**
+     * The item id of a {@code glass} colour's pane, without its namespace.
+     *
+     * @param colour one of {@link ScreenSections#GLASS_COLOURS}
+     * @return {@code glass_pane} for clear, else {@code <dye>_stained_glass_pane}
+     */
+    // Package-private for unit tests. See RetroSlotsTest.
+    static String paneId(String colour) {
+        return ScreenSections.CLEAR_GLASS.equals(colour)
+                ? "glass_pane"
+                : colour + "_stained_glass_pane";
     }
 
     /**
